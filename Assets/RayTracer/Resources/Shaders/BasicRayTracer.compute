@@ -1,13 +1,21 @@
 ﻿// Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel Trace
 
+struct Triangle
+{
+	float3 a;
+	float3 b;
+	float3 c;
+	float3 normal;
+};
+
 struct Ray
 {
 	float3 origin;
 	float3 direction;
 };
 
-Ray make_ray(float3 origin, float3 direction)
+Ray makeRay(float3 origin, float3 direction)
 {
 	Ray ray;
 	ray.origin = origin;
@@ -15,21 +23,50 @@ Ray make_ray(float3 origin, float3 direction)
 	return ray;
 }
 
-float4x4 g_CameraToWorldMatrix;
 float3 g_Light;
 float3 g_Origin;
 float3 g_Direction;
 float2 g_ImageSize;
 float g_FOV;
 RWTexture2D<float4> g_Result;
+StructuredBuffer<Triangle> g_Triangles;
 
 static const float PI = 3.14159265f;
+static const float EPSILON = 1e-6;
+static const float TMAX = 3.402823466e+38F;
 
+// Möller–Trumbore intersection algorithm
+// should probably be replaced
+float intersectTriangle(Triangle tri, Ray ray)
+{
+	float3 e1 = tri.b - tri.a;
+	float3 e2 = tri.c - tri.a;
+	float3 P = cross(ray.direction, e2);
+	float det = dot(e1, P);
+	if (det > -EPSILON && det < EPSILON)
+		return 0;
+	float invDet = 1.0 / det;
+
+	float3 T = ray.origin - tri.a;
+
+	float u = dot(T, P) * invDet;
+	if (u < 0 || u > 1)
+		return 0;
+
+	float3 Q = cross(T, e1);
+
+	float v = dot(ray.direction, Q) * invDet;
+	if (v < 0 || u + v > 1)
+		return 0;
+
+	float t = dot(e2, Q) * invDet;
+	return max(t, 0);
+}
 
 float intersectSphere(float3 position, float radius, Ray ray)
 {
 	float3 op = position - ray.origin;
-	float t, epsilon = 1e-3;
+	float t, epsilon = 1e-6;
 	float b = dot(op, ray.direction);
 	float disc = b * b - dot(op, op) + radius * radius;
     if (disc < 0)
@@ -47,17 +84,40 @@ float intersectSphere(float3 position, float radius, Ray ray)
 [numthreads(8, 8, 1)]
 void Trace(uint3 id : SV_DispatchThreadID)
 {
-	Ray camera = make_ray(g_Origin, g_Direction);
+	Ray camera = makeRay(g_Origin, g_Direction);
 	float3 cx = float3(g_ImageSize.x * g_FOV / g_ImageSize.y, 0.0f, 0.0f);
 	float3 cy = normalize(cross(cx, camera.direction)) * g_FOV;
 	float3 direction = normalize(camera.direction + cx * ((.25 + id.x) / g_ImageSize.x - .5) + cy * ((.25 + g_ImageSize.y - id.y) / g_ImageSize.y - .5));
 
-	float3 circleCenter = float3(0, 1, -5);
-	float t = intersectSphere(circleCenter, 0.5, make_ray(camera.origin, direction));
-	float3 intersection = camera.origin + t * direction;
-	float3 normal = normalize(intersection - circleCenter);
-	float ndotl = max(0, dot(normal, -g_Light));
-	float3 light = step(1e-3, t) * (ndotl * 0.75 + 0.1);
+	Ray r = makeRay(camera.origin, direction);
+	//float3 circleCenter = float3(0, 0, 0);
+	//float t = intersectSphere(circleCenter, 0.5, r);
+	//float3 intersection = camera.origin + t * direction;
+	//float3 normal = normalize(intersection - circleCenter);
+	//float ndotl = max(0, dot(normal, -g_Light));
+	//float3 light = step(1e-3, t) * (ndotl * 0.75 + 0.1);
 
-	g_Result[id.xy] = float4(light, 1);
+	uint numTriangles, stride;
+	g_Triangles.GetDimensions(numTriangles, stride);
+
+	float t = TMAX;
+	Triangle tri;
+	for (uint i = 0; i < numTriangles; i++)
+	{
+		float new_t = intersectTriangle(g_Triangles[i], r);
+        if (new_t > EPSILON && new_t < t)
+		{
+			t = new_t;
+			tri = g_Triangles[i];
+		}
+	}
+
+	float3 color;
+
+    if (t - TMAX < 0)
+		color = dot(tri.normal, -g_Light);
+    else
+		color = 0;
+
+	g_Result[id.xy] = float4(color, 1);
 }
