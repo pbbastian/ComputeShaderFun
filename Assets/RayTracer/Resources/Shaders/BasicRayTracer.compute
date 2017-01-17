@@ -1,0 +1,63 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel Trace
+
+struct Ray
+{
+	float3 origin;
+	float3 direction;
+};
+
+Ray make_ray(float3 origin, float3 direction)
+{
+	Ray ray;
+	ray.origin = origin;
+	ray.direction = direction;
+	return ray;
+}
+
+float4x4 g_CameraToWorldMatrix;
+float3 g_Light;
+float3 g_Origin;
+float3 g_Direction;
+float2 g_ImageSize;
+float g_FOV;
+RWTexture2D<float4> g_Result;
+
+static const float PI = 3.14159265f;
+
+
+float intersectSphere(float3 position, float radius, Ray ray)
+{
+	float3 op = position - ray.origin;
+	float t, epsilon = 1e-3;
+	float b = dot(op, ray.direction);
+	float disc = b * b - dot(op, op) + radius * radius;
+    if (disc < 0)
+		return 0;
+	disc = sqrt(disc);
+	t = b - disc;
+    if (t > epsilon)
+		return t;
+	t = b + disc;
+    if (t > epsilon)
+		return t;
+	return 0;
+}
+
+[numthreads(8, 8, 1)]
+void Trace(uint3 id : SV_DispatchThreadID)
+{
+	Ray camera = make_ray(g_Origin, g_Direction);
+	float3 cx = float3(g_ImageSize.x * g_FOV / g_ImageSize.y, 0.0f, 0.0f);
+	float3 cy = normalize(cross(cx, camera.direction)) * g_FOV;
+	float3 direction = normalize(camera.direction + cx * ((.25 + id.x) / g_ImageSize.x - .5) + cy * ((.25 + g_ImageSize.y - id.y) / g_ImageSize.y - .5));
+
+	float3 circleCenter = float3(0, 1, -5);
+	float t = intersectSphere(circleCenter, 0.5, make_ray(camera.origin, direction));
+	float3 intersection = camera.origin + t * direction;
+	float3 normal = normalize(intersection - circleCenter);
+	float ndotl = max(0, dot(normal, -g_Light));
+	float3 light = step(1e-3, t) * (ndotl * 0.75 + 0.1);
+
+	g_Result[id.xy] = float4(light, 1);
+}
