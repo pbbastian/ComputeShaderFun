@@ -90,12 +90,6 @@ void Trace(uint3 id : SV_DispatchThreadID)
 	float3 direction = normalize(camera.direction + cx * ((.25 + id.x) / g_ImageSize.x - .5) + cy * ((.25 + g_ImageSize.y - id.y) / g_ImageSize.y - .5));
 
 	Ray r = makeRay(camera.origin, direction);
-	//float3 circleCenter = float3(0, 0, 0);
-	//float t = intersectSphere(circleCenter, 0.5, r);
-	//float3 intersection = camera.origin + t * direction;
-	//float3 normal = normalize(intersection - circleCenter);
-	//float ndotl = max(0, dot(normal, -g_Light));
-	//float3 light = step(1e-3, t) * (ndotl * 0.75 + 0.1);
 
 	uint numTriangles, stride;
 	g_Triangles.GetDimensions(numTriangles, stride);
