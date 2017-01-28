@@ -39,7 +39,7 @@ namespace RayTracer.Runtime.Shaders
 
 		public ComputeBuffer triangleBuffer
 		{
-			set { m_Shader.SetBuffer(m_TraceKernel, "g_Triangles", value); }
+			set { m_Shader.SetBuffer(m_TraceKernel, "g_TriangleBuffer", value); }
 		}
 
 		public RenderTexture result
