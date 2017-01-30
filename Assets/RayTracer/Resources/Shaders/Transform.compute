@@ -1,0 +1,16 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+RWStructuredBuffer<float3> g_VertexBuffer;
+RWStructuredBuffer<float3> g_NormalBuffer;
+StructuredBuffer<uint> g_ObjectIndexBuffer;
+StructuredBuffer<float4x4> g_TransformBuffer;
+
+[numthreads(32,1,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    uint objectIndex = g_ObjectIndexBuffer.Load(id.x);
+    float4x4 transform = g_TransformBuffer.Load(objectIndex);
+    g_VertexBuffer[id.x] = mul(transform, float4(g_VertexBuffer[id.x], 1));
+    g_NormalBuffer[id.x] = mul(transform, float4(g_VertexBuffer[id.x], 0));
+}

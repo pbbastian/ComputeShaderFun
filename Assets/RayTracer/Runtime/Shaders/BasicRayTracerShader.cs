@@ -1,4 +1,5 @@
 ﻿using System;
+using RayTracer.Runtime.Util;
 using UnityEngine;
 
 namespace RayTracer.Runtime.Shaders
@@ -8,63 +9,43 @@ namespace RayTracer.Runtime.Shaders
 		private ComputeShader m_Shader;
 		private int m_TraceKernel;
 
-		private BasicRayTracerShader()
+		public BasicRayTracerShader()
 		{
-		}
+            var shader = Resources.Load<ComputeShader>("Shaders/BasicRayTracer");
+            if (shader == null)
+                throw new Exception("Resource 'Shaders/BasicRayTracer' not found.");
+            var traceKernel = shader.FindKernel("Trace");
+            if (traceKernel == -1)
+                throw new Exception("Kernel 'Trace' not found in shader.");
+            m_Shader = shader;
+		    m_TraceKernel = traceKernel;
 
-		public Vector2 imageSize
-		{
-			set { m_Shader.SetVector("g_ImageSize", value); }
-		}
+            imageSize = new Vector2ShaderParameter(m_Shader, "g_ImageSize");
+            origin = new Vector3ShaderParameter(m_Shader, "g_Origin");
+            direction = new Vector3ShaderParameter(m_Shader, "g_Direction");
+            light = new Vector3ShaderParameter(m_Shader, "g_Light");
+            fieldOfView = new FloatShaderParameter(m_Shader, "g_FOV");
+            triangleBuffer = new BufferShaderParameter(m_Shader, traceKernel, "g_TriangleBuffer");
+            result = new TextureShaderParameter<RenderTexture>(m_Shader, traceKernel, "g_Result");
+        }
 
-		public Vector3 origin
-		{
-			set { m_Shader.SetVector("g_Origin", value); }
-		}
+	    public IShaderParameter<Vector2> imageSize { get; private set; }
 
-		public Vector3 direction
-		{
-			set { m_Shader.SetVector("g_Direction", value); }
-		}
+		public IShaderParameter<Vector3> origin { get; private set; }
 
-		public Vector3 light
-		{
-			set { m_Shader.SetVector("g_Light", value); }
-		}
+		public IShaderParameter<Vector3> direction { get; private set; }
 
-		public float fieldOfView
-		{
-			set { m_Shader.SetFloat("g_FOV", value); }
-		}
+	    public IShaderParameter<Vector3> light { get; private set; }
 
-		public ComputeBuffer triangleBuffer
-		{
-			set { m_Shader.SetBuffer(m_TraceKernel, "g_TriangleBuffer", value); }
-		}
+	    public IShaderParameter<float> fieldOfView { get; private set; }
 
-		public RenderTexture result
-		{
-			set { m_Shader.SetTexture(m_TraceKernel, "g_Result", value); }
-		}
+	    public IShaderParameter<ComputeBuffer> triangleBuffer { get; private set; }
+
+		public IShaderParameter<RenderTexture> result { get; private set; }
 
 		public void DispatchTrace(int totalX, int totalY)
 		{
 			m_Shader.Dispatch(m_TraceKernel, Mathf.CeilToInt(totalX / 8f), Mathf.CeilToInt(totalY / 8f), 1);
-		}
-
-		public static BasicRayTracerShader Create()
-		{
-			var shader = Resources.Load<ComputeShader>("Shaders/BasicRayTracer");
-			if (shader == null)
-				throw new Exception("Resource 'Shaders/BasicRayTracer' not found.");
-			var traceKernel = shader.FindKernel("Trace");
-			if (traceKernel == -1)
-				throw new Exception("Kernel 'Trace' not found in shader.");
-			return new BasicRayTracerShader
-			{
-				m_Shader = shader,
-				m_TraceKernel = traceKernel
-			};
 		}
 	}
 }

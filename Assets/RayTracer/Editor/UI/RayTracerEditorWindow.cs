@@ -19,6 +19,7 @@ namespace RayTracer.Editor.UI
         public static RayTracerEditorWindow CreateOrGet()
         {
             s_Window = GetWindow<RayTracerEditorWindow>();
+            s_Window.OnEnable();
             return window;
         }
 

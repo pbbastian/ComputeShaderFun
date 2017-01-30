@@ -48,14 +48,14 @@ namespace RayTracer.Runtime
 			var rtCamera = UnityEngine.Object.FindObjectOfType<RayTracingCamera>();
 			var camera = rtCamera.gameObject.GetComponent<Camera>();
 
-			var shader = BasicRayTracerShader.Create();
-			shader.imageSize = new Vector2(renderTexture.width, renderTexture.height);
-			shader.origin = rtCamera.gameObject.transform.position;
-			shader.direction = camera.gameObject.transform.forward;
-			shader.light = light.gameObject.transform.forward;
-			shader.fieldOfView = Mathf.Deg2Rad * camera.fieldOfView;
-			shader.triangleBuffer = m_TriangleBuffer;
-			shader.result = renderTexture;
+			var shader = new BasicRayTracerShader();
+			shader.imageSize.value = new Vector2(renderTexture.width, renderTexture.height);
+			shader.origin.value = rtCamera.gameObject.transform.position;
+			shader.direction.value = camera.gameObject.transform.forward;
+			shader.light.value = light.gameObject.transform.forward;
+			shader.fieldOfView.value = Mathf.Deg2Rad * camera.fieldOfView;
+			shader.triangleBuffer.value = m_TriangleBuffer;
+			shader.result.value = renderTexture;
 			shader.DispatchTrace(renderTexture.width, renderTexture.height);
 		}
 	}

@@ -43,8 +43,8 @@ namespace RayTracer.Editor.UI
 			m_BlackTexture.SetPixel(1, 1, Color.black);
 			m_BlackTexture.Apply();
 
-			m_Assets = Resources.FindObjectsOfTypeAll<RayTracingProfileAsset>();
-			m_PopupValues = new [] {-1}.Concat(m_Assets.Select(a => a.GetInstanceID())).ToArray();
+			m_Assets = Resources.LoadAll<RayTracingProfileAsset>("");
+            m_PopupValues = new [] {-1}.Concat(m_Assets.Select(a => a.GetInstanceID())).ToArray();
 			m_PopupNames = new [] {"None"}.Concat(m_Assets.Select(a => a.name)).ToArray();
 
 			m_Context = new RayTracingContext();
