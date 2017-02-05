@@ -43,7 +43,7 @@ namespace RayTracer.Runtime.Shaders
 
         public void Dispatch(int vertexCount)
         {
-            m_Shader.Dispatch(m_KernelIndex, Mathf.CeilToInt(vertexCount / m_SizeX), 1, 1);
+            m_Shader.Dispatch(m_KernelIndex, Mathf.CeilToInt((float)vertexCount / m_SizeX), 1, 1);
         }
     }
 }
