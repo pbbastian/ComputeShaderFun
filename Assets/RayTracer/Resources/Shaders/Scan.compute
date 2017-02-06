@@ -5,9 +5,8 @@
 StructuredBuffer<int> g_InputBuffer;
 RWStructuredBuffer<int> g_OutputBuffer;
 
-groupshared int temp[2 * GROUP_SIZE];
+groupshared int temp[GROUP_SIZE];
 
-/*
 int ScanWarp(uint index, uint lane)
 {
     if (lane >= 1)
@@ -26,56 +25,34 @@ int ScanWarp(uint index, uint lane)
 
 int ScanBlock(uint index)
 {
-    uint lane = idx & 31; // index of thread in warp (0..31)
-    uint warpId = idx >> 5;
+    uint lane = index & 31; // index of thread in warp (0..31)
+    uint warpId = index >> 5;
 
     uint val = ScanWarp(index, lane);
     GroupMemoryBarrierWithGroupSync();
 
-    if ()
-}*/
+    if (lane == 31)
+        temp[warpId] = temp[index];
+    GroupMemoryBarrierWithGroupSync();
+
+    if (warpId == 0)
+        ScanWarp(index, lane);
+    GroupMemoryBarrierWithGroupSync();
+
+    if (warpId > 0)
+        val = val + temp[warpId - 1];
+    GroupMemoryBarrierWithGroupSync();
+
+    temp[index] = val;
+    GroupMemoryBarrierWithGroupSync();
+
+    return val;
+}
 
 [numthreads(GROUP_SIZE, 1, 1)]
 void CSMain(uint3 id : SV_DispatchThreadID)
 {
-    int threadId = id.x;
-    int offset = 1;
-    
-    temp[2 * threadId] = g_InputBuffer.Load(2 * threadId);
-    temp[2 * threadId + 1] = g_InputBuffer.Load(2 * threadId + 1);
-
-    for (int d = (2 * GROUP_SIZE) >> 1; d > 0; d >>= 1)
-    {
-        GroupMemoryBarrierWithGroupSync();
-        if (threadId < d)
-        {
-            int ai = offset * (2 * threadId + 1) - 1;
-            int bi = offset * (2 * threadId + 2) - 1;
-
-            temp[bi] += temp[ai];
-        }
-        offset *= 2;
-    }
-
-    if (threadId == 0)
-        temp[2 * GROUP_SIZE - 1] = 0;
-
-    for (int d = 1; d < 2 * GROUP_SIZE; d *= 2)
-    {
-        offset >>= 1;
-        GroupMemoryBarrierWithGroupSync();
-        if (threadId < d)
-        {
-            int ai = offset * (2 * threadId + 1) - 1;
-            int bi = offset * (2 * threadId + 2) - 1;
-
-            float t = temp[ai];
-            temp[ai] = temp[bi];
-            temp[bi] += t;
-        }
-    }
-
-    GroupMemoryBarrierWithGroupSync();
-    g_OutputBuffer[2 * threadId] = temp[2 * threadId];
-    g_OutputBuffer[2 * threadId + 1] = temp[2 * threadId + 1];
+    uint index = id.x;
+    temp[index] = g_InputBuffer.Load(index);
+    g_OutputBuffer[index] = ScanBlock(index);
 }
