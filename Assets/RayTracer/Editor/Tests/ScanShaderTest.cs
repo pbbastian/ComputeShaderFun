@@ -10,7 +10,7 @@ namespace RayTracer.Editor.Tests
         [Test]
         public void SingleThreadGroup_CountMatch()
         {
-            var input = Enumerable.Range(0, 512).Select(x => x + 1).ToArray();
+            var input = Enumerable.Range(24, 1024).Select(x => x + 1).ToArray();
             var output = new int[input.Length];
             var expected = new int[input.Length];
             for (var i = 1; i < input.Length; i++)

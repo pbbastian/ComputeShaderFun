@@ -18,7 +18,7 @@ namespace RayTracer.Runtime.Shaders
             var shader = Resources.Load<ComputeShader>("Shaders/Scan");
             if (shader == null)
                 throw new Exception("Resource 'Shaders/Scan' not found.");
-            var kernelIndex = shader.FindKernel("CSMain");
+            var kernelIndex = shader.FindKernel("CSMain_Warp64");
             if (kernelIndex == -1)
                 throw new Exception("Kernel 'CSMain' not found in shader.");
             m_Shader = shader;

@@ -1,6 +1,21 @@
-﻿#pragma kernel CSMain
+﻿#pragma kernel CSMain_Warp64 WARP_64
+#pragma kernel CSMain_Warp32 WARP_32
+#pragma kernel CSMain_Warp16
 
+#ifdef WARP_64
+#define WARP_SIZE 64
 #define GROUP_SIZE 1024
+#define WARP_SHIFT 6
+#elif WARP_32
+#define WARP_SIZE 32
+#define GROUP_SIZE 1024
+#define WARP_SHIFT 5
+#else
+#define WARP_SIZE 16
+#define GROUP_SIZE 512
+#define WARP_SHIFT 4
+#endif
+
 
 StructuredBuffer<int> g_InputBuffer;
 RWStructuredBuffer<int> g_OutputBuffer;
@@ -17,21 +32,27 @@ int ScanWarp(uint index, uint lane)
         temp[index] = temp[index - 4] + temp[index];
     if (lane >= 8)
         temp[index] = temp[index - 8] + temp[index];
+#if WARP_SIZE >= 32
     if (lane >= 16)
         temp[index] = temp[index - 16] + temp[index];
+#endif
+#if WARP_SIZE >= 64
+    if (lane >= 32)
+        temp[index] = temp[index - 32] + temp[index];
+#endif
 
     return lane > 0 ? temp[index - 1] : 0;
 }
 
-int ScanBlock(uint index)
+int ScanGroup(uint index)
 {
-    uint lane = index & 31; // index of thread in warp (0..31)
-    uint warpId = index >> 5;
+    uint lane = index & (WARP_SIZE - 1); // index of thread in warp (0..31)
+    uint warpId = index >> WARP_SHIFT;
 
     uint val = ScanWarp(index, lane);
     GroupMemoryBarrierWithGroupSync();
 
-    if (lane == 31)
+    if (lane == (WARP_SIZE - 1))
         temp[warpId] = temp[index];
     GroupMemoryBarrierWithGroupSync();
 
@@ -49,10 +70,27 @@ int ScanBlock(uint index)
     return val;
 }
 
-[numthreads(GROUP_SIZE, 1, 1)]
-void CSMain(uint3 id : SV_DispatchThreadID)
+void CSMain(uint3 id)
 {
     uint index = id.x;
     temp[index] = g_InputBuffer.Load(index);
-    g_OutputBuffer[index] = ScanBlock(index);
+    g_OutputBuffer[index] = ScanGroup(index);
+}
+
+[numthreads(GROUP_SIZE, 1, 1)]
+void CSMain_Warp64(uint3 id : SV_DispatchThreadID)
+{
+    CSMain(id);
+}
+
+[numthreads(GROUP_SIZE, 1, 1)]
+void CSMain_Warp32(uint3 id : SV_DispatchThreadID)
+{
+    CSMain(id);
+}
+
+[numthreads(GROUP_SIZE, 1, 1)]
+void CSMain_Warp16(uint3 id : SV_DispatchThreadID)
+{
+    CSMain(id);
 }
