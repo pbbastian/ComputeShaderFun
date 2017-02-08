@@ -1,0 +1,37 @@
+﻿#pragma kernel GroupAdd_Warp64 WARP_SIZE=64
+#pragma kernel GroupAdd_Warp32 WARP_SIZE=32
+#pragma kernel GroupAdd_Warp16 WARP_SIZE=16
+
+#if WARP_SIZE == 64
+#define GROUP_SIZE 1024
+#elif WARP_SIZE == 32
+#define GROUP_SIZE 1024
+#else
+#define GROUP_SIZE 256
+#endif
+
+RWStructuredBuffer<int> g_PerThreadBuffer;
+StructuredBuffer<int> g_PerGroupBuffer;
+
+void GroupAdd(uint3 id, uint3 groupId)
+{
+    g_PerThreadBuffer[id.x] += g_PerGroupBuffer[groupId.x];
+}
+
+[numthreads(GROUP_SIZE, 1, 1)]
+void GroupAdd_Warp64(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID)
+{
+    GroupAdd(id, groupId);
+}
+
+[numthreads(GROUP_SIZE, 1, 1)]
+void GroupAdd_Warp32(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID)
+{
+    GroupAdd(id, groupId);
+}
+
+[numthreads(GROUP_SIZE, 1, 1)]
+void GroupAdd_Warp16(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID)
+{
+    GroupAdd(id, groupId);
+}

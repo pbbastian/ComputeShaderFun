@@ -4,38 +4,45 @@ using UnityEngine;
 
 namespace RayTracer.Runtime.Shaders
 {
+    public class ScanData
+    {
+        public int itemCount;
+        public ComputeBuffer buffer;
+        public ComputeBuffer groupResultsBuffer;
+    }
+
     public class ScanShader
     {
         private ComputeShader m_Shader;
         private int m_KernelIndex;
-        private uint m_SizeX;
+        private int m_SizeX;
 
-        private BufferShaderParameter m_InputBuffer;
-        private BufferShaderParameter m_OutputBuffer;
+        private static readonly int s_BufferId = Shader.PropertyToID("g_Buffer");
+        private static readonly int s_GroupResultsBufferId = Shader.PropertyToID("g_GroupResultsBuffer");
 
-        public ScanShader()
+        public ScanShader(WarpSize warpSize)
         {
-            var shader = Resources.Load<ComputeShader>("Shaders/Scan");
-            if (shader == null)
-                throw new Exception("Resource 'Shaders/Scan' not found.");
-            var kernelIndex = shader.FindKernel("CSMain_Warp64");
-            if (kernelIndex == -1)
-                throw new Exception("Kernel 'CSMain' not found in shader.");
-            m_Shader = shader;
-            m_KernelIndex = kernelIndex;
-            uint y, z;
-            shader.GetKernelThreadGroupSizes(kernelIndex, out m_SizeX, out y, out z);
+            m_Shader = Resources.Load<ComputeShader>("Shaders/Scan");
+            var kernelName = "CSMain_Warp" + (int) warpSize;
+            m_KernelIndex = m_Shader.FindKernel(kernelName);
 
-            m_InputBuffer = new BufferShaderParameter(shader, kernelIndex, "g_InputBuffer");
-            m_OutputBuffer = new BufferShaderParameter(shader, kernelIndex, "g_OutputBuffer");
+            uint x, y, z;
+            m_Shader.GetKernelThreadGroupSizes(m_KernelIndex, out x, out y, out z);
+            m_SizeX = (int) x;
         }
 
-        public ComputeBuffer inputBuffer { get { return m_InputBuffer.value; } set { m_InputBuffer.value = value; } }
-        public ComputeBuffer outputBuffer { get { return m_OutputBuffer.value; } set { m_OutputBuffer.value = value; } }
+        public int groupSize { get { return m_SizeX; } }
 
-        public void Dispatch(int itemCount)
+        public int GetGroupCount(int itemCount)
         {
-            m_Shader.Dispatch(m_KernelIndex, Mathf.CeilToInt((float)itemCount / (m_SizeX)), 1, 1);
+            return 1 + (itemCount - 1) / m_SizeX;
+        }
+
+        public void Dispatch(ScanData data)
+        {
+            m_Shader.SetBuffer(m_KernelIndex, s_BufferId, data.buffer);
+            m_Shader.SetBuffer(m_KernelIndex, s_GroupResultsBufferId, data.groupResultsBuffer);
+            m_Shader.Dispatch(m_KernelIndex, GetGroupCount(data.itemCount), 1, 1);
         }
     }
 }

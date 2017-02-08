@@ -12,13 +12,13 @@
 #define WARP_SHIFT 5
 #else
 #define WARP_SIZE 16
-#define GROUP_SIZE 512
+#define GROUP_SIZE 256
 #define WARP_SHIFT 4
 #endif
 
 
-StructuredBuffer<int> g_InputBuffer;
-RWStructuredBuffer<int> g_OutputBuffer;
+RWStructuredBuffer<int> g_Buffer;
+RWStructuredBuffer<int> g_GroupResultsBuffer;
 
 groupshared int temp[GROUP_SIZE];
 
@@ -70,27 +70,31 @@ int ScanGroup(uint index)
     return val;
 }
 
-void CSMain(uint3 id)
+void CSMain(uint3 groupThreadId, uint3 dispatchThreadId, uint3 groupId)
 {
-    uint index = id.x;
-    temp[index] = g_InputBuffer.Load(index);
-    g_OutputBuffer[index] = ScanGroup(index);
+    uint index = groupThreadId.x;
+    int input = g_Buffer[dispatchThreadId.x];
+    temp[index] = input;
+    int result = ScanGroup(index);
+    g_Buffer[dispatchThreadId.x] = result;
+    if (index == GROUP_SIZE - 1)
+        g_GroupResultsBuffer[groupId.x] = input + result;
 }
 
 [numthreads(GROUP_SIZE, 1, 1)]
-void CSMain_Warp64(uint3 id : SV_DispatchThreadID)
+void CSMain_Warp64(uint3 groupThreadId : SV_GroupThreadID, uint3 dispatchThreadId : SV_DispatchThreadID, uint3 groupId : SV_GroupID)
 {
-    CSMain(id);
+    CSMain(groupThreadId, dispatchThreadId, groupId);
 }
 
 [numthreads(GROUP_SIZE, 1, 1)]
-void CSMain_Warp32(uint3 id : SV_DispatchThreadID)
+void CSMain_Warp32(uint3 groupThreadId : SV_GroupThreadID, uint3 dispatchThreadId : SV_DispatchThreadID, uint3 groupId : SV_GroupID)
 {
-    CSMain(id);
+    CSMain(groupThreadId, dispatchThreadId, groupId);
 }
 
 [numthreads(GROUP_SIZE, 1, 1)]
-void CSMain_Warp16(uint3 id : SV_DispatchThreadID)
+void CSMain_Warp16(uint3 groupThreadId : SV_GroupThreadID, uint3 dispatchThreadId : SV_DispatchThreadID, uint3 groupId : SV_GroupID)
 {
-    CSMain(id);
+    CSMain(groupThreadId, dispatchThreadId, groupId);
 }
