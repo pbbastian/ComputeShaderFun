@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace RayTracer.Runtime.Shaders
 {
-    public class ScanData
+    public struct ScanData
     {
         public int itemCount;
         public ComputeBuffer buffer;

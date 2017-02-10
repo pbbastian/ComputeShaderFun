@@ -2,7 +2,7 @@
 
 namespace RayTracer.Runtime.Shaders
 {
-    public class GroupAddData
+    public struct GroupAddData
     {
         public int itemCount;
         public ComputeBuffer perThreadBuffer;
@@ -23,7 +23,6 @@ namespace RayTracer.Runtime.Shaders
             m_Shader = Resources.Load<ComputeShader>("Shaders/GroupAdd");
             var kernelName = "GroupAdd_Warp" + (int) warpSize;
             m_KernelIndex = m_Shader.FindKernel(kernelName);
-            Debug.LogFormat("Kernel index {0}", m_KernelIndex);
             uint x, y, z;
             m_Shader.GetKernelThreadGroupSizes(m_KernelIndex, out x, out y, out z);
             m_SizeX = (int) x;

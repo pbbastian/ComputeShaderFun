@@ -1,13 +1,11 @@
-﻿#pragma kernel CSMain_Warp64 WARP_64
-#pragma kernel CSMain_Warp32 WARP_32
+﻿#pragma kernel CSMain_Warp64 WARP_SIZE=64
+#pragma kernel CSMain_Warp32 WARP_SIZE=32
 #pragma kernel CSMain_Warp16
 
-#ifdef WARP_64
-#define WARP_SIZE 64
+#if WARP_SIZE == 64
 #define GROUP_SIZE 1024
 #define WARP_SHIFT 6
-#elif WARP_32
-#define WARP_SIZE 32
+#elif WARP_SIZE == 32
 #define GROUP_SIZE 1024
 #define WARP_SHIFT 5
 #else

@@ -1,0 +1,39 @@
+﻿#pragma kernel RadixCount
+
+#define GROUP_SIZE 256
+
+StructuredBuffer<int> g_KeyBuffer;
+RWStructuredBuffer<int> g_CountBuffer;
+
+int g_SectionSize;
+int g_KeyMask;
+
+groupshared int counts[GROUP_SIZE][16];
+groupshared int summedCounts[16];
+
+[numthreads(GROUP_SIZE, 1, 1)]
+void RadixCount(uint3 groupThreadId : SV_GroupThreadID, uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    int offset = dispatchThreadId.x * g_SectionSize;
+    for (int i = offset; i < offset + g_SectionSize; i++)
+    {
+        int key = g_KeyBuffer[i];
+        // todo: shift key so that index is correct
+        int value = key & g_KeyMask;
+        counts[groupThreadId.x][value]++;
+    }
+    
+    GroupMemoryBarrierWithGroupSync();
+    
+    // TODO: sum up group counts gooder
+    // TODO: look at AllMemoryBarrierWithGroupSync
+
+    if (groupThreadId.x < 16)
+    {
+        int sum = 0;
+        // todo: unroll, maybe parallelize in some smart way
+        for (int i = 0; i < GROUP_SIZE; i++)
+            sum += counts[i][groupThreadId.x];
+        InterlockedAdd(g_CountBuffer[groupThreadId.x], sum);
+    }
+}
