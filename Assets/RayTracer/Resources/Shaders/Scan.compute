@@ -52,7 +52,7 @@ int ScanGroup(uint index)
 
     if (lane == (WARP_SIZE - 1))
         temp[warpId] = temp[index];
-    GroupMemoryBarrierWithGroupSync();
+    GroupMemoryBarrier();
 
     if (warpId == 0)
         ScanWarp(index, lane);
@@ -63,7 +63,7 @@ int ScanGroup(uint index)
     GroupMemoryBarrierWithGroupSync();
 
     temp[index] = val;
-    GroupMemoryBarrierWithGroupSync();
+    GroupMemoryBarrier();
 
     return val;
 }
@@ -73,6 +73,7 @@ void CSMain(uint3 groupThreadId, uint3 dispatchThreadId, uint3 groupId)
     uint index = groupThreadId.x;
     int input = g_Buffer[dispatchThreadId.x];
     temp[index] = input;
+    GroupMemoryBarrier();
     int result = ScanGroup(index);
     g_Buffer[dispatchThreadId.x] = result;
     if (index == GROUP_SIZE - 1)
