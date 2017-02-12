@@ -69,8 +69,9 @@ float intersectTriangle(Triangle tri, Ray ray, out float3 coordinates)
 void Trace(uint3 id : SV_DispatchThreadID)
 {
 	Ray camera = makeRay(g_Origin, g_Direction);
-    float3 cx = { g_ImageSize.x * g_FOV / g_ImageSize.y, 0.0f, 0.0f };
-	float3 cy = normalize(cross(cx, camera.direction)) * g_FOV;
+    float hfov = 2 * atan(tan(g_FOV / 2) * (g_ImageSize.x / g_ImageSize.y));
+    float3 cx = { g_ImageSize.x * hfov / g_ImageSize.y, 0.0f, 0.0f };
+    float3 cy = normalize(cross(cx, camera.direction)) * hfov;
 	float3 direction = normalize(camera.direction + cx * ((.25 + id.x) / g_ImageSize.x - .5) + cy * ((.25 + g_ImageSize.y - id.y) / g_ImageSize.y - .5));
 
 	Ray r = makeRay(camera.origin, direction);
