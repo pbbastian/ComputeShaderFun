@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using RayTracer.Runtime.Util;
+using UnityEngine;
 
 namespace RayTracer.Runtime.Shaders
 {
@@ -32,7 +33,7 @@ namespace RayTracer.Runtime.Shaders
         {
             m_Shader.SetBuffer(m_KernelIndex, s_PerThreadBufferId, data.perThreadBuffer);
             m_Shader.SetBuffer(m_KernelIndex, s_PerGroupBufferId, data.perGroupBuffer);
-            m_Shader.Dispatch(m_KernelIndex, 1 + (data.itemCount - 1) / m_SizeX, 1, 1);
+            m_Shader.Dispatch(m_KernelIndex, data.itemCount.CeilDiv(m_SizeX), 1, 1);
         }
     }
 }

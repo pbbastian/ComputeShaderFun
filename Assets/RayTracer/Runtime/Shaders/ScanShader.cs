@@ -35,7 +35,7 @@ namespace RayTracer.Runtime.Shaders
 
         public int GetGroupCount(int itemCount)
         {
-            return 1 + (itemCount - 1) / m_SizeX;
+            return itemCount.CeilDiv(m_SizeX);
         }
 
         public void Dispatch(ScanData data)
