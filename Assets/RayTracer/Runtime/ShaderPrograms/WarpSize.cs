@@ -1,4 +1,4 @@
-﻿namespace RayTracer.Runtime.Shaders
+﻿namespace RayTracer.Runtime.ShaderPrograms
 {
     public enum WarpSize
     {

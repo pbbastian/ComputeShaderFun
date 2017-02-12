@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-namespace RayTracer.Runtime.Shaders
+namespace RayTracer.Runtime.ShaderPrograms
 {
     public struct GlobalScanData
     {
@@ -10,41 +10,41 @@ namespace RayTracer.Runtime.Shaders
         public ComputeBuffer dummyBuffer;
     }
 
-    public class GlobalScanShader
+    public class GlobalScanProgram
     {
-        private ScanShader m_ScanShader;
-        private GroupAddShader m_GroupAddShader;
+        private GroupAddProgram m_GroupAddProgram;
+        private ScanProgram m_ScanProgram;
 
-        public GlobalScanShader(WarpSize warpSize)
+        public GlobalScanProgram(WarpSize warpSize)
         {
-            m_ScanShader = new ScanShader(warpSize);
-            m_GroupAddShader = new GroupAddShader(warpSize);
+            m_ScanProgram = new ScanProgram(warpSize);
+            m_GroupAddProgram = new GroupAddProgram(warpSize);
         }
 
         public int GetGroupCount(int itemCount)
         {
-            return m_ScanShader.GetGroupCount(itemCount);
+            return m_ScanProgram.GetGroupCount(itemCount);
         }
 
         public void Dispatch(GlobalScanData data)
         {
-            var groupCount = m_ScanShader.GetGroupCount(data.itemCount);
+            var groupCount = m_ScanProgram.GetGroupCount(data.itemCount);
 
-            m_ScanShader.Dispatch(new ScanData
+            m_ScanProgram.Dispatch(new ScanData
             {
                 itemCount = data.itemCount,
                 buffer = data.buffer,
                 groupResultsBuffer = data.groupResultsBuffer
             });
 
-            m_ScanShader.Dispatch(new ScanData
+            m_ScanProgram.Dispatch(new ScanData
             {
                 itemCount = groupCount,
                 buffer = data.groupResultsBuffer,
                 groupResultsBuffer = data.dummyBuffer
             });
 
-            m_GroupAddShader.Dispatch(new GroupAddData
+            m_GroupAddProgram.Dispatch(new GroupAddData
             {
                 itemCount = data.itemCount,
                 perThreadBuffer = data.buffer,

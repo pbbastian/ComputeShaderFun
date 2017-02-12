@@ -1,11 +1,11 @@
 ﻿using System.Linq;
 using NUnit.Framework;
-using RayTracer.Runtime.Shaders;
+using RayTracer.Runtime.ShaderPrograms;
 using UnityEngine;
 
 namespace RayTracer.Editor.Tests
 {
-    public class GlobalScanShaderTest
+    public class GlobalScanProgramTest
     {
         private void CountMatch(WarpSize warpSize)
         {
@@ -15,13 +15,13 @@ namespace RayTracer.Editor.Tests
             for (var i = 1; i < input.Length; i++)
                 expected[i] = input.Take(i).Sum();
 
-            var globalScanShader = new GlobalScanShader(warpSize);
+            var globalScanProgram = new GlobalScanProgram(warpSize);
             using (var scanBuffer = new ComputeBuffer(input.Length, sizeof(int)))
-            using (var groupResultsBuffer = new ComputeBuffer(globalScanShader.GetGroupCount(input.Length), sizeof(int)))
+            using (var groupResultsBuffer = new ComputeBuffer(globalScanProgram.GetGroupCount(input.Length), sizeof(int)))
             using (var dummyBuffer = new ComputeBuffer(1, 4))
             {
                 scanBuffer.SetData(input);
-                globalScanShader.Dispatch(new GlobalScanData
+                globalScanProgram.Dispatch(new GlobalScanData
                 {
                     itemCount = input.Length,
                     buffer = scanBuffer,

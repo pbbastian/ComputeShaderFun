@@ -2,15 +2,19 @@
 using RayTracer.Runtime.Util;
 using UnityEngine;
 
-namespace RayTracer.Runtime.Shaders
+namespace RayTracer.Runtime.ShaderPrograms
 {
-    public class TransformShader
+    public class TransformProgram
     {
-        private ComputeShader m_Shader;
         private int m_KernelIndex;
+        private BufferShaderParameter m_NormalBuffer;
+        private BufferShaderParameter m_ObjectIndexBuffer;
+        private ComputeShader m_Shader;
         private uint m_SizeX;
+        private BufferShaderParameter m_TransformBuffer;
+        private BufferShaderParameter m_VertexBuffer;
 
-        public TransformShader()
+        public TransformProgram()
         {
             var shader = Resources.Load<ComputeShader>("Shaders/Transform");
             if (shader == null)
@@ -29,21 +33,33 @@ namespace RayTracer.Runtime.Shaders
             m_TransformBuffer = new BufferShaderParameter(shader, kernelIndex, "g_TransformBuffer");
         }
 
-        public ComputeBuffer vertexBuffer { get { return m_VertexBuffer.value; } set { m_VertexBuffer.value = value; } }
-        private BufferShaderParameter m_VertexBuffer;
+        public ComputeBuffer vertexBuffer
+        {
+            get { return m_VertexBuffer.value; }
+            set { m_VertexBuffer.value = value; }
+        }
 
-        public ComputeBuffer normalBuffer { get { return m_NormalBuffer.value; } set { m_NormalBuffer.value = value; } }
-        private BufferShaderParameter m_NormalBuffer;
+        public ComputeBuffer normalBuffer
+        {
+            get { return m_NormalBuffer.value; }
+            set { m_NormalBuffer.value = value; }
+        }
 
-        public ComputeBuffer objectIndexBuffer { get { return m_ObjectIndexBuffer.value; } set { m_ObjectIndexBuffer.value = value; } }
-        private BufferShaderParameter m_ObjectIndexBuffer;
+        public ComputeBuffer objectIndexBuffer
+        {
+            get { return m_ObjectIndexBuffer.value; }
+            set { m_ObjectIndexBuffer.value = value; }
+        }
 
-        public ComputeBuffer transformBuffer { get { return m_TransformBuffer.value; } set { m_TransformBuffer.value = value; } }
-        private BufferShaderParameter m_TransformBuffer;
+        public ComputeBuffer transformBuffer
+        {
+            get { return m_TransformBuffer.value; }
+            set { m_TransformBuffer.value = value; }
+        }
 
         public void Dispatch(int vertexCount)
         {
-            m_Shader.Dispatch(m_KernelIndex, Mathf.CeilToInt((float)vertexCount / m_SizeX), 1, 1);
+            m_Shader.Dispatch(m_KernelIndex, Mathf.CeilToInt((float) vertexCount / m_SizeX), 1, 1);
         }
     }
 }

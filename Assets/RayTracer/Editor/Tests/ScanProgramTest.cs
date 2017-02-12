@@ -1,11 +1,11 @@
 ﻿using System.Linq;
 using NUnit.Framework;
-using RayTracer.Runtime.Shaders;
+using RayTracer.Runtime.ShaderPrograms;
 using UnityEngine;
 
 namespace RayTracer.Editor.Tests
 {
-    public class ScanShaderTest
+    public class ScanProgramTest
     {
         private void SingleThreadGroup(int count, WarpSize warpSize)
         {
@@ -15,12 +15,12 @@ namespace RayTracer.Editor.Tests
             for (var i = 1; i < input.Length; i++)
                 expected[i] = input.Take(i).Sum();
 
-            var scanShader = new ScanShader(warpSize);
+            var scanProgram = new ScanProgram(warpSize);
             using (var inputBuffer = new ComputeBuffer(input.Length, sizeof(float)))
             using (var dummyBuffer = new ComputeBuffer(1, 4))
             {
                 inputBuffer.SetData(input);
-                scanShader.Dispatch(new ScanData
+                scanProgram.Dispatch(new ScanData
                 {
                     itemCount = input.Length,
                     buffer = inputBuffer,

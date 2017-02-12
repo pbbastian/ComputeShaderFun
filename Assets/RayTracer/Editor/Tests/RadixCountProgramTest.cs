@@ -1,13 +1,13 @@
 ﻿using System;
 using System.Linq;
 using NUnit.Framework;
-using RayTracer.Runtime.Shaders;
+using RayTracer.Runtime.ShaderPrograms;
 using RayTracer.Runtime.Util;
 using UnityEngine;
 
 namespace RayTracer.Editor.Tests
 {
-    public class RadixCountShaderTest
+    public class RadixCountProgramTest
     {
         private void CountMatch(int keyMask, int keyShift, int count)
         {
@@ -25,14 +25,14 @@ namespace RayTracer.Editor.Tests
                     expectedCounts[j]++;
             }
 
-            var countShader = new RadixCountShader();
+            var countProgram = new RadixCountProgram();
             using (var keyBuffer = new ComputeBuffer(keys.Length, sizeof(int)))
             using (var countBuffer = new ComputeBuffer(16, sizeof(int)))
             {
                 keyBuffer.SetData(keys);
                 countBuffer.SetData(counts);
 
-                countShader.Dispatch(new RadixCountData
+                countProgram.Dispatch(new RadixCountData
                 {
                     itemCount = keys.Length,
                     keyMask = keyMask,

@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using RayTracer.Runtime.Components;
-using RayTracer.Runtime.Shaders;
+using RayTracer.Runtime.ShaderPrograms;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -63,14 +63,14 @@ namespace RayTracer.Runtime
             triangleBuffer.SetData(triangleData);
             transformBuffer.SetData(transformData);
 
-            var transformShader = new TransformShader
+            var transformProgram = new TransformProgram
             {
                 vertexBuffer = vertexBuffer,
                 normalBuffer = normalBuffer,
                 objectIndexBuffer = objectIndexBuffer,
                 transformBuffer = transformBuffer
             };
-            transformShader.Dispatch(vertexCount);
+            transformProgram.Dispatch(vertexCount);
         }
 
         public static bool IsValidForBvh(GameObject gameObject)

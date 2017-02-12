@@ -33,7 +33,7 @@ void RadixCount(uint3 groupThreadId : SV_GroupThreadID, uint3 dispatchThreadId :
     if (groupThreadId.x < 16)
     {
         int sum = 0;
-        // todo: maybe parallelize in some smart way
+        // todo: parallel reduction
         for (int i = 0; i < GROUP_SIZE; i++)
             sum += counts[i][groupThreadId.x];
         InterlockedAdd(g_CountBuffer[groupThreadId.x], sum);

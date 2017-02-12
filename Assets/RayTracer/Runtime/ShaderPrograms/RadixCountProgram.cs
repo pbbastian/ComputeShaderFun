@@ -1,7 +1,7 @@
 ﻿using RayTracer.Runtime.Util;
 using UnityEngine;
 
-namespace RayTracer.Runtime.Shaders
+namespace RayTracer.Runtime.ShaderPrograms
 {
     public struct RadixCountData
     {
@@ -12,12 +12,8 @@ namespace RayTracer.Runtime.Shaders
         public ComputeBuffer countBuffer;
     }
 
-    public class RadixCountShader
+    public class RadixCountProgram
     {
-        private ComputeShader m_Shader;
-        private int m_KernelIndex;
-        private int m_SizeX;
-
         private static readonly int s_KeyBufferId = Shader.PropertyToID("g_KeyBuffer");
         private static readonly int s_CountBufferId = Shader.PropertyToID("g_CountBuffer");
         private static readonly int s_SectionSizeId = Shader.PropertyToID("g_SectionSize");
@@ -26,8 +22,11 @@ namespace RayTracer.Runtime.Shaders
         private static readonly int s_ItemCountId = Shader.PropertyToID("g_ItemCount");
 
         private static readonly int s_GroupCount = 1024;
+        private int m_KernelIndex;
+        private ComputeShader m_Shader;
+        private int m_SizeX;
 
-        public RadixCountShader()
+        public RadixCountProgram()
         {
             m_Shader = Resources.Load<ComputeShader>("Shaders/RadixCount");
             var kernelName = "RadixCount";
@@ -35,7 +34,7 @@ namespace RayTracer.Runtime.Shaders
 
             uint x, y, z;
             m_Shader.GetKernelThreadGroupSizes(m_KernelIndex, out x, out y, out z);
-            m_SizeX = (int)x;
+            m_SizeX = (int) x;
         }
 
         public void Dispatch(RadixCountData data)

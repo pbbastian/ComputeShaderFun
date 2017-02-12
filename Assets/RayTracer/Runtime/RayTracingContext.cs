@@ -1,6 +1,6 @@
 ﻿using System;
 using RayTracer.Runtime.Components;
-using RayTracer.Runtime.Shaders;
+using RayTracer.Runtime.ShaderPrograms;
 using RayTracer.Runtime.Util;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -48,7 +48,7 @@ namespace RayTracer.Runtime
 			var rtCamera = UnityEngine.Object.FindObjectOfType<RayTracingCamera>();
 			var camera = rtCamera.gameObject.GetComponent<Camera>();
 
-			var shader = new BasicRayTracerShader();
+			var shader = new BasicRayTracerProgram();
 			shader.imageSize.value = new Vector2(renderTexture.width, renderTexture.height);
 			shader.origin.value = rtCamera.gameObject.transform.position;
 			shader.direction.value = camera.gameObject.transform.forward;

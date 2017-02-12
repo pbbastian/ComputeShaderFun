@@ -1,7 +1,7 @@
 ﻿using RayTracer.Runtime.Util;
 using UnityEngine;
 
-namespace RayTracer.Runtime.Shaders
+namespace RayTracer.Runtime.ShaderPrograms
 {
     public struct GroupAddData
     {
@@ -10,16 +10,15 @@ namespace RayTracer.Runtime.Shaders
         public ComputeBuffer perGroupBuffer;
     }
 
-    public class GroupAddShader
+    public class GroupAddProgram
     {
-        private ComputeShader m_Shader;
-        private int m_KernelIndex;
-        private int m_SizeX;
-
         private static readonly int s_PerThreadBufferId = Shader.PropertyToID("g_PerThreadBuffer");
         private static readonly int s_PerGroupBufferId = Shader.PropertyToID("g_PerGroupBuffer");
+        private int m_KernelIndex;
+        private ComputeShader m_Shader;
+        private int m_SizeX;
 
-        public GroupAddShader(WarpSize warpSize)
+        public GroupAddProgram(WarpSize warpSize)
         {
             m_Shader = Resources.Load<ComputeShader>("Shaders/GroupAdd");
             var kernelName = "GroupAdd_Warp" + (int) warpSize;
