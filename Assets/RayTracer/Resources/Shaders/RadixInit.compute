@@ -1,0 +1,25 @@
+﻿#pragma kernel RadixInit
+
+#define GROUP_SIZE 256
+
+struct HistogramItem
+{
+    int values[16];
+};
+
+StructuredBuffer<int> g_KeyBuffer;
+RWStructuredBuffer<HistogramItem> g_HistogramBuffer;
+
+int g_KeyShift;
+
+static const int mask = 0xF;
+
+[numthreads(GROUP_SIZE, 1, 1)]
+void RadixInit(uint3 id : SV_DispatchThreadID)
+{
+    int key = g_KeyBuffer[id.x];
+    int subKey = (key & (mask << g_KeyShift)) >> g_KeyShift;
+    int values[16] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    values[subKey] = 1;
+    g_HistogramBuffer[id.x].values = values;
+}
