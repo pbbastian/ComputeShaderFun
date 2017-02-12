@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using RayTracer.Runtime.Util;
+using UnityEngine;
 
 namespace RayTracer.Runtime.Shaders
 {
@@ -6,6 +7,7 @@ namespace RayTracer.Runtime.Shaders
     {
         public int itemCount;
         public int keyMask;
+        public int keyShift;
         public ComputeBuffer keyBuffer;
         public ComputeBuffer countBuffer;
     }
@@ -16,9 +18,18 @@ namespace RayTracer.Runtime.Shaders
         private int m_KernelIndex;
         private int m_SizeX;
 
+        private static readonly int s_KeyBufferId = Shader.PropertyToID("g_KeyBuffer");
+        private static readonly int s_CountBufferId = Shader.PropertyToID("g_CountBuffer");
+        private static readonly int s_SectionSizeId = Shader.PropertyToID("g_SectionSize");
+        private static readonly int s_KeyMaskId = Shader.PropertyToID("g_KeyMask");
+        private static readonly int s_KeyShiftId = Shader.PropertyToID("g_KeyShift");
+        private static readonly int s_ItemCountId = Shader.PropertyToID("g_ItemCount");
+
+        private static readonly int s_GroupCount = 1024;
+
         public RadixCountShader()
         {
-            m_Shader = Resources.Load<ComputeShader>("Shaders/Scan");
+            m_Shader = Resources.Load<ComputeShader>("Shaders/RadixCount");
             var kernelName = "RadixCount";
             m_KernelIndex = m_Shader.FindKernel(kernelName);
 
@@ -29,7 +40,14 @@ namespace RayTracer.Runtime.Shaders
 
         public void Dispatch(RadixCountData data)
         {
-            m_Shader.Dispatch(m_KernelIndex, 6144, 1, 1);
+            m_Shader.SetBuffer(m_KernelIndex, s_KeyBufferId, data.keyBuffer);
+            m_Shader.SetBuffer(m_KernelIndex, s_CountBufferId, data.countBuffer);
+            m_Shader.SetInt(s_SectionSizeId, data.itemCount.CeilDiv(m_SizeX * s_GroupCount));
+            // Debug.LogFormat("Section size: {0}", data.itemCount.CeilDiv(m_SizeX * s_GroupCount));
+            m_Shader.SetInt(s_KeyMaskId, data.keyMask);
+            m_Shader.SetInt(s_KeyShiftId, data.keyShift);
+            m_Shader.SetInt(s_ItemCountId, data.itemCount);
+            m_Shader.Dispatch(m_KernelIndex, s_GroupCount, 1, 1);
         }
     }
 }
