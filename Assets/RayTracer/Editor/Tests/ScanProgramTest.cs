@@ -23,15 +23,13 @@ namespace RayTracer.Editor.Tests
         {
             get
             {
-                var countMismatch =
-                    new[] {WarpSize.Warp16, WarpSize.Warp32, WarpSize.Warp64}
-                    .Select(warpSize => new TestData {count = 10, warpSize = warpSize})
-                    .AsNamedTestCase("Count mismatch");
+                var countMismatch = new[] {WarpSize.Warp16, WarpSize.Warp32, WarpSize.Warp64}
+                    .Select(warpSize => new TestData {count = 17, warpSize = warpSize})
+                    .AsNamedTestCase("Unrelated to thread group size");
 
-                var countMatch =
-                    new[] {WarpSize.Warp32, WarpSize.Warp64}.Select((warpSize) => new TestData {count = 1024, warpSize = warpSize})
+                var countMatch = new[] {WarpSize.Warp32, WarpSize.Warp64}.Select((warpSize) => new TestData {count = 1024, warpSize = warpSize})
                     .Concat(new[] {new TestData {count = 256, warpSize = WarpSize.Warp16}})
-                    .AsNamedTestCase("Count match");
+                    .AsNamedTestCase("Equal to thread group size");
 
                 return countMismatch.Concat(countMatch);
             }
