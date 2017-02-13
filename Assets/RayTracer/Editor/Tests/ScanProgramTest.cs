@@ -66,41 +66,5 @@ namespace RayTracer.Editor.Tests
                 Assert.AreEqual(expected, output);
             }
         }
-
-        //[Test]
-        //public void CountMatch_Warp16()
-        //{
-        //    SingleThreadGroup(256, WarpSize.Warp16);
-        //}
-
-        //[Test]
-        //public void CountMatch_Warp32()
-        //{
-        //    SingleThreadGroup(1024, WarpSize.Warp32);
-        //}
-
-        //[Test]
-        //public void CountMatch_Warp64()
-        //{
-        //    SingleThreadGroup(1024, WarpSize.Warp64);
-        //}
-
-        //[Test]
-        //public void CountMismatch_Warp16()
-        //{
-        //    SingleThreadGroup(10, WarpSize.Warp16);
-        //}
-
-        //[Test]
-        //public void CountMismatch_Warp32()
-        //{
-        //    SingleThreadGroup(10, WarpSize.Warp32);
-        //}
-
-        //[Test]
-        //public void CountMismatch_Warp64()
-        //{
-        //    SingleThreadGroup(10, WarpSize.Warp64);
-        //}
     }
 }

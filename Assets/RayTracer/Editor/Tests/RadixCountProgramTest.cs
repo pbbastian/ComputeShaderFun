@@ -84,41 +84,5 @@ namespace RayTracer.Editor.Tests
                 Assert.AreEqual(expectedCounts, counts);
             }
         }
-
-        //[Test]
-        //public void NoShifting_CountMatch()
-        //{
-        //    CountMatch(0xF, 0, 262144);
-        //}
-
-        //[Test]
-        //public void Shift4_CountMatch()
-        //{
-        //    CountMatch(0xF0, 4, 262144);
-        //}
-
-        //[Test]
-        //public void NoShifting_CountSemiMatch()
-        //{
-        //    CountMatch(0xF, 0, 262144 - 16 * 7);
-        //}
-
-        //[Test]
-        //public void Shift4_CountSemiMatch()
-        //{
-        //    CountMatch(0xF0, 4, 262144 - 16 * 7);
-        //}
-
-        //[Test]
-        //public void NoShifting_CountMisMatch()
-        //{
-        //    CountMatch(0xF, 0, 262123);
-        //}
-
-        //[Test]
-        //public void Shift4_CountMisMatch()
-        //{
-        //    CountMatch(0xF0, 4, 262123);
-        //}
     }
 }
