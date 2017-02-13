@@ -28,11 +28,18 @@ namespace RayTracer.Runtime.ShaderPrograms
             m_SizeX = (int) x;
         }
 
+        public int GroupSize { get { return m_SizeX; } }
+
+        public int GetGroupCount(int itemCount)
+        {
+            return itemCount.CeilDiv(m_SizeX);
+        }
+
         public void Dispatch(GroupAddData data)
         {
             m_Shader.SetBuffer(m_KernelIndex, s_PerThreadBufferId, data.perThreadBuffer);
             m_Shader.SetBuffer(m_KernelIndex, s_PerGroupBufferId, data.perGroupBuffer);
-            m_Shader.Dispatch(m_KernelIndex, data.itemCount.CeilDiv(m_SizeX), 1, 1);
+            m_Shader.Dispatch(m_KernelIndex, GetGroupCount(data.itemCount), 1, 1);
         }
     }
 }
