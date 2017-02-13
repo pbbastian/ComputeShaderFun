@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 using RayTracer.Runtime.ShaderPrograms;
 using UnityEngine;
@@ -7,15 +8,43 @@ namespace RayTracer.Editor.Tests
 {
     public class GlobalScanProgramTest
     {
-        private void CountMatch(WarpSize warpSize)
+        public struct TestData
         {
-            var input = Enumerable.Range(0, 1024 * 3).Select(x => x + 1).ToArray();
+            public int count;
+            public WarpSize warpSize;
+
+            public override string ToString()
+            {
+                return string.Format("Count={0}, WarpSize={1}", count, (int) warpSize);
+            }
+        }
+
+        public static IEnumerable<TestCaseData> testDatas
+        {
+            get
+            {
+                var multiple = new[] {WarpSize.Warp16, WarpSize.Warp32, WarpSize.Warp64}
+                    .Select(warpSize => new TestData {count = 1024 * 3, warpSize = warpSize})
+                    .AsNamedTestCase("Multiple of thread group size");
+
+                var countMatch = new[] { WarpSize.Warp16, WarpSize.Warp32, WarpSize.Warp64 }
+                    .Select(warpSize => new TestData { count = 4657, warpSize = warpSize })
+                    .AsNamedTestCase("Unrelated to thread group size");
+
+                return multiple.Concat(countMatch);
+            }
+        }
+
+        [TestCaseSource("testDatas")]
+        public void VerifyOutput(TestData data)
+        {
+            var input = Enumerable.Range(0, data.count).Select(x => x + 1).ToArray();
             var output = new int[input.Length];
             var expected = new int[input.Length];
             for (var i = 1; i < input.Length; i++)
                 expected[i] = input.Take(i).Sum();
 
-            var globalScanProgram = new GlobalScanProgram(warpSize);
+            var globalScanProgram = new GlobalScanProgram(data.warpSize);
             using (var scanBuffer = new ComputeBuffer(input.Length, sizeof(int)))
             using (var groupResultsBuffer = new ComputeBuffer(globalScanProgram.GetGroupCount(input.Length), sizeof(int)))
             using (var dummyBuffer = new ComputeBuffer(1, 4))
@@ -34,22 +63,49 @@ namespace RayTracer.Editor.Tests
             }
         }
 
-        [Test]
-        public void CountMatch_Warp16()
-        {
-            CountMatch(WarpSize.Warp16);
-        }
+        //private void CountMatch(WarpSize warpSize)
+        //{
+        //    var input = Enumerable.Range(0, 1024 * 3).Select(x => x + 1).ToArray();
+        //    var output = new int[input.Length];
+        //    var expected = new int[input.Length];
+        //    for (var i = 1; i < input.Length; i++)
+        //        expected[i] = input.Take(i).Sum();
 
-        [Test]
-        public void CountMatch_Warp32()
-        {
-            CountMatch(WarpSize.Warp32);
-        }
+        //    var globalScanProgram = new GlobalScanProgram(warpSize);
+        //    using (var scanBuffer = new ComputeBuffer(input.Length, sizeof(int)))
+        //    using (var groupResultsBuffer = new ComputeBuffer(globalScanProgram.GetGroupCount(input.Length), sizeof(int)))
+        //    using (var dummyBuffer = new ComputeBuffer(1, 4))
+        //    {
+        //        scanBuffer.SetData(input);
+        //        globalScanProgram.Dispatch(new GlobalScanData
+        //        {
+        //            itemCount = input.Length,
+        //            buffer = scanBuffer,
+        //            groupResultsBuffer = groupResultsBuffer,
+        //            dummyBuffer = dummyBuffer
+        //        });
 
-        [Test]
-        public void CountMatch_Warp64()
-        {
-            CountMatch(WarpSize.Warp64);
-        }
+        //        scanBuffer.GetData(output);
+        //        Assert.AreEqual(expected, output);
+        //    }
+        //}
+
+        //[Test]
+        //public void CountMatch_Warp16()
+        //{
+        //    CountMatch(WarpSize.Warp16);
+        //}
+
+        //[Test]
+        //public void CountMatch_Warp32()
+        //{
+        //    CountMatch(WarpSize.Warp32);
+        //}
+
+        //[Test]
+        //public void CountMatch_Warp64()
+        //{
+        //    CountMatch(WarpSize.Warp64);
+        //}
     }
 }
