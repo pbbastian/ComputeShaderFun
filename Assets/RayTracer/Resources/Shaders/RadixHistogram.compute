@@ -1,4 +1,4 @@
-﻿#pragma kernel RadixInit
+﻿#pragma kernel RadixHistogram
 
 #define GROUP_SIZE 256
 
@@ -15,7 +15,7 @@ int g_KeyShift;
 static const int mask = 0xF;
 
 [numthreads(GROUP_SIZE, 1, 1)]
-void RadixInit(uint3 id : SV_DispatchThreadID)
+void RadixHistogram(uint3 id : SV_DispatchThreadID)
 {
     int key = g_KeyBuffer[id.x];
     int subKey = (key & (mask << g_KeyShift)) >> g_KeyShift;
