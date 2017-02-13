@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using RayTracer.Runtime.ShaderPrograms;
@@ -9,17 +10,54 @@ namespace RayTracer.Editor.Tests
 {
     public class RadixCountProgramTest
     {
-        private void CountMatch(int keyMask, int keyShift, int count)
+        public struct KeyTestData
         {
-            var combinations = new[] {0 << keyShift, 1 << keyShift, 2 << keyShift, 3 << keyShift, 4 << keyShift, 5 << keyShift, 6 << keyShift, 7 << keyShift, 8 << keyShift, 9 << keyShift, 0xA << keyShift, 0xB << keyShift, 0xC << keyShift, 0xD << keyShift, 0xE << keyShift, 0xF << keyShift};
-            var keys = new int[count];
+            public int keyMask;
+            public int keyShift;
+
+            public override string ToString()
+            {
+                return string.Format("keyMask = {0}, keyShift = {1}", Convert.ToString(keyMask, 2).PadLeft(8, '0'), keyShift);
+            }
+        }
+
+        public struct TestData
+        {
+            public int count;
+            public KeyTestData keyData;
+
+            public override string ToString()
+            {
+                return string.Format("count = {0}, {1}", count, keyData);
+            }
+        }
+
+        public static IEnumerable<TestCaseData> testDatas
+        {
+            get
+            {
+                var keyTests = new[] {new KeyTestData {keyMask = 0xF, keyShift = 0}, new KeyTestData {keyMask = 0xF0, keyShift = 4}};
+                var sizes = new[] {262144, 262144 - 16 * 7, 262123};
+                var tests =
+                    from keyTest in keyTests
+                    from size in sizes
+                    select new TestData {count = size, keyData = keyTest};
+                return tests.AsNamedTestCase();
+            }
+        }
+
+        [TestCaseSource("testDatas")]
+        public void VerifyOutput(TestData data)
+        {
+            var combinations = new[] {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF}.Select(x => x << data.keyData.keyShift).ToArray();
+            var keys = new int[data.count];
             var counts = new int[16];
             var expectedCounts = new int[16];
 
-            var groups = count.CeilDiv(16);
+            var groups = data.count.CeilDiv(16);
             for (var i = 0; i < groups; i++)
             {
-                var length = Math.Min(16, count - i * 16);
+                var length = Math.Min(16, data.count - i * 16);
                 Array.Copy(combinations, 0, keys, i * 16, length);
                 for (var j = 0; j < length; j++)
                     expectedCounts[j]++;
@@ -35,8 +73,8 @@ namespace RayTracer.Editor.Tests
                 countProgram.Dispatch(new RadixCountData
                 {
                     itemCount = keys.Length,
-                    keyMask = keyMask,
-                    keyShift = keyShift,
+                    keyMask = data.keyData.keyMask,
+                    keyShift = data.keyData.keyShift,
                     keyBuffer = keyBuffer,
                     countBuffer = countBuffer
                 });
@@ -47,40 +85,40 @@ namespace RayTracer.Editor.Tests
             }
         }
 
-        [Test]
-        public void NoShifting_CountMatch()
-        {
-            CountMatch(0xF, 0, 262144);
-        }
+        //[Test]
+        //public void NoShifting_CountMatch()
+        //{
+        //    CountMatch(0xF, 0, 262144);
+        //}
 
-        [Test]
-        public void Shift4_CountMatch()
-        {
-            CountMatch(0xF0, 4, 262144);
-        }
+        //[Test]
+        //public void Shift4_CountMatch()
+        //{
+        //    CountMatch(0xF0, 4, 262144);
+        //}
 
-        [Test]
-        public void NoShifting_CountSemiMatch()
-        {
-            CountMatch(0xF, 0, 262144 - 16 * 7);
-        }
+        //[Test]
+        //public void NoShifting_CountSemiMatch()
+        //{
+        //    CountMatch(0xF, 0, 262144 - 16 * 7);
+        //}
 
-        [Test]
-        public void Shift4_CountSemiMatch()
-        {
-            CountMatch(0xF0, 4, 262144 - 16 * 7);
-        }
+        //[Test]
+        //public void Shift4_CountSemiMatch()
+        //{
+        //    CountMatch(0xF0, 4, 262144 - 16 * 7);
+        //}
 
-        [Test]
-        public void NoShifting_CountMisMatch()
-        {
-            CountMatch(0xF, 0, 262123);
-        }
+        //[Test]
+        //public void NoShifting_CountMisMatch()
+        //{
+        //    CountMatch(0xF, 0, 262123);
+        //}
 
-        [Test]
-        public void Shift4_CountMisMatch()
-        {
-            CountMatch(0xF0, 4, 262123);
-        }
+        //[Test]
+        //public void Shift4_CountMisMatch()
+        //{
+        //    CountMatch(0xF0, 4, 262123);
+        //}
     }
 }

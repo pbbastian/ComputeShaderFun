@@ -10,12 +10,13 @@ namespace RayTracer.Editor.Tests
     {
         public struct TestData
         {
+            public string name;
             public int count;
             public WarpSize warpSize;
 
             public override string ToString()
             {
-                return string.Format("Count={0}, WarpSize={1}", count, (int) warpSize);
+                return string.Format("{0} (Count={1}, WarpSize={2})", name, count, (int) warpSize);
             }
         }
 
@@ -24,14 +25,12 @@ namespace RayTracer.Editor.Tests
             get
             {
                 var multiple = new[] {WarpSize.Warp16, WarpSize.Warp32, WarpSize.Warp64}
-                    .Select(warpSize => new TestData {count = 1024 * 3, warpSize = warpSize})
-                    .AsNamedTestCase("Multiple of thread group size");
+                    .Select(warpSize => new TestData {name = "Multiple of thread group size", count = 1024 * 3, warpSize = warpSize});
 
                 var countMatch = new[] { WarpSize.Warp16, WarpSize.Warp32, WarpSize.Warp64 }
-                    .Select(warpSize => new TestData { count = 4657, warpSize = warpSize })
-                    .AsNamedTestCase("Unrelated to thread group size");
+                    .Select(warpSize => new TestData { name = "Unrelated to thread group size", count = 4657, warpSize = warpSize });
 
-                return multiple.Concat(countMatch);
+                return multiple.Concat(countMatch).AsNamedTestCase();
             }
         }
 

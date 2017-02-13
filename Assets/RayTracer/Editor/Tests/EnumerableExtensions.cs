@@ -6,9 +6,9 @@ namespace RayTracer.Editor.Tests
 {
     public static class EnumerableExtensions
     {
-        public static IEnumerable<TestCaseData> AsNamedTestCase<T>(this IEnumerable<T> enumerable, string name)
+        public static IEnumerable<TestCaseData> AsNamedTestCase<T>(this IEnumerable<T> enumerable)
         {
-            return enumerable.Select(x => new TestCaseData(x).SetName(string.Format("{0} ({1})", name, x)));
+            return enumerable.Select(x => new TestCaseData(x).SetName(x.ToString()));
         }
     }
 }
