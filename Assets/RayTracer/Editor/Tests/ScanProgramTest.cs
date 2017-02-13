@@ -22,7 +22,7 @@ namespace RayTracer.Editor.Tests
 
             public override string ToString()
             {
-                return string.Format("{0} (Count={1}, WarpSize={2})", name, count, (int)warpSize);
+                return string.Format("{0} (count={1}, warpSize={2})", name, count, (int)warpSize);
             }
         }
 

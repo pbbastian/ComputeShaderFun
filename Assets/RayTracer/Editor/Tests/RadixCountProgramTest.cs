@@ -17,7 +17,7 @@ namespace RayTracer.Editor.Tests
 
             public override string ToString()
             {
-                return string.Format("keyMask = {0}, keyShift = {1}", Convert.ToString(keyMask, 2).PadLeft(8, '0'), keyShift);
+                return string.Format("keyMask={0}, keyShift={1}", Convert.ToString(keyMask, 2).PadLeft(8, '0'), keyShift);
             }
         }
 
@@ -28,7 +28,7 @@ namespace RayTracer.Editor.Tests
 
             public override string ToString()
             {
-                return string.Format("count = {0}, {1}", count, keyData);
+                return string.Format("count={0}, {1}", count, keyData);
             }
         }
 
@@ -38,11 +38,7 @@ namespace RayTracer.Editor.Tests
             {
                 var keyTests = new[] {new KeyTestData {keyMask = 0xF, keyShift = 0}, new KeyTestData {keyMask = 0xF0, keyShift = 4}};
                 var sizes = new[] {262144, 262144 - 16 * 7, 262123};
-                var tests =
-                    from keyTest in keyTests
-                    from size in sizes
-                    select new TestData {count = size, keyData = keyTest};
-                return tests.AsNamedTestCase();
+                return keyTests.SelectMany(keyTest => sizes.Select(size => new TestData {count = size, keyData = keyTest})).AsNamedTestCase();
             }
         }
 
