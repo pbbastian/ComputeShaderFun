@@ -5,7 +5,8 @@ namespace RayTracer.Runtime.ShaderPrograms
 {
     public struct ScanData
     {
-        public int itemCount;
+        public int offset;
+        public int limit;
         public ComputeBuffer buffer;
         public ComputeBuffer groupResultsBuffer;
     }
@@ -14,6 +15,8 @@ namespace RayTracer.Runtime.ShaderPrograms
     {
         private static readonly int s_BufferId = Shader.PropertyToID("g_Buffer");
         private static readonly int s_GroupResultsBufferId = Shader.PropertyToID("g_GroupResultsBuffer");
+        private static readonly int s_LimitId = Shader.PropertyToID("g_Limit");
+        private static readonly int s_OffsetId = Shader.PropertyToID("g_Offset");
         private int m_KernelIndex;
         private ComputeShader m_Shader;
 
@@ -39,7 +42,9 @@ namespace RayTracer.Runtime.ShaderPrograms
         {
             m_Shader.SetBuffer(m_KernelIndex, s_BufferId, data.buffer);
             m_Shader.SetBuffer(m_KernelIndex, s_GroupResultsBufferId, data.groupResultsBuffer);
-            m_Shader.Dispatch(m_KernelIndex, GetGroupCount(data.itemCount), 1, 1);
+            m_Shader.SetInt(s_LimitId, data.limit);
+            m_Shader.SetInt(s_OffsetId, data.offset);
+            m_Shader.Dispatch(m_KernelIndex, GetGroupCount(data.limit), 1, 1);
         }
     }
 }

@@ -18,6 +18,9 @@
 RWStructuredBuffer<int> g_Buffer;
 RWStructuredBuffer<int> g_GroupResultsBuffer;
 
+int g_Offset;
+int g_Limit;
+
 groupshared int temp[GROUP_SIZE];
 
 int ScanWarp(uint index, uint lane)
@@ -70,13 +73,15 @@ int ScanGroup(uint index)
 
 void CSMain(uint3 groupThreadId, uint3 dispatchThreadId, uint3 groupId)
 {
-    uint index = groupThreadId.x;
-    int input = g_Buffer[dispatchThreadId.x];
-    temp[index] = input;
+    uint groupIndex = groupThreadId.x;
+    uint dataIndex = g_Offset + dispatchThreadId.x;
+    int input = dispatchThreadId.x < g_Limit ? g_Buffer[dataIndex] : 0;
+    temp[groupIndex] = input;
     GroupMemoryBarrier();
-    int result = ScanGroup(index);
-    g_Buffer[dispatchThreadId.x] = result;
-    if (index == GROUP_SIZE - 1)
+    int result = ScanGroup(groupIndex);
+    if (dispatchThreadId.x < g_Limit)
+        g_Buffer[dataIndex] = result;
+    if (groupIndex == GROUP_SIZE - 1)
         g_GroupResultsBuffer[groupId.x] = input + result;
 }
 

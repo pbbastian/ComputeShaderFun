@@ -10,19 +10,14 @@ namespace RayTracer.Editor.Tests
     {
         public struct TestData
         {
-            public string name;
             public int count;
+            public int offset;
+            public int limit;
             public WarpSize warpSize;
-
-            public TestData Name(string name)
-            {
-                this.name = name;
-                return this;
-            }
 
             public override string ToString()
             {
-                return string.Format("{0} (count={1}, warpSize={2})", name, count, (int)warpSize);
+                return string.Format("count={0}, offset={1}, limit={2}, warpSize={3}", count, offset, limit, (int) warpSize);
             }
         }
 
@@ -30,14 +25,20 @@ namespace RayTracer.Editor.Tests
         {
             get
             {
-                var countMismatch = new[] {WarpSize.Warp16, WarpSize.Warp32, WarpSize.Warp64}
-                    .Select(warpSize => new TestData {name = "Unrelated to thread group size", count = 17, warpSize = warpSize});
+                var offsets = new[] {0, 14, 22};
+                var warpSizes = new[] {WarpSize.Warp16, WarpSize.Warp32, WarpSize.Warp64};
+                var counts = new[] {17};
+                var warpSpecificCounts = new Dictionary<WarpSize, int[]> {{WarpSize.Warp16, new[] {256}}, {WarpSize.Warp32, new[] {1024}}, {WarpSize.Warp64, new[] {1024}}};
+                var relativeLimits = new[] {1, 0.8};
 
-                var countMatch = new[] {WarpSize.Warp32, WarpSize.Warp64}.Select((warpSize) => new TestData {count = 1024, warpSize = warpSize})
-                    .Concat(new[] {new TestData {count = 256, warpSize = WarpSize.Warp16}})
-                    .Select(x => x.Name("Equal to thread group size"));
+                var tests =
+                    from warpSize in warpSizes
+                    from count in counts.Concat(warpSpecificCounts[warpSize])
+                    from offset in offsets
+                    from relativeLimit in relativeLimits
+                    select new TestData {count = count, offset = offset, limit = (int) (count * relativeLimit), warpSize = warpSize};
 
-                return countMismatch.Concat(countMatch).AsNamedTestCase();
+                return tests.AsNamedTestCase();
             }
         }
 
@@ -47,8 +48,13 @@ namespace RayTracer.Editor.Tests
             var input = Enumerable.Range(24, data.count).Select(x => x + 1).ToArray();
             var output = new int[input.Length];
             var expected = new int[input.Length];
-            for (var i = 1; i < input.Length; i++)
-                expected[i] = input.Take(i).Sum();
+            for (var i = 0; i < input.Length; i++)
+            {
+                if (i >= data.offset && i < data.offset + data.limit)
+                    expected[i] = input.Skip(data.offset).Take(i - data.offset).Sum();
+                else
+                    expected[i] = input[i];
+            }
 
             var scanProgram = new ScanProgram(data.warpSize);
             using (var inputBuffer = new ComputeBuffer(input.Length, sizeof(float)))
@@ -57,7 +63,8 @@ namespace RayTracer.Editor.Tests
                 inputBuffer.SetData(input);
                 scanProgram.Dispatch(new ScanData
                 {
-                    itemCount = input.Length,
+                    limit = data.limit,
+                    offset = data.offset,
                     buffer = inputBuffer,
                     groupResultsBuffer = dummyBuffer
                 });

@@ -4,7 +4,7 @@ namespace RayTracer.Runtime.ShaderPrograms
 {
     public struct GlobalScanData
     {
-        public int itemCount;
+        public int length;
         public ComputeBuffer buffer;
         public ComputeBuffer groupResultsBuffer;
         public ComputeBuffer dummyBuffer;
@@ -28,25 +28,27 @@ namespace RayTracer.Runtime.ShaderPrograms
 
         public void Dispatch(GlobalScanData data)
         {
-            var groupCount = m_ScanProgram.GetGroupCount(data.itemCount);
+            var groupCount = m_ScanProgram.GetGroupCount(data.length);
 
             m_ScanProgram.Dispatch(new ScanData
             {
-                itemCount = data.itemCount,
+                limit = data.length,
+                offset = 0,
                 buffer = data.buffer,
                 groupResultsBuffer = data.groupResultsBuffer
             });
 
             m_ScanProgram.Dispatch(new ScanData
             {
-                itemCount = groupCount,
+                limit = groupCount,
+                offset = 0,
                 buffer = data.groupResultsBuffer,
                 groupResultsBuffer = data.dummyBuffer
             });
 
             m_GroupAddProgram.Dispatch(new GroupAddData
             {
-                itemCount = data.itemCount,
+                limit = data.length,
                 perThreadBuffer = data.buffer,
                 perGroupBuffer = data.groupResultsBuffer
             });

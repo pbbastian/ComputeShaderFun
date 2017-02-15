@@ -13,9 +13,13 @@
 RWStructuredBuffer<int> g_PerThreadBuffer;
 StructuredBuffer<int> g_PerGroupBuffer;
 
+int g_Offset;
+int g_Limit;
+
 void GroupAdd(uint3 id, uint3 groupId)
 {
-    g_PerThreadBuffer[id.x] += g_PerGroupBuffer[groupId.x];
+    if ((g_Offset + (int)id.x) < g_Offset + g_Limit)
+    	g_PerThreadBuffer[g_Offset + id.x] += g_PerGroupBuffer[groupId.x];
 }
 
 [numthreads(GROUP_SIZE, 1, 1)]

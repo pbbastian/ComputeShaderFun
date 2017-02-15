@@ -51,7 +51,7 @@ namespace RayTracer.Editor.Tests
                 scanBuffer.SetData(input);
                 globalScanProgram.Dispatch(new GlobalScanData
                 {
-                    itemCount = input.Length,
+                    length = input.Length,
                     buffer = scanBuffer,
                     groupResultsBuffer = groupResultsBuffer,
                     dummyBuffer = dummyBuffer
