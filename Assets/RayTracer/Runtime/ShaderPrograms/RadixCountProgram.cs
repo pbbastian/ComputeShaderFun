@@ -10,6 +10,15 @@ namespace RayTracer.Runtime.ShaderPrograms
         public int keyShift;
         public ComputeBuffer keyBuffer;
         public ComputeBuffer countBuffer;
+
+        public RadixCountData(int itemCount, int keyMask, int keyShift, ComputeBuffer keyBuffer, ComputeBuffer countBuffer)
+        {
+            this.itemCount = itemCount;
+            this.keyMask = keyMask;
+            this.keyShift = keyShift;
+            this.keyBuffer = keyBuffer;
+            this.countBuffer = countBuffer;
+        }
     }
 
     public class RadixCountProgram

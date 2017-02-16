@@ -9,6 +9,14 @@ namespace RayTracer.Runtime.ShaderPrograms
         public ComputeBuffer histogramBuffer;
         public int itemCount;
         public int keyShift;
+
+        public RadixHistogramData(ComputeBuffer keyBuffer, ComputeBuffer histogramBuffer, int itemCount, int keyShift)
+        {
+            this.keyBuffer = keyBuffer;
+            this.histogramBuffer = histogramBuffer;
+            this.itemCount = itemCount;
+            this.keyShift = keyShift;
+        }
     }
 
     public class RadixHistogramProgram

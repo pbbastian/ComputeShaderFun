@@ -9,6 +9,15 @@ namespace RayTracer.Runtime.ShaderPrograms
         public ComputeBuffer buffer;
         public ComputeBuffer groupResultsBuffer;
         public ComputeBuffer dummyBuffer;
+
+        public GlobalScanData(int limit, int offset, ComputeBuffer buffer, ComputeBuffer groupResultsBuffer, ComputeBuffer dummyBuffer)
+        {
+            this.limit = limit;
+            this.offset = offset;
+            this.buffer = buffer;
+            this.groupResultsBuffer = groupResultsBuffer;
+            this.dummyBuffer = dummyBuffer;
+        }
     }
 
     public class GlobalScanProgram

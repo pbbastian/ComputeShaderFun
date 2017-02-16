@@ -9,6 +9,14 @@ namespace RayTracer.Runtime.ShaderPrograms
         public int limit;
         public ComputeBuffer buffer;
         public ComputeBuffer groupResultsBuffer;
+
+        public ScanData(int offset, int limit, ComputeBuffer buffer, ComputeBuffer groupResultsBuffer)
+        {
+            this.offset = offset;
+            this.limit = limit;
+            this.buffer = buffer;
+            this.groupResultsBuffer = groupResultsBuffer;
+        }
     }
 
     public class ScanProgram
