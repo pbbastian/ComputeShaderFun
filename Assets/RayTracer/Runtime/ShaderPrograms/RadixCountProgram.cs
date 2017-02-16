@@ -6,7 +6,6 @@ namespace RayTracer.Runtime.ShaderPrograms
     public struct RadixCountData
     {
         public int itemCount;
-        public int keyMask;
         public int keyShift;
         public ComputeBuffer keyBuffer;
         public ComputeBuffer countBuffer;
@@ -14,7 +13,6 @@ namespace RayTracer.Runtime.ShaderPrograms
         public RadixCountData(int itemCount, int keyMask, int keyShift, ComputeBuffer keyBuffer, ComputeBuffer countBuffer)
         {
             this.itemCount = itemCount;
-            this.keyMask = keyMask;
             this.keyShift = keyShift;
             this.keyBuffer = keyBuffer;
             this.countBuffer = countBuffer;
@@ -26,7 +24,6 @@ namespace RayTracer.Runtime.ShaderPrograms
         private static readonly int s_KeyBufferId = Shader.PropertyToID("g_KeyBuffer");
         private static readonly int s_CountBufferId = Shader.PropertyToID("g_CountBuffer");
         private static readonly int s_SectionSizeId = Shader.PropertyToID("g_SectionSize");
-        private static readonly int s_KeyMaskId = Shader.PropertyToID("g_KeyMask");
         private static readonly int s_KeyShiftId = Shader.PropertyToID("g_KeyShift");
         private static readonly int s_ItemCountId = Shader.PropertyToID("g_ItemCount");
 
@@ -52,7 +49,6 @@ namespace RayTracer.Runtime.ShaderPrograms
             m_Shader.SetBuffer(m_KernelIndex, s_CountBufferId, data.countBuffer);
             m_Shader.SetInt(s_SectionSizeId, data.itemCount.CeilDiv(m_SizeX * s_GroupCount));
             // Debug.LogFormat("Section size: {0}", data.itemCount.CeilDiv(m_SizeX * s_GroupCount));
-            m_Shader.SetInt(s_KeyMaskId, data.keyMask);
             m_Shader.SetInt(s_KeyShiftId, data.keyShift);
             m_Shader.SetInt(s_ItemCountId, data.itemCount);
             m_Shader.Dispatch(m_KernelIndex, s_GroupCount, 1, 1);

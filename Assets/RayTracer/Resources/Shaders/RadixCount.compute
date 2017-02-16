@@ -6,7 +6,6 @@ StructuredBuffer<int> g_KeyBuffer;
 RWStructuredBuffer<int> g_CountBuffer;
 
 int g_SectionSize;
-int g_KeyMask;
 int g_KeyShift;
 int g_ItemCount;
 
@@ -22,7 +21,7 @@ void RadixCount(uint3 groupThreadId : SV_GroupThreadID, uint3 dispatchThreadId :
     for (int i = offset; i < min(offset + g_SectionSize, g_ItemCount); i++)
     {
         int key = g_KeyBuffer[i];
-        int value = (key & g_KeyMask) >> g_KeyShift;
+        int value = (key >> g_KeyShift) & 0xF;
         counts[groupThreadId.x][value]++;
     }
     
