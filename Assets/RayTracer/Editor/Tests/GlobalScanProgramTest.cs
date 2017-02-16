@@ -1,7 +1,9 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using Assets.RayTracer.Runtime.Util;
 using NUnit.Framework;
 using RayTracer.Runtime.ShaderPrograms;
+using RayTracer.Runtime.Util;
 using UnityEngine;
 
 namespace RayTracer.Editor.Tests
@@ -13,10 +15,18 @@ namespace RayTracer.Editor.Tests
             public string name;
             public int count;
             public WarpSize warpSize;
+            public int offset;
+            public int limit;
 
             public override string ToString()
             {
-                return string.Format("{0} (count={1}, warpSize={2})", name, count, (int) warpSize);
+                return new DebugStringBuilder
+                {
+                    { "count", count },
+                    { "warpSize", warpSize },
+                    { "offset", offset },
+                    { "limit", limit }
+                }.ToString();
             }
         }
 
@@ -24,13 +34,19 @@ namespace RayTracer.Editor.Tests
         {
             get
             {
-                var multiple = new[] {WarpSize.Warp16, WarpSize.Warp32, WarpSize.Warp64}
-                    .Select(warpSize => new TestData {name = "Multiple of thread group size", count = 1024 * 3, warpSize = warpSize});
+                var warpSizes = new[] {WarpSize.Warp16, WarpSize.Warp32, WarpSize.Warp64};
+                var counts = new[] {1024 * 3, 4657};
+                var offsets = new[] {0, 3, 1025, 17};
+                var relativeLimits = new[] {1, 0.7};
 
-                var countMatch = new[] { WarpSize.Warp16, WarpSize.Warp32, WarpSize.Warp64 }
-                    .Select(warpSize => new TestData { name = "Unrelated to thread group size", count = 4657, warpSize = warpSize });
-
-                return multiple.Concat(countMatch).AsNamedTestCase();
+                var tests =
+                    from warpSize in warpSizes
+                    from count in counts
+                    from offset in offsets
+                    from relativeLimit in relativeLimits
+                    select new TestData {count = count, warpSize = warpSize, offset = offset, limit = (int)(relativeLimit * count)};
+                
+                return tests.AsNamedTestCase();
             }
         }
 
@@ -51,7 +67,7 @@ namespace RayTracer.Editor.Tests
                 scanBuffer.SetData(input);
                 globalScanProgram.Dispatch(new GlobalScanData
                 {
-                    length = input.Length,
+                    limit = input.Length,
                     buffer = scanBuffer,
                     groupResultsBuffer = groupResultsBuffer,
                     dummyBuffer = dummyBuffer

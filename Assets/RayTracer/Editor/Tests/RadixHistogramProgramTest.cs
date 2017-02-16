@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Assets.RayTracer.Runtime.Util;
 using NUnit.Framework;
 using RayTracer.Runtime.ShaderPrograms;
 using UnityEngine;
@@ -16,7 +17,11 @@ namespace RayTracer.Editor.Tests
 
             public override string ToString()
             {
-                return string.Format("patternCount={0}, keyShift={1}", patternCount, keyShift);
+                return new DebugStringBuilder
+                {
+                    {"patternCount", patternCount},
+                    {"keyShift", keyShift}
+                }.ToString();
             }
         }
 
@@ -46,15 +51,16 @@ namespace RayTracer.Editor.Tests
             for (var i = 0; i < data.patternCount; i++)
                 inputPattern.CopyTo(input, i * inputPattern.Length);
 
-            var expectedHistogram = new int[expectedHistogramPattern.Length * data.patternCount];
-            for (var i = 0; i < data.patternCount; i++)
-                expectedHistogramPattern.CopyTo(expectedHistogram, i * expectedHistogramPattern.Length);
+            var expectedHistogram = new int[input.Length * 16];
+            for (var i = 0; i < 16; i++)
+            for (var j = 0; j < data.patternCount; j++)
+                expectedHistogram[i * input.Length + j * inputPattern.Length + i] = 1;
 
-            using (var keyBuffer = new ComputeBuffer(inputPattern.Length * data.patternCount, sizeof(int)))
-            using (var histogramBuffer = new ComputeBuffer(inputPattern.Length * data.patternCount, 16 * sizeof(int)))
+            using (var keyBuffer = new ComputeBuffer(input.Length, sizeof(int)))
+            using (var histogramBuffer = new ComputeBuffer(input.Length * 16, sizeof(int)))
             {
                 keyBuffer.SetData(input);
-                
+
                 program.Dispatch(new RadixHistogramData
                 {
                     keyBuffer = keyBuffer,
