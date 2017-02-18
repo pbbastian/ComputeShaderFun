@@ -6,7 +6,7 @@
 #define GROUP_SIZE 1024
 #define WARP_SHIFT 6
 #elif WARP_SIZE == 32
-#define GROUP_SIZE 1024
+#define GROUP_SIZE 512
 #define WARP_SHIFT 5
 #else
 #define WARP_SIZE 16
@@ -108,7 +108,7 @@ void CSMain(uint3 groupThreadId, uint3 dispatchThreadId, uint3 groupId)
     if (dispatchId < g_Limit)
         g_Buffer[dataIndex] = result; // groupIndex == GROUP_SIZE - 1 ? groupId.x : -1;
     if (groupIndex == GROUP_SIZE - 1)
-        g_GroupResultsBuffer[groupId.x] = result;
+        g_GroupResultsBuffer[groupId.x] = input + result;
 }
 
 [numthreads(GROUP_SIZE, 1, 1)]
