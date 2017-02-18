@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Assets.RayTracer.Runtime.Util;
 using NUnit.Framework;
@@ -12,11 +13,11 @@ namespace RayTracer.Editor.Tests
     {
         public struct TestData
         {
-            public string name;
             public int count;
             public WarpSize warpSize;
             public int offset;
             public int limit;
+            public int seed;
 
             public override string ToString()
             {
@@ -25,7 +26,8 @@ namespace RayTracer.Editor.Tests
                     { "count", count },
                     { "warpSize", warpSize },
                     { "offset", offset },
-                    { "limit", limit }
+                    { "limit", limit },
+                    { "seed", seed }
                 }.ToString();
             }
         }
@@ -44,7 +46,7 @@ namespace RayTracer.Editor.Tests
                     from count in counts
                     from offset in offsets
                     from relativeLimit in relativeLimits
-                    select new TestData {count = count, warpSize = warpSize, offset = offset, limit = (int)(relativeLimit * count)};
+                    select new TestData {count = count, warpSize = warpSize, offset = offset, limit = (int)(relativeLimit * count), seed = 3456};
                 
                 return tests.AsNamedTestCase();
             }
@@ -53,11 +55,14 @@ namespace RayTracer.Editor.Tests
         [TestCaseSource("testDatas")]
         public void VerifyOutput(TestData data)
         {
-            var input = Enumerable.Range(0, data.count).Select(x => x + 1).ToArray();
+            var random = new System.Random(data.seed);
+            var input = new int[data.count];
+            for (var i = 0; i < data.count; i++)
+                input[i] = random.Next(0, 2^30);
             var output = new int[input.Length];
-            var expected = new int[input.Length];
-            for (var i = 1; i < input.Length; i++)
-                expected[i] = input.Take(i).Sum();
+            var expected = input.ToArray();
+            for (var i = data.offset; i < Math.Min(data.offset + data.limit, input.Length); i++)
+                expected[i] = input.Skip(data.offset).Take(i - data.offset).Sum();
 
             var globalScanProgram = new GlobalScanProgram(data.warpSize);
             using (var scanBuffer = new ComputeBuffer(input.Length, sizeof(int)))
@@ -67,7 +72,8 @@ namespace RayTracer.Editor.Tests
                 scanBuffer.SetData(input);
                 globalScanProgram.Dispatch(new GlobalScanData
                 {
-                    limit = input.Length,
+                    offset = data.offset,
+                    limit = data.limit,
                     buffer = scanBuffer,
                     groupResultsBuffer = groupResultsBuffer,
                     dummyBuffer = dummyBuffer

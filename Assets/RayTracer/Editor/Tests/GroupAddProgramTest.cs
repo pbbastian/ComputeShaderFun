@@ -4,6 +4,7 @@ using System.Linq;
 using NUnit.Framework;
 using RayTracer.Runtime.ShaderPrograms;
 using UnityEngine;
+using Random = System.Random;
 
 namespace RayTracer.Editor.Tests
 {
@@ -15,10 +16,11 @@ namespace RayTracer.Editor.Tests
             public int offset;
             public int limit;
             public WarpSize warpSize;
+            public int seed;
 
             public override string ToString()
             {
-                return string.Format("count={0}, warpSize={1}, offset={2}, limit={3}", count, (int) warpSize, offset, limit);
+                return string.Format("count={0}, warpSize={1}, offset={2}, limit={3}, seed={4}", count, (int) warpSize, offset, limit, seed);
             }
         }
 
@@ -30,13 +32,15 @@ namespace RayTracer.Editor.Tests
                 var counts = new[] {123, 1024, 3456};
                 var offsets = new[] {0, 14, 22};
                 var relativeLimits = new[] {1, 0.8};
+                var seeds = new[] {7968675, 569854844, 22344};
 
                 var tests =
                     from warpSize in warpSizes
                     from count in counts
                     from offset in offsets
                     from relativeLimit in relativeLimits
-                    select new TestData {count = count, warpSize = warpSize, offset = offset, limit = (int) (relativeLimit * count)};
+                    from seed in seeds
+                    select new TestData {count = count, warpSize = warpSize, offset = offset, limit = (int) (relativeLimit * count), seed = seed};
                 
                 return tests.AsNamedTestCase();
             }
@@ -45,10 +49,17 @@ namespace RayTracer.Editor.Tests
         [TestCaseSource("testDatas")]
         public void VerifyOutput(TestData data)
         {
+            var random = new Random(data.seed);
             var groupAddProgram = new GroupAddProgram(data.warpSize);
 
-            var perThreadInput = Enumerable.Range(37, data.count).ToArray();
-            var perGroupInput = Enumerable.Range(412, groupAddProgram.GetGroupCount(data.limit)).ToArray();
+            var perThreadInput = new int[data.count];
+            for (var i = 0; i < perThreadInput.Length; i++)
+                perThreadInput[i] = random.Next(0, 2 ^ 30);
+
+            var perGroupInput = new int[groupAddProgram.GetGroupCount(data.limit)];
+            for (var i = 0; i < perGroupInput.Length; i++)
+                perGroupInput[i] = random.Next(0, 2 ^ 30);
+
             var expected = perThreadInput.ToArray();
             for (var i = 0; i < perGroupInput.Length; i++)
             {

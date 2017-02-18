@@ -1,0 +1,9 @@
+﻿#pragma kernel Zero
+
+RWStructuredBuffer<int> g_Buffer;
+
+[numthreads(256,1,1)]
+void Zero(uint3 id : SV_DispatchThreadID)
+{
+	g_Buffer[id.x] = 0;
+}

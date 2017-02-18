@@ -8,30 +8,6 @@ RWStructuredBuffer<int> g_HistogramBuffer;
 int g_ItemCount;
 int g_KeyShift;
 
-interface INoise
-{
-	float Compute(float x);
-};
-
-class TestNoise : INoise
-{
-	float Compute(float x)
-	{
-		return x * 0.5;
-	}
-};
-
-float f1(INoise noise)
-{
-	return noise.Compute(123);
-}
-
-float f2()
-{
-	TestNoise noise;
-	f1(noise);
-}
-
 [numthreads(GROUP_SIZE, 1, 1)]
 void RadixHistogram(uint3 id : SV_DispatchThreadID)
 {

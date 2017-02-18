@@ -16,7 +16,7 @@ void RadixCount(uint3 groupThreadId : SV_GroupThreadID, uint3 dispatchThreadId :
 {
     for (int i = 0; i < 16; i++)
         counts[groupThreadId.x][i] = 0;
-    GroupMemoryBarrier();
+    GroupMemoryBarrierWithGroupSync();
     int offset = dispatchThreadId.x * g_SectionSize;
     for (int i = offset; i < min(offset + g_SectionSize, g_ItemCount); i++)
     {

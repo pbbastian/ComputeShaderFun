@@ -55,7 +55,7 @@ int ScanGroup(uint index)
 
     if (lane == (WARP_SIZE - 1))
         temp[warpId] = temp[index];
-    GroupMemoryBarrier();
+    GroupMemoryBarrierWithGroupSync();
 
     if (warpId == 0)
         ScanWarp(index, lane);
@@ -66,23 +66,29 @@ int ScanGroup(uint index)
     GroupMemoryBarrierWithGroupSync();
 
     temp[index] = val;
-    GroupMemoryBarrier();
+    GroupMemoryBarrierWithGroupSync();
 
     return val;
 }
 
 void CSMain(uint3 groupThreadId, uint3 dispatchThreadId, uint3 groupId)
 {
+    int dispatchId = (int) dispatchThreadId.x;
     uint groupIndex = groupThreadId.x;
-    uint dataIndex = g_Offset + dispatchThreadId.x;
-    int input = dispatchThreadId.x < g_Limit ? g_Buffer[dataIndex] : 0;
+    uint dataIndex = g_Offset + dispatchId;
+    int input = dispatchId < g_Limit ? g_Buffer[dataIndex] : 0;
     temp[groupIndex] = input;
-    GroupMemoryBarrier();
+    GroupMemoryBarrierWithGroupSync();
     int result = ScanGroup(groupIndex);
-    if (dispatchThreadId.x < g_Limit)
-        g_Buffer[dataIndex] = result;
+    // if (dispatchThreadId.x < g_Limit)
+    //     g_Buffer[dataIndex] = result;
+    // if (groupIndex == GROUP_SIZE - 1)
+    //     g_GroupResultsBuffer[groupId.x] = input + result;
+
+    if (dispatchId < g_Limit)
+        g_Buffer[dataIndex] = input; // groupIndex == GROUP_SIZE - 1 ? groupId.x : -1;
     if (groupIndex == GROUP_SIZE - 1)
-        g_GroupResultsBuffer[groupId.x] = input + result;
+        g_GroupResultsBuffer[groupId.x] = input;
 }
 
 [numthreads(GROUP_SIZE, 1, 1)]
