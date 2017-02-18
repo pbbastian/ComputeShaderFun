@@ -33,7 +33,7 @@ namespace RayTracer.Editor.Tests
         {
             get
             {
-                var counts = new[] {16, 256, 1024, 2345, 9123, 20449, 150101};
+                var counts = new[] {16, 256, 1024, 1025, 2345, 9123, 20449, 150101};
                 var seeds = new[] {64589, 12309222, 54443333, 20694, 160792, 12345789};
                 var warpSizes = new List<WarpSize> { WarpSize.Warp16, WarpSize.Warp32 };
                 if (SystemInfo.graphicsDeviceVendorID != 0x10DE)
