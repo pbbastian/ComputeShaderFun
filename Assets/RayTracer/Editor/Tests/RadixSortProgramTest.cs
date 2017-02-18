@@ -33,8 +33,8 @@ namespace RayTracer.Editor.Tests
         {
             get
             {
-                var counts = new[] {16, 256, 1024, 2345, 9123};
-                var seeds = new[] {64589, 12309222, 54443333, 20694};
+                var counts = new[] {16, 256, 1024, 2345, 9123, 20449, 150101};
+                var seeds = new[] {64589, 12309222, 54443333, 20694, 160792, 12345789};
                 var warpSizes = new List<WarpSize> { WarpSize.Warp16, WarpSize.Warp32 };
                 if (SystemInfo.graphicsDeviceVendorID != 0x10DE)
                     warpSizes.Add(WarpSize.Warp64);
@@ -58,7 +58,7 @@ namespace RayTracer.Editor.Tests
             var random = new Random(data.seed);
             var input = new int[data.count];
             for (var i = 0; i < input.Length; i++)
-                input[i] = random.Next(0, 2000);
+                input[i] = random.Next(0, 200000);
             var expected = input.ToArray();
             Array.Sort(expected);
 
