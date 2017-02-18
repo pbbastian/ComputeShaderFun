@@ -6,11 +6,11 @@
 #define GROUP_SIZE 1024
 #define WARP_SHIFT 6
 #elif WARP_SIZE == 32
-#define GROUP_SIZE 512
+#define GROUP_SIZE 992
 #define WARP_SHIFT 5
 #else
 #define WARP_SIZE 16
-#define GROUP_SIZE 256
+#define GROUP_SIZE 240
 #define WARP_SHIFT 4
 #endif
 

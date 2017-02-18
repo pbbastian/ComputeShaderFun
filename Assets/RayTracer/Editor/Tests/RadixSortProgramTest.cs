@@ -33,7 +33,7 @@ namespace RayTracer.Editor.Tests
         {
             get
             {
-                var counts = new[] {16, 256, 1024, 1025, 2345, 9123, 20449, 150101};
+                var counts = new[] {16, 256, 1024, 1025, 2345, 9123, 50965, 150101};
                 var seeds = new[] {64589, 12309222, 54443333, 20694, 160792, 12345789};
                 var warpSizes = new List<WarpSize> { WarpSize.Warp16, WarpSize.Warp32 };
                 if (SystemInfo.graphicsDeviceVendorID != 0x10DE)
@@ -43,6 +43,7 @@ namespace RayTracer.Editor.Tests
                     from count in counts
                     from warpSize in warpSizes
                     from seed in seeds
+                    where count <= Math.Pow((int)warpSize * ((int)warpSize - 1), 2)
                     select new TestData {count = count, seed = seed, warpSize = warpSize};
 
                 return tests.AsNamedTestCase();

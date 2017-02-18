@@ -5,9 +5,9 @@
 #if WARP_SIZE == 64
 #define GROUP_SIZE 1024
 #elif WARP_SIZE == 32
-#define GROUP_SIZE 512
+#define GROUP_SIZE 992
 #else
-#define GROUP_SIZE 256
+#define GROUP_SIZE 240
 #endif
 
 RWStructuredBuffer<int> g_PerThreadBuffer;
