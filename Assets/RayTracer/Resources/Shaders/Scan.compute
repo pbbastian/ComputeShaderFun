@@ -41,8 +41,28 @@ int ScanWarp(uint index, uint lane)
     if (lane >= 32)
         temp[index] = temp[index - 32] + temp[index];
 #endif
-
     return lane > 0 ? temp[index - 1] : 0;
+}
+
+int ScanWarpInclusive(uint index, uint lane)
+{
+    if (lane >= 1)
+        temp[index] = temp[index - 1] + temp[index];
+    if (lane >= 2)
+        temp[index] = temp[index - 2] + temp[index];
+    if (lane >= 4)
+        temp[index] = temp[index - 4] + temp[index];
+    if (lane >= 8)
+        temp[index] = temp[index - 8] + temp[index];
+#if WARP_SIZE >= 32
+    if (lane >= 16)
+        temp[index] = temp[index - 16] + temp[index];
+#endif
+#if WARP_SIZE >= 64
+    if (lane >= 32)
+        temp[index] = temp[index - 32] + temp[index];
+#endif
+    return temp[index];
 }
 
 int ScanGroup(uint index)
@@ -58,7 +78,7 @@ int ScanGroup(uint index)
     GroupMemoryBarrierWithGroupSync();
 
     if (warpId == 0)
-        ScanWarp(index, lane);
+        ScanWarpInclusive(index, lane);
     GroupMemoryBarrierWithGroupSync();
 
     if (warpId > 0)
@@ -88,7 +108,7 @@ void CSMain(uint3 groupThreadId, uint3 dispatchThreadId, uint3 groupId)
     if (dispatchId < g_Limit)
         g_Buffer[dataIndex] = result; // groupIndex == GROUP_SIZE - 1 ? groupId.x : -1;
     if (groupIndex == GROUP_SIZE - 1)
-        g_GroupResultsBuffer[groupId.x] = input + result;
+        g_GroupResultsBuffer[groupId.x] = result;
 }
 
 [numthreads(GROUP_SIZE, 1, 1)]
