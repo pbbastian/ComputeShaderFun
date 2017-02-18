@@ -27,7 +27,7 @@ namespace RayTracer.Runtime.ShaderPrograms
     public class RadixSortProgram
     {
         private RadixHistogramProgram m_HistogramProgram;
-        private GlobalScanProgram[] m_GlobalScanProgram;
+        private GlobalScanProgram m_GlobalScanProgram;
         private ScanProgram m_ScanProgram;
         private RadixCountProgram m_CountProgram;
         private RadixReorderProgram m_ReorderProgram;
@@ -36,9 +36,7 @@ namespace RayTracer.Runtime.ShaderPrograms
         public RadixSortProgram(WarpSize warpSize)
         {
             m_HistogramProgram = new RadixHistogramProgram();
-            m_GlobalScanProgram = new GlobalScanProgram[16];
-            for (var i = 0; i < 16; i++)
-                m_GlobalScanProgram[i] = new GlobalScanProgram(warpSize);
+            m_GlobalScanProgram = new GlobalScanProgram(warpSize);
             m_ScanProgram = new ScanProgram(warpSize);
             m_CountProgram = new RadixCountProgram();
             m_ReorderProgram = new RadixReorderProgram();
@@ -63,8 +61,7 @@ namespace RayTracer.Runtime.ShaderPrograms
                 m_ScanProgram.Dispatch(new ScanData(0, 16, data.countBuffer, data.dummyBuffer));
                 for (var j = 0; j < 16; j++)
                 {
-                    m_ZeroProgram.Dispatch(data.histogramGroupResultsBuffer, GetHistogramGroupCount(data.limit));
-                    m_GlobalScanProgram[i].Dispatch(new GlobalScanData(data.limit, j * data.limit, data.histogramBuffer, data.histogramGroupResultsBuffer, data.dummyBuffer));
+                    m_GlobalScanProgram.Dispatch(new GlobalScanData(data.limit, j * data.limit, data.histogramBuffer, data.histogramGroupResultsBuffer, data.dummyBuffer));
                 }
                 //return;
                 m_ReorderProgram.Dispatch(new RadixReorderData(keyBuffer, keyBackBuffer, data.histogramBuffer, data.countBuffer, data.limit, keyShift));
