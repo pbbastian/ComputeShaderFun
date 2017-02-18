@@ -54,7 +54,7 @@ namespace RayTracer.Runtime.ShaderPrograms
         {
             var keyBuffer = data.keyBuffer;
             var keyBackBuffer = data.keyBackBuffer;
-            for (var i = 0; i < 1; i++)
+            for (var i = 0; i < 8; i++)
             {
                 var keyShift = i * 4;
                 m_ZeroProgram.Dispatch(data.countBuffer, 16);

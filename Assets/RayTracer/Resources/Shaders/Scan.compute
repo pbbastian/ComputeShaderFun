@@ -86,9 +86,9 @@ void CSMain(uint3 groupThreadId, uint3 dispatchThreadId, uint3 groupId)
     //     g_GroupResultsBuffer[groupId.x] = input + result;
 
     if (dispatchId < g_Limit)
-        g_Buffer[dataIndex] = input; // groupIndex == GROUP_SIZE - 1 ? groupId.x : -1;
+        g_Buffer[dataIndex] = result; // groupIndex == GROUP_SIZE - 1 ? groupId.x : -1;
     if (groupIndex == GROUP_SIZE - 1)
-        g_GroupResultsBuffer[groupId.x] = input;
+        g_GroupResultsBuffer[groupId.x] = input + result;
 }
 
 [numthreads(GROUP_SIZE, 1, 1)]

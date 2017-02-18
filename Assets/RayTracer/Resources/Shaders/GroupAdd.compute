@@ -20,8 +20,8 @@ void GroupAdd(uint3 id, uint3 groupId)
 {
     int dispatchId = (int) id.x;
     uint dataIndex = g_Offset + dispatchId;
-    // if (dispatchId < g_Limit)
-    // 	g_PerThreadBuffer[dataIndex] = g_PerGroupBuffer[groupId.x];
+    if (dispatchId < g_Limit)
+        g_PerThreadBuffer[dataIndex] += g_PerGroupBuffer[groupId.x];
 }
 
 [numthreads(GROUP_SIZE, 1, 1)]

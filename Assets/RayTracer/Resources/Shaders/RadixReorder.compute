@@ -20,5 +20,5 @@ void RadixReorder(uint3 id : SV_DispatchThreadID)
 	if (g_KeyShift > 0 && false)
     	g_OutputBuffer[id.x] = g_HistogramBuffer[subKey * g_Limit + id.x];
     else
-		g_OutputBuffer[newIndex] = 9001;// key;
+		g_OutputBuffer[newIndex] = key;
 }

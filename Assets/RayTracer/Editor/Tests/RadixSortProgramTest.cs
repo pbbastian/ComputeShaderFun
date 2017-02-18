@@ -33,9 +33,11 @@ namespace RayTracer.Editor.Tests
         {
             get
             {
-                var counts = new[] {16, 256, 1024, 2345};
-                var seeds = new[] {64589, 12309222};
-                var warpSizes = Enum.GetValues(typeof(WarpSize)).OfType<WarpSize>().ToArray();
+                var counts = new[] {16, 256, 1024, 2345, 9123};
+                var seeds = new[] {64589, 12309222, 54443333, 20694};
+                var warpSizes = new List<WarpSize> { WarpSize.Warp16, WarpSize.Warp32 };
+                if (SystemInfo.graphicsDeviceVendorID != 0x10DE)
+                    warpSizes.Add(WarpSize.Warp64);
 
                 var tests =
                     from count in counts
@@ -47,7 +49,7 @@ namespace RayTracer.Editor.Tests
             }
         }
 
-        public static readonly bool s_Debug = true;
+        public static readonly bool s_Debug = false;
 
         [TestCaseSource("tests")]
         public void PseudoRandomTest(TestData data)
@@ -56,7 +58,7 @@ namespace RayTracer.Editor.Tests
             var random = new Random(data.seed);
             var input = new int[data.count];
             for (var i = 0; i < input.Length; i++)
-                input[i] = random.Next(0, 16);
+                input[i] = random.Next(0, 2000);
             var expected = input.ToArray();
             Array.Sort(expected);
 
@@ -70,7 +72,7 @@ namespace RayTracer.Editor.Tests
                 keyBuffer.SetData(input);
                 program.Dispatch(new RadixSortData(keyBuffer, keyBackBuffer, histogramBuffer, histogramGroupResultsBuffer, countBuffer, dummyBuffer, data.count));
                 var output = new int[data.count];
-                keyBackBuffer.GetData(output);
+                keyBuffer.GetData(output);
 
                 if (s_Debug)
                 {

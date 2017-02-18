@@ -36,7 +36,9 @@ namespace RayTracer.Editor.Tests
         {
             get
             {
-                var warpSizes = new[] {WarpSize.Warp16, WarpSize.Warp32, WarpSize.Warp64};
+                var warpSizes = new List<WarpSize> {WarpSize.Warp16, WarpSize.Warp32};
+                if (SystemInfo.graphicsDeviceVendorID != 0x10DE)
+                    warpSizes.Add(WarpSize.Warp64);
                 var counts = new[] {1024 * 3, 4657};
                 var offsets = new[] {0, 3, 1025, 17};
                 var relativeLimits = new[] {1, 0.7};
