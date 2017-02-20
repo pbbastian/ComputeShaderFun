@@ -1,0 +1,9 @@
+#pragma kernel Sequence
+
+RWStructuredBuffer<int> g_Buffer;
+
+[numthreads(256, 1, 1)]
+void Sequence(uint3 id : SV_DispatchThreadID)
+{
+	g_Buffer[id.x] = id.x;
+}
