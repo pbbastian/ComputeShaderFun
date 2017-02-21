@@ -1,0 +1,57 @@
+#pragma kernel RadixTreeConstructor
+
+#include "Math.cginc"
+#include "RadixTree.cginc"
+
+StructuredBuffer<int> _keys;
+RWStructuredBuffer<RadixTree::InternalNode> _internalNodes;
+
+
+[numthreads(256, 1, 1)]
+void RadixTreeConstructor(uint3 id : SV_DispatchThreadID)
+{
+	// Key index is equal to thread id, such that 1 thread handles 1 key
+	int i = id.x;
+	int key = _keys[i];
+
+	// Determine direction of the range (+1 or -1)
+	int d = sign(CommonPrefix(key, _keys[i+1]) - CommonPrefix(key, _keys[i-1]));
+	
+	// Compute upper bound for the length of the range
+	int minPrefix = CommonPrefix(key, _keys[i+d]);
+	int l_max = 2;
+	while (CommonPrefix(key, _keys[i + l_max * d]) > minPrefix)
+		l_max *= 2;
+
+	// Find the other end using binary search
+	int l = 0;
+	for (int t = Div2(l_max); t > 0; t = Div2(t))
+	{
+		if (CommonPrefix(key, _keys[i + (l + t) * d]) > minPrefix)
+			l += t;
+	}
+	int j = i + l * d;
+
+	// Find the split position using binary search
+	int nodePrefix = CommonPrefix(key, _keys[j]);
+	int s = 0;
+	for (int u = CeilDiv2(l); u > 0; u = CeilDiv2(u))
+	{
+		if (CommonPrefix(key, _keys[i + (s + u) * d]) > nodePrefix)
+			s += u;
+	}
+	int split = i + s * d + min(d, 0);
+
+	// Output child pointers
+	RadixTree::InternalNode node;
+	node.left = split;
+	node.right = split + 1;
+
+	if (max(i, j) == node.left)
+		node.left = RadixTree::EncodeLeafNodeIndex(node.left);
+
+	if (max(i, j) == node.right)
+		node.right = RadixTree::EncodeLeafNodeIndex(node.right);
+
+	_internalNodes[i] = node;
+}
