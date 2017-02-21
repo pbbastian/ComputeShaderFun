@@ -63,13 +63,7 @@ namespace RayTracer.Editor.Tests
             using (var dummyBuffer = new ComputeBuffer(1, 4))
             {
                 inputBuffer.SetData(input);
-                scanProgram.Dispatch(new ScanData
-                {
-                    limit = data.limit,
-                    offset = data.offset,
-                    buffer = inputBuffer,
-                    groupResultsBuffer = dummyBuffer
-                });
+                scanProgram.Dispatch(data.offset, data.limit, inputBuffer, dummyBuffer);
                 inputBuffer.GetData(output);
                 // Debug.Log(string.Join(", ", output.Select(x => x.ToString()).ToArray()));
                 Assert.AreEqual(expected, output);

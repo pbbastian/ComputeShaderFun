@@ -3,22 +3,6 @@ using UnityEngine;
 
 namespace RayTracer.Runtime.ShaderPrograms
 {
-    public struct ScanData
-    {
-        public int offset;
-        public int limit;
-        public ComputeBuffer buffer;
-        public ComputeBuffer groupResultsBuffer;
-
-        public ScanData(int offset, int limit, ComputeBuffer buffer, ComputeBuffer groupResultsBuffer)
-        {
-            this.offset = offset;
-            this.limit = limit;
-            this.buffer = buffer;
-            this.groupResultsBuffer = groupResultsBuffer;
-        }
-    }
-
     public class ScanProgram
     {
         private static readonly int s_BufferId = Shader.PropertyToID("g_Buffer");
@@ -46,13 +30,13 @@ namespace RayTracer.Runtime.ShaderPrograms
             return itemCount.CeilDiv(groupSize);
         }
 
-        public void Dispatch(ScanData data)
+        public void Dispatch(int offset, int limit, ComputeBuffer buffer, ComputeBuffer groupResultsBuffer)
         {
-            m_Shader.SetBuffer(m_KernelIndex, s_BufferId, data.buffer);
-            m_Shader.SetBuffer(m_KernelIndex, s_GroupResultsBufferId, data.groupResultsBuffer);
-            m_Shader.SetInt(s_LimitId, data.limit);
-            m_Shader.SetInt(s_OffsetId, data.offset);
-            m_Shader.Dispatch(m_KernelIndex, GetGroupCount(data.limit), 1, 1);
+            m_Shader.SetBuffer(m_KernelIndex, s_BufferId, buffer);
+            m_Shader.SetBuffer(m_KernelIndex, s_GroupResultsBufferId, groupResultsBuffer);
+            m_Shader.SetInt(s_LimitId, limit);
+            m_Shader.SetInt(s_OffsetId, offset);
+            m_Shader.Dispatch(m_KernelIndex, GetGroupCount(limit), 1, 1);
         }
     }
 }

@@ -35,9 +35,9 @@ namespace RayTracer.Runtime.ShaderPrograms
             {
                 var keyShift = i * 4;
                 m_ZeroProgram.Dispatch(countBuffer, 16);
-                m_HistogramProgram.Dispatch(new RadixHistogramData(keyBuffer, histogramBuffer, limit, keyShift));
-                m_CountProgram.Dispatch(new RadixCountData(limit, keyShift, keyBuffer, countBuffer));
-                m_ScanProgram.Dispatch(new ScanData(0, 16, countBuffer, dummyBuffer));
+                m_HistogramProgram.Dispatch(keyBuffer, histogramBuffer, limit, keyShift);
+                m_CountProgram.Dispatch(limit, keyShift, keyBuffer, countBuffer);
+                m_ScanProgram.Dispatch(0, 16, countBuffer, dummyBuffer);
                 for (var j = 0; j < 16; j++)
                 {
                     m_ZeroProgram.Dispatch(histogramGroupResultsBuffer, GetHistogramGroupCount(limit));

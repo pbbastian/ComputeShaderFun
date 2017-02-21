@@ -61,13 +61,7 @@ namespace RayTracer.Editor.Tests
             {
                 keyBuffer.SetData(input);
 
-                program.Dispatch(new RadixHistogramData
-                {
-                    keyBuffer = keyBuffer,
-                    histogramBuffer = histogramBuffer,
-                    itemCount = input.Length,
-                    keyShift = data.keyShift
-                });
+                program.Dispatch(keyBuffer, histogramBuffer, input.Length, data.keyShift);
 
                 var output = new int[expectedHistogram.Length];
                 histogramBuffer.GetData(output);

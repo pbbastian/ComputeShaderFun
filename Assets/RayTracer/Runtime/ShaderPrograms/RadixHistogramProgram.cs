@@ -3,22 +3,6 @@ using UnityEngine;
 
 namespace RayTracer.Runtime.ShaderPrograms
 {
-    public struct RadixHistogramData
-    {
-        public ComputeBuffer keyBuffer;
-        public ComputeBuffer histogramBuffer;
-        public int itemCount;
-        public int keyShift;
-
-        public RadixHistogramData(ComputeBuffer keyBuffer, ComputeBuffer histogramBuffer, int itemCount, int keyShift)
-        {
-            this.keyBuffer = keyBuffer;
-            this.histogramBuffer = histogramBuffer;
-            this.itemCount = itemCount;
-            this.keyShift = keyShift;
-        }
-    }
-
     public class RadixHistogramProgram
     {
         private static readonly int s_KeyBufferId = Shader.PropertyToID("g_KeyBuffer");
@@ -41,13 +25,13 @@ namespace RayTracer.Runtime.ShaderPrograms
             m_SizeX = (int)x;
         }
 
-        public void Dispatch(RadixHistogramData data)
+        public void Dispatch(ComputeBuffer keyBuffer, ComputeBuffer histogramBuffer, int itemCount, int keyShift)
         {
-            m_Shader.SetBuffer(m_KernelIndex, s_KeyBufferId, data.keyBuffer);
-            m_Shader.SetBuffer(m_KernelIndex, s_HistogramBufferId, data.histogramBuffer);
-            m_Shader.SetInt(s_ItemCountId, data.itemCount);
-            m_Shader.SetInt(s_KeyShiftId, data.keyShift);
-            m_Shader.Dispatch(m_KernelIndex, data.itemCount.CeilDiv(m_SizeX), 1, 1);
+            m_Shader.SetBuffer(m_KernelIndex, s_KeyBufferId, keyBuffer);
+            m_Shader.SetBuffer(m_KernelIndex, s_HistogramBufferId, histogramBuffer);
+            m_Shader.SetInt(s_ItemCountId, itemCount);
+            m_Shader.SetInt(s_KeyShiftId, keyShift);
+            m_Shader.Dispatch(m_KernelIndex, itemCount.CeilDiv(m_SizeX), 1, 1);
         }
     }
 }

@@ -66,13 +66,7 @@ namespace RayTracer.Editor.Tests
                 keyBuffer.SetData(keys);
                 countBuffer.SetData(counts);
 
-                countProgram.Dispatch(new RadixCountData
-                {
-                    itemCount = keys.Length,
-                    keyShift = data.keyData.keyShift,
-                    keyBuffer = keyBuffer,
-                    countBuffer = countBuffer
-                });
+                countProgram.Dispatch(keys.Length, data.keyData.keyShift, keyBuffer, countBuffer);
 
                 countBuffer.GetData(counts);
 

@@ -74,7 +74,7 @@ namespace RayTracer.Editor.Tests
             {
                 perThreadBuffer.SetData(perThreadInput);
                 perGroupBuffer.SetData(perGroupInput);
-                groupAddProgram.Dispatch(new GroupAddData(perThreadBuffer, perGroupBuffer, data.offset, data.limit));
+                groupAddProgram.Dispatch(perThreadBuffer, perGroupBuffer, data.offset, data.limit);
 
                 var output = new int[data.count];
                 perThreadBuffer.GetData(output);

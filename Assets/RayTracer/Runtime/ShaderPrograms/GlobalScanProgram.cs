@@ -40,29 +40,11 @@ namespace RayTracer.Runtime.ShaderPrograms
         {
             var groupCount = m_ScanProgram.GetGroupCount(data.limit);
 
-            m_ScanProgram.Dispatch(new ScanData
-            {
-                limit = data.limit,
-                offset = data.offset,
-                buffer = data.buffer,
-                groupResultsBuffer = data.groupResultsBuffer
-            });
+            m_ScanProgram.Dispatch(data.offset, data.limit, data.buffer, data.groupResultsBuffer);
 
-            m_ScanProgram.Dispatch(new ScanData
-            {
-                limit = groupCount,
-                offset = 0,
-                buffer = data.groupResultsBuffer,
-                groupResultsBuffer = data.dummyBuffer
-            });
+            m_ScanProgram.Dispatch(0, groupCount, data.groupResultsBuffer, data.dummyBuffer);
 
-            m_GroupAddProgram.Dispatch(new GroupAddData
-            {
-                limit = data.limit,
-                offset = data.offset,
-                perThreadBuffer = data.buffer,
-                perGroupBuffer = data.groupResultsBuffer
-            });
+            m_GroupAddProgram.Dispatch(data.buffer, data.groupResultsBuffer, data.offset, data.limit);
         }
     }
 }
