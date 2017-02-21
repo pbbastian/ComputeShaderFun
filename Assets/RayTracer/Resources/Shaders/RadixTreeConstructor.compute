@@ -6,6 +6,13 @@
 StructuredBuffer<int> _keys;
 RWStructuredBuffer<RadixTree::InternalNode> _internalNodes;
 
+// Augmented Common Prefix Lookup
+// Calculates the augmented common prefix of an already looked-up key (`key` and `i`)
+// and another key that is to be looked-up (`j`)
+int ACPL(int key, int i, int j)
+{
+	return AugmentedCommonPrefix(key, _keys[j], i, j);
+}
 
 [numthreads(256, 1, 1)]
 void RadixTreeConstructor(uint3 id : SV_DispatchThreadID)
@@ -15,29 +22,29 @@ void RadixTreeConstructor(uint3 id : SV_DispatchThreadID)
 	int key = _keys[i];
 
 	// Determine direction of the range (+1 or -1)
-	int d = sign(CommonPrefix(key, _keys[i+1]) - CommonPrefix(key, _keys[i-1]));
+	int d = sign(ACPL(key, i, i+1) - ACPL(key, i, i-1));
 	
 	// Compute upper bound for the length of the range
-	int minPrefix = CommonPrefix(key, _keys[i+d]);
+	int minPrefix = ACPL(key, i, i+d);
 	int l_max = 2;
-	while (CommonPrefix(key, _keys[i + l_max * d]) > minPrefix)
+	while (ACPL(key, i, i + l_max * d) > minPrefix)
 		l_max *= 2;
 
 	// Find the other end using binary search
 	int l = 0;
 	for (int t = Div2(l_max); t > 0; t = Div2(t))
 	{
-		if (CommonPrefix(key, _keys[i + (l + t) * d]) > minPrefix)
+		if (ACPL(key, i, i + (l + t) * d) > minPrefix)
 			l += t;
 	}
 	int j = i + l * d;
 
 	// Find the split position using binary search
-	int nodePrefix = CommonPrefix(key, _keys[j]);
+	int nodePrefix = ACPL(key, i, j);
 	int s = 0;
 	for (int u = CeilDiv2(l); u > 0; u = CeilDiv2(u))
 	{
-		if (CommonPrefix(key, _keys[i + (s + u) * d]) > nodePrefix)
+		if (ACPL(key, i, i + (s + u) * d) > nodePrefix)
 			s += u;
 	}
 	int split = i + s * d + min(d, 0);

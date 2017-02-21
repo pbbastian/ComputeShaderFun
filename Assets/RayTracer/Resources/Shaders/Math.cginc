@@ -1,6 +1,14 @@
-int CommonPrefix(int i, int j)
+int CommonPrefix(int x, int y)
 {
-	return firstbithigh(i ^ j);
+	return firstbithigh(x ^ y);
+}
+
+int AugmentedCommonPrefix(int x, int y, int i, int j)
+{
+	if (x == y)
+		return 32 + CommonPrefix(i, j);
+	else
+		return CommonPrefix(x, y);
 }
 
 int Div2(int x)
