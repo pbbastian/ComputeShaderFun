@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using RayTracer.Runtime.ShaderPrograms;
@@ -30,8 +31,8 @@ namespace RayTracer.Editor.Tests
                 if (SystemInfo.graphicsDeviceVendorID != 0x10DE)
                     warpSizes.Add(WarpSize.Warp64);
                 var counts = new[] {17};
-                var warpSpecificCounts = new Dictionary<WarpSize, int[]> {{WarpSize.Warp16, new[] {256}}, {WarpSize.Warp32, new[] {1024}}, {WarpSize.Warp64, new[] {1024}}};
-                var relativeLimits = new[] {1, 0.8};
+                var warpSpecificCounts = new Dictionary<WarpSize, int[]> {{WarpSize.Warp16, new[] {16*15}}, {WarpSize.Warp32, new[] {32*31}}, {WarpSize.Warp64, new[] {32*32}}};
+                var relativeLimits = new[] {1, 0.8, 1.1};
 
                 var tests =
                     from warpSize in warpSizes
@@ -52,7 +53,7 @@ namespace RayTracer.Editor.Tests
             var expected = new int[input.Length];
             for (var i = 0; i < input.Length; i++)
             {
-                if (i >= data.offset && i < data.offset + data.limit)
+                if (i >= data.offset && i < Math.Min(data.offset + data.limit, input.Length))
                     expected[i] = input.Skip(data.offset).Take(i - data.offset).Sum();
                 else
                     expected[i] = input[i];
