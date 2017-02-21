@@ -74,17 +74,19 @@ namespace RayTracer.Editor.Tests
                 }
             }
 
-            using (var inputBuffer = new ComputeBuffer(input.Length, sizeof(int)))
-            using (var outputBuffer = new ComputeBuffer(input.Length, sizeof(int)))
+            using (var inputKeyBuffer = new ComputeBuffer(input.Length, sizeof(int)))
+            using (var outputKeyBuffer = new ComputeBuffer(input.Length, sizeof(int)))
+            using (var inputIndexBuffer = new ComputeBuffer(input.Length, sizeof(int)))
+            using (var outputIndexBuffer = new ComputeBuffer(input.Length, sizeof(int)))
             using (var histogramBuffer = new ComputeBuffer(histogram.Length, sizeof(int)))
             using (var countBuffer = new ComputeBuffer(count.Length, sizeof(int)))
             {
-                inputBuffer.SetData(input);
+                inputKeyBuffer.SetData(input);
                 histogramBuffer.SetData(scannedHistogram);
                 countBuffer.SetData(scannedCount);
-                program.Dispatch(new RadixReorderData(inputBuffer, outputBuffer, histogramBuffer, countBuffer, input.Length, data.keyShift));
+                program.Dispatch(inputKeyBuffer, outputKeyBuffer, inputIndexBuffer, outputIndexBuffer, histogramBuffer, countBuffer, input.Length, data.keyShift);
                 var output = new int[input.Length];
-                outputBuffer.GetData(output);
+                outputKeyBuffer.GetData(output);
 
                 if (s_Debug)
                 {

@@ -2,28 +2,6 @@
 
 namespace RayTracer.Runtime.ShaderPrograms
 {
-    public struct RadixSortData
-    {
-        public ComputeBuffer keyBuffer;
-        public ComputeBuffer keyBackBuffer;
-        public ComputeBuffer histogramBuffer;
-        public ComputeBuffer histogramGroupResultsBuffer;
-        public ComputeBuffer countBuffer;
-        public ComputeBuffer dummyBuffer;
-        public int limit;
-
-        public RadixSortData(ComputeBuffer keyBuffer, ComputeBuffer keyBackBuffer, ComputeBuffer histogramBuffer, ComputeBuffer histogramGroupResultsBuffer, ComputeBuffer countBuffer, ComputeBuffer dummyBuffer, int limit)
-        {
-            this.keyBuffer = keyBuffer;
-            this.keyBackBuffer = keyBackBuffer;
-            this.histogramBuffer = histogramBuffer;
-            this.histogramGroupResultsBuffer = histogramGroupResultsBuffer;
-            this.countBuffer = countBuffer;
-            this.dummyBuffer = dummyBuffer;
-            this.limit = limit;
-        }
-    }
-
     public class RadixSortProgram
     {
         private RadixHistogramProgram m_HistogramProgram;
@@ -32,6 +10,7 @@ namespace RayTracer.Runtime.ShaderPrograms
         private RadixCountProgram m_CountProgram;
         private RadixReorderProgram m_ReorderProgram;
         private ZeroProgram m_ZeroProgram;
+        private SequenceProgram m_SequenceProgram;
 
         public RadixSortProgram(WarpSize warpSize)
         {
@@ -41,6 +20,7 @@ namespace RayTracer.Runtime.ShaderPrograms
             m_CountProgram = new RadixCountProgram();
             m_ReorderProgram = new RadixReorderProgram();
             m_ZeroProgram = new ZeroProgram();
+            m_SequenceProgram = new SequenceProgram();
         }
 
         public int GetHistogramGroupCount(int itemCount)
@@ -48,26 +28,31 @@ namespace RayTracer.Runtime.ShaderPrograms
             return m_ScanProgram.GetGroupCount(itemCount);
         }
 
-        public void Dispatch(RadixSortData data)
+        public void Dispatch(ComputeBuffer keyBuffer, ComputeBuffer keyBackBuffer, ComputeBuffer indexBuffer, ComputeBuffer indexBackBuffer, ComputeBuffer histogramBuffer, ComputeBuffer histogramGroupResultsBuffer, ComputeBuffer countBuffer, ComputeBuffer dummyBuffer, int limit)
         {
-            var keyBuffer = data.keyBuffer;
-            var keyBackBuffer = data.keyBackBuffer;
+            m_SequenceProgram.Dispatch(limit, indexBuffer);
             for (var i = 0; i < 8; i++)
             {
                 var keyShift = i * 4;
-                m_ZeroProgram.Dispatch(data.countBuffer, 16);
-                m_HistogramProgram.Dispatch(new RadixHistogramData(keyBuffer, data.histogramBuffer, data.limit, keyShift));
-                m_CountProgram.Dispatch(new RadixCountData(data.limit, keyShift, keyBuffer, data.countBuffer));
-                m_ScanProgram.Dispatch(new ScanData(0, 16, data.countBuffer, data.dummyBuffer));
+                m_ZeroProgram.Dispatch(countBuffer, 16);
+                m_HistogramProgram.Dispatch(new RadixHistogramData(keyBuffer, histogramBuffer, limit, keyShift));
+                m_CountProgram.Dispatch(new RadixCountData(limit, keyShift, keyBuffer, countBuffer));
+                m_ScanProgram.Dispatch(new ScanData(0, 16, countBuffer, dummyBuffer));
                 for (var j = 0; j < 16; j++)
                 {
-                    m_GlobalScanProgram.Dispatch(new GlobalScanData(data.limit, j * data.limit, data.histogramBuffer, data.histogramGroupResultsBuffer, data.dummyBuffer));
+                    m_ZeroProgram.Dispatch(histogramGroupResultsBuffer, GetHistogramGroupCount(limit));
+                    m_GlobalScanProgram.Dispatch(new GlobalScanData(limit, j * limit, histogramBuffer, histogramGroupResultsBuffer, dummyBuffer));
                 }
-                //return;
-                m_ReorderProgram.Dispatch(new RadixReorderData(keyBuffer, keyBackBuffer, data.histogramBuffer, data.countBuffer, data.limit, keyShift));
-                var temp = keyBuffer;
+                
+                m_ReorderProgram.Dispatch(keyBuffer, keyBackBuffer, indexBuffer, indexBackBuffer, histogramBuffer, countBuffer, limit, keyShift);
+
+                var keyTemp = keyBuffer;
                 keyBuffer = keyBackBuffer;
-                keyBackBuffer = temp;
+                keyBackBuffer = keyTemp;
+
+                var indexTemp = indexBuffer;
+                indexBuffer = indexBackBuffer;
+                indexBackBuffer = indexTemp;
             }
         }
     }

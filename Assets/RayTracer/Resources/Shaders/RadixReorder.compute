@@ -1,8 +1,10 @@
 ﻿// Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel RadixReorder
 
-StructuredBuffer<int> g_InputBuffer;
-RWStructuredBuffer<int> g_OutputBuffer;
+StructuredBuffer<int> g_InputKeyBuffer;
+StructuredBuffer<int> g_InputIndexBuffer;
+RWStructuredBuffer<int> g_OutputKeyBuffer;
+RWStructuredBuffer<int> g_OutputIndexBuffer;
 StructuredBuffer<int> g_HistogramBuffer;
 StructuredBuffer<int> g_CountBuffer;
 
@@ -14,11 +16,10 @@ void RadixReorder(uint3 id : SV_DispatchThreadID)
 {
 	if (id.x >= g_Limit)
 		return;
-	int key = g_InputBuffer[id.x];
-    int subKey = (key >> g_KeyShift) & 0xF;
-	int newIndex = g_CountBuffer[subKey] + g_HistogramBuffer[subKey * g_Limit + id.x];
-	if (g_KeyShift > 0 && false)
-    	g_OutputBuffer[id.x] = g_HistogramBuffer[subKey * g_Limit + id.x];
-    else
-		g_OutputBuffer[newIndex] = key;
+	int index = g_InputIndexBuffer[id.x];
+	int key = g_InputKeyBuffer[id.x];
+    int bucket = (key >> g_KeyShift) & 0xF;
+	int newIndex = g_CountBuffer[bucket] + g_HistogramBuffer[bucket * g_Limit + id.x];
+	g_OutputKeyBuffer[newIndex] = key;
+	g_OutputIndexBuffer[newIndex] = index;
 }

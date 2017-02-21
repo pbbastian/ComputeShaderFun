@@ -6,8 +6,7 @@ namespace RayTracer.Runtime.ShaderPrograms
     public class ZeroProgram
     {
         private static readonly int s_BufferId = Shader.PropertyToID("g_Buffer");
-
-        private static readonly int s_GroupCount = 1024;
+        
         private int m_KernelIndex;
         private ComputeShader m_Shader;
         private int m_SizeX;
@@ -15,8 +14,7 @@ namespace RayTracer.Runtime.ShaderPrograms
         public ZeroProgram()
         {
             m_Shader = Resources.Load<ComputeShader>("Shaders/Zero");
-            var kernelName = "Zero";
-            m_KernelIndex = m_Shader.FindKernel(kernelName);
+            m_KernelIndex = m_Shader.FindKernel("Zero");
 
             uint x, y, z;
             m_Shader.GetKernelThreadGroupSizes(m_KernelIndex, out x, out y, out z);

@@ -65,13 +65,15 @@ namespace RayTracer.Editor.Tests
 
             using (var keyBuffer = new ComputeBuffer(input.Length, sizeof(int)))
             using (var keyBackBuffer = new ComputeBuffer(input.Length, sizeof(int)))
+            using (var indexBuffer = new ComputeBuffer(input.Length, sizeof(int)))
+            using (var indexBackBuffer = new ComputeBuffer(input.Length, sizeof(int)))
             using (var histogramBuffer = new ComputeBuffer(input.Length * 16, sizeof(int)))
             using (var histogramGroupResultsBuffer = new ComputeBuffer(program.GetHistogramGroupCount(input.Length), sizeof(int)))
             using (var countBuffer = new ComputeBuffer(16, sizeof(int)))
             using (var dummyBuffer = new ComputeBuffer(1, 4))
             {
                 keyBuffer.SetData(input);
-                program.Dispatch(new RadixSortData(keyBuffer, keyBackBuffer, histogramBuffer, histogramGroupResultsBuffer, countBuffer, dummyBuffer, data.count));
+                program.Dispatch(keyBuffer, keyBackBuffer, indexBuffer, indexBackBuffer, histogramBuffer, histogramGroupResultsBuffer, countBuffer, dummyBuffer, data.count);
                 var output = new int[data.count];
                 keyBuffer.GetData(output);
 
