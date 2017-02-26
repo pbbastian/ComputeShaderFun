@@ -11,7 +11,7 @@ using Random = System.Random;
 
 namespace RayTracer.Editor.Tests
 {
-    public class BvhProgramTest
+    public class BvhProgramsTest
     {
         public struct TestData
         {
@@ -33,7 +33,7 @@ namespace RayTracer.Editor.Tests
             get
             {
                 var keyCounts = new[] {25, 1025, 7890};
-                var seeds = new[] {48957345};
+                var seeds = new[] {48957345, 84732623};
                 var tests =
                     from keyCount in keyCounts
                     from seed in seeds
@@ -41,6 +41,9 @@ namespace RayTracer.Editor.Tests
                 return tests.AsNamedTestCase();
             }
         }
+
+
+        public static IEnumerable<TestCaseData> testCaseDatas2 = testCaseDatas.ToList();
 
         private void GenerateKeysAndBounds(TestData data, out int[] keys, out AlignedAabb[] leafBounds)
         {
@@ -51,8 +54,10 @@ namespace RayTracer.Editor.Tests
             {
                 keys[i] = random.Next(0, int.MaxValue);
                 // leafBounds[i] = new Aabb { min = random.NextVector3(), max = random.NextVector3() };
-                leafBounds[i] = new Aabb { min = Vector3.left, max = Vector3.up };
+                leafBounds[i] = new Aabb {min = Vector3.left, max = Vector3.up};
             }
+
+            Array.Sort(keys);
         }
 
         [TestCaseSource("testCaseDatas")]
@@ -63,8 +68,6 @@ namespace RayTracer.Editor.Tests
             int[] keys;
             AlignedAabb[] leafBounds;
             GenerateKeysAndBounds(data, out keys, out leafBounds);
-
-            Array.Sort(keys);
 
             AlignedBvhNode[] nodes;
             int[] parentIndices;
@@ -81,6 +84,47 @@ namespace RayTracer.Editor.Tests
                 parentIndices = parentIndicesBuffer.data;
             }
 
+            AssertVisitedOnce(nodes, keys, parentIndices);
+            AssertLeafBounds(nodes, leafBounds);
+            AssertUpTraversalPossible(nodes, keys, parentIndices);
+        }
+
+        [TestCaseSource("testCaseDatas2")]
+        public void FitTest(TestData data)
+        {
+            var constructProgram = new BvhConstructProgram();
+            var fitProgram = new BvhFitProgram();
+            var zeroProgram = new ZeroProgram();
+
+            int[] keys;
+            AlignedAabb[] leafBounds;
+            GenerateKeysAndBounds(data, out keys, out leafBounds);
+
+            AlignedBvhNode[] nodes;
+            int[] parentIndices;
+
+            using (var keysBuffer = new StructuredBuffer<int>(keys.Length, ShaderSizes.s_Int))
+            using (var leafBoundsBuffer = new StructuredBuffer<AlignedAabb>(leafBounds.Length, AlignedAabb.s_Size))
+            using (var nodesBuffer = new StructuredBuffer<AlignedBvhNode>(data.keyCount - 1, AlignedBvhNode.s_Size))
+            using (var parentIndicesBuffer = new StructuredBuffer<int>(data.keyCount * 2 - 2, ShaderSizes.s_Int))
+            using (var nodeCountersBuffer = new StructuredBuffer<int>(data.keyCount - 1, ShaderSizes.s_Int))
+            {
+                keysBuffer.data = keys;
+                leafBoundsBuffer.data = leafBounds;
+                constructProgram.Dispatch(keysBuffer, leafBoundsBuffer, nodesBuffer, parentIndicesBuffer);
+                fitProgram.Dispatch(parentIndicesBuffer, nodeCountersBuffer, nodesBuffer);
+                nodes = nodesBuffer.data;
+                parentIndices = parentIndicesBuffer.data;
+            }
+
+            AssertVisitedOnce(nodes, keys, parentIndices);
+            AssertLeafBounds(nodes, leafBounds);
+            AssertUpTraversalPossible(nodes, keys, parentIndices);
+            AssertLeafBounds(nodes, leafBounds);
+        }
+
+        private void AssertVisitedOnce(AlignedBvhNode[] nodes, int[] keys, int[] parentIndices)
+        {
             var nodeVisits = new int[nodes.Length];
             var leafVisits = new int[keys.Length];
 
@@ -100,13 +144,15 @@ namespace RayTracer.Editor.Tests
             for (var i = 0; i < parentIndices.Length; i++)
             {
                 var parent = nodes[parentIndices[i]];
-                var j = i + 1;
-                if (j >= nodes.Length)
-                    j -= nodes.Length;
-                Assert.IsTrue(parent.left == j || parent.right == j);
+                var expected = i + 1;
+                if (expected >= nodes.Length)
+                    expected -= nodes.Length;
+                Assert.IsTrue(parent.left == expected || parent.right == expected);
             }
+        }
 
-            // Verify that leaf bounds are correctly copied to bottom internal nodes.
+        private void AssertLeafBounds(AlignedBvhNode[] nodes, AlignedAabb[] leafBounds)
+        {
             TraverseTreeDepthFirst(nodes, 0, (index, isLeaf) =>
             {
                 if (!isLeaf)
@@ -120,60 +166,55 @@ namespace RayTracer.Editor.Tests
             });
         }
 
-        [TestCaseSource("testCaseDatas")]
-        public void FitTest(TestData data)
+        private void AssertUpTraversalPossible(AlignedBvhNode[] nodes, int[] keys, int[] parentIndices)
         {
-            var constructProgram = new BvhConstructProgram();
-            var fitProgram = new BvhFitProgram();
-            var zeroProgram = new ZeroProgram();
+            var maxLevels = nodes.Length;
+            var levelMaxCount = 0;
 
-            int[] keys;
-            AlignedAabb[] leafBounds;
-            GenerateKeysAndBounds(data, out keys, out leafBounds);
-
-            AlignedBvhNode[] nodes;
-
-            using (var keysBuffer = new StructuredBuffer<int>(keys.Length, ShaderSizes.s_Int))
-            using (var leafBoundsBuffer = new StructuredBuffer<AlignedAabb>(leafBounds.Length, AlignedAabb.s_Size))
-            using (var nodesBuffer = new StructuredBuffer<AlignedBvhNode>(data.keyCount - 1, AlignedBvhNode.s_Size))
-            using (var parentIndicesBuffer = new StructuredBuffer<int>(data.keyCount * 2 - 2, ShaderSizes.s_Int))
-            using (var nodeCountersBuffer = new StructuredBuffer<int>(data.keyCount - 1, ShaderSizes.s_Int))
+            // Verify that it is possible to walk from all leafs to the top
+            for (var i = 0; i < keys.Length; i++)
             {
-                keysBuffer.data = keys;
-                leafBoundsBuffer.data = leafBounds;
-                constructProgram.Dispatch(keysBuffer, leafBoundsBuffer, nodesBuffer, parentIndicesBuffer);
-                zeroProgram.Dispatch(nodeCountersBuffer.computeBuffer, data.keyCount - 1);
-                fitProgram.Dispatch(parentIndicesBuffer, nodeCountersBuffer, nodesBuffer);
-                nodes = nodesBuffer.data;
+                int levels = 0;
+                var i1 = i;
+                TraverseTreeUp(nodes, parentIndices, i, true, (nodeIndex, isLeaf) =>
+                {
+                    levels++;
+                    Assert.LessOrEqual(levels, maxLevels, i1.ToString());
+                });
+                levelMaxCount = Math.Max(levels, levelMaxCount);
             }
+        }
 
+        private void AssertBounds(AlignedBvhNode[] nodes, AlignedAabb[] leafBounds)
+        {
             TraverseTreeDepthFirst(nodes, 0, (index, isLeaf) =>
             {
                 if (isLeaf) return;
                 var node = nodes[index];
 
+                var message = new DebugStringBuilder { { "index", index }, { "node", node.ToString(), "({1})" } }.ToString();
                 if (node.isLeftLeaf)
                 {
                     var expected = leafBounds[node.left];
-                    Assert.AreEqual(expected, node.leftBounds);
+                    Assert.AreEqual(expected, node.leftBounds, message + "\nLeft");
                 }
                 else
                 {
                     var leftChild = nodes[node.left];
                     var expected = leftChild.leftBounds.Merge(leftChild.rightBounds);
-                    Assert.AreEqual(expected, node.leftBounds);
+                    Assert.AreEqual(expected, node.leftBounds, message + "\nLeft");
                 }
 
                 if (node.isRightLeaf)
                 {
                     var expected = leafBounds[node.right];
-                    Assert.AreEqual(expected, node.rightBounds);
+                    Assert.AreEqual(expected, node.rightBounds, message + "\nRight");
                 }
                 else
                 {
                     var rightChild = nodes[node.right];
                     var expected = rightChild.leftBounds.Merge(rightChild.rightBounds);
-                    Assert.AreEqual(expected, node.rightBounds);
+                    Assert.AreEqual(expected, node.rightBounds, message + "\nRight");
                 }
             });
         }
@@ -182,7 +223,7 @@ namespace RayTracer.Editor.Tests
         {
             var node = tree[index];
             action(index, false);
-            
+
             if (!node.isLeftLeaf)
                 TraverseTreeDepthFirst(tree, node.left, action);
             else
@@ -192,6 +233,19 @@ namespace RayTracer.Editor.Tests
                 TraverseTreeDepthFirst(tree, node.right, action);
             else
                 action(node.right, true);
+        }
+
+        public void TraverseTreeUp(AlignedBvhNode[] nodes, int[] parentIndices, int index, bool isLeaf, Action<int, bool> action)
+        {
+            while (true)
+            {
+                action(index, isLeaf);
+                if (index == 0)
+                    return;
+                var parentIndex = parentIndices[(isLeaf ? nodes.Length : 0) + index - 1];
+                index = parentIndex;
+                isLeaf = false;
+            }
         }
     }
 }

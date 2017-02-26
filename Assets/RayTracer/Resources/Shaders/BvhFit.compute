@@ -11,9 +11,9 @@ int _internalNodeCount;
 
 int VisitInternalNode(int index)
 {
-	int originalCount;
-	InterlockedExchange(_nodeCounters[index], 1, originalCount);
-	return originalCount;
+	int count;
+	InterlockedAdd(_nodeCounters[index], 1, count);
+	return count;
 }
 
 [numthreads(256, 1, 1)]
@@ -21,48 +21,65 @@ void BvhFit(uint3 id : SV_DispatchThreadID)
 {
 	int leafIndex = id.x;
 
+	if (leafIndex >= _internalNodeCount + 1)
+		return;
+
 	int nodeIndex = _parentIndices[_internalNodeCount + leafIndex - 1];
 
 	int previousNodeIndex = -1;
 	Bvh::Node previousNode;
 
 	// Traverse until we're the first thread to visit a node
-	while (VisitInternalNode(nodeIndex) == 1)
+	int count = VisitInternalNode(nodeIndex);
+	[allow_uav_condition]
+	for (int i = 0; i < 1000; i++)
 	{
+		if (count == 0)
+			return;
+
 		Bvh::Node node = _nodes[nodeIndex];
-		Bvh::AABB previousBounds = previousNode.GetBounds();
+		//node.leftBounds.min = float3(1, 2, 3);
 
 		// Calculate bounding boxes, try to re-use information from traversed path
 		if (!node.isLeftLeaf)
 		{
-			Bvh::Node leftNode;
-			if (node.left == previousNodeIndex)
-				leftNode = previousNode;
-			else
-				leftNode = _nodes[node.left];
+			// Bvh::Node leftNode;
+			// if (node.left == previousNodeIndex)
+			// 	leftNode = previousNode;
+			// else
+			// 	leftNode = _nodes[node.left];
+			Bvh::Node leftNode = _nodes[node.left];
 			node.leftBounds = leftNode.GetBounds();
 		}
 
 		if (!node.isRightLeaf)
 		{
-			Bvh::Node rightNode;
-			if (node.right == previousNodeIndex)
-				rightNode = previousNode;
-			else
-				rightNode = _nodes[node.right];
+			// Bvh::Node rightNode;
+			// if (node.right == previousNodeIndex)
+			// 	rightNode = previousNode;
+			// else
+			// 	rightNode = _nodes[node.right];
+			Bvh::Node rightNode = _nodes[node.right];
 			node.rightBounds = rightNode.GetBounds();
 		}
 
+		// if (nodeIndex == 0 || nodeIndex >= _internalNodeCount)
+		// {
+		// 	node.leftBounds.max = float3(nodeIndex, 0, 0);
+		// 	break;
+		// }
+
 		_nodes[nodeIndex] = node;
+
+		if (nodeIndex == 0)
+			return;
 
 		// Save previous 
 		previousNode = node;
 		previousNodeIndex = nodeIndex;
 
-		if (nodeIndex == 0)
-			break;
-
 		// Fetch parent node index to traverse up the tree or end traversal
 		nodeIndex = _parentIndices[nodeIndex - 1];
+		count = VisitInternalNode(nodeIndex);
 	}
 }

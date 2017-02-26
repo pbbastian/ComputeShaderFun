@@ -1,4 +1,5 @@
 ﻿using System.Runtime.InteropServices;
+using Assets.RayTracer.Runtime.Util;
 using RayTracer.Runtime.Util;
 
 namespace RayTracer.Runtime.ShaderPrograms.Types
@@ -41,6 +42,24 @@ namespace RayTracer.Runtime.ShaderPrograms.Types
         {
             get { return m_IsRightLeaf != 0; }
             set { m_IsRightLeaf = value ? -1 : 0; }
+        }
+
+        public AlignedAabb bounds
+        {
+            get { return leftBounds.Merge(rightBounds);}
+        }
+
+        public override string ToString()
+        {
+            return new DebugStringBuilder
+            {
+                {"leftBounds", leftBounds.ToString(), "({1})" },
+                {"rightBounds", rightBounds.ToString(), "({1})" },
+                {"left", left },
+                {"right", right },
+                {"isLeftLeaf", isLeftLeaf },
+                {"isRightLeaf", isRightLeaf }
+            }.ToString();
         }
 
         public static readonly int s_Size = 64;
