@@ -6,10 +6,10 @@ namespace RayTracer.Runtime.ShaderPrograms
 {
     public class TransformProgram
     {
-        private static readonly int s_VerticesId = Shader.PropertyToID("g_VertexBuffer");
-        private static readonly int s_NormalsId = Shader.PropertyToID("g_NormalBuffer");
-        private static readonly int s_ObjectIndicesId = Shader.PropertyToID("g_ObjectIndexBuffer");
-        private static readonly int s_TransformsId = Shader.PropertyToID("g_TransformBuffer");
+        private static readonly int s_VerticesId = Shader.PropertyToID("_vertices");
+        private static readonly int s_NormalsId = Shader.PropertyToID("_normals");
+        private static readonly int s_ObjectIndicesId = Shader.PropertyToID("_objectIndices");
+        private static readonly int s_TransformsId = Shader.PropertyToID("_transforms");
 
         private int m_KernelIndex;
         private ComputeShader m_Shader;

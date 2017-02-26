@@ -1,10 +1,12 @@
 ﻿// Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel CSMain
 
-RWStructuredBuffer<float3> g_VertexBuffer;
-RWStructuredBuffer<float3> g_NormalBuffer;
-StructuredBuffer<uint> g_ObjectIndexBuffer;
-StructuredBuffer<float4x4> g_TransformBuffer;
+#include "Bvh.cginc"
+
+RWStructuredBuffer<float3> _vertices;
+RWStructuredBuffer<float3> _normals;
+StructuredBuffer<uint> _objectIndices;
+StructuredBuffer<float4x4> _transforms;
 
 // Expands a 10-bit integer into 30 bits
 // by inserting 2 zeros after each bit.
@@ -26,17 +28,17 @@ uint morton3D(float x, float y, float z)
     x = min(max(x * 1024.0f, 0.0f), 1023.0f);
     y = min(max(y * 1024.0f, 0.0f), 1023.0f);
     z = min(max(z * 1024.0f, 0.0f), 1023.0f);
-    unsigned int xx = expandBits((unsigned int) x);
-    unsigned int yy = expandBits((unsigned int) y);
-    unsigned int zz = expandBits((unsigned int) z);
+    uint xx = expandBits((uint) x);
+    uint yy = expandBits((uint) y);
+    uint zz = expandBits((uint) z);
     return xx * 4 + yy * 2 + zz;
 }
 
 [numthreads(32,1,1)]
 void CSMain (uint3 id : SV_DispatchThreadID)
 {
-    uint objectIndex = g_ObjectIndexBuffer.Load(id.x);
-    float4x4 transform = g_TransformBuffer.Load(objectIndex);
-    g_VertexBuffer[id.x] = mul(transform, float4(g_VertexBuffer[id.x], 1));
-    g_NormalBuffer[id.x] = mul(transform, float4(g_VertexBuffer[id.x], 0));
+    uint objectIndex = _objectIndices.Load(id.x);
+    float4x4 transform = _transforms.Load(objectIndex);
+    _vertices[id.x] = mul(transform, float4(_vertices[id.x], 1));
+    _normals[id.x] = mul(transform, float4(_normals[id.x], 0));
 }

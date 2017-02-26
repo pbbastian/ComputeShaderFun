@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using RayTracer.Runtime.Components;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -10,7 +11,7 @@ namespace RayTracer.Runtime
 		private List<Triangle> m_Vertices = new List<Triangle>();
 		private List<Vector3> m_Albedos = new List<Vector3>();
 
-		public void AddWithChildren(GameObject[] gameObjects)
+		public void AddWithChildren(IEnumerable<GameObject> gameObjects)
 		{
 			foreach (var gameObject in gameObjects)
 				AddWithChildren(gameObject);
@@ -18,13 +19,13 @@ namespace RayTracer.Runtime
 
 		public void Add(Scene scene)
 		{
-			AddWithChildren(scene.GetRootGameObjects());
+			AddWithChildren(scene.GetRootGameObjects().Where(x => x.activeInHierarchy));
 		}
 
 		public void AddWithChildren(GameObject gameObject)
 		{
 			Add(gameObject);
-			foreach (var rto in gameObject.GetComponentsInChildren<RayTracingObject>())
+			foreach (var rto in gameObject.GetComponentsInChildren<RayTracingObject>(false).Select(x => x.gameObject).Where(x => x.activeInHierarchy))
 				Add(rto.gameObject);
 		}
 

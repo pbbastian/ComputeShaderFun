@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using RayTracer.Runtime.Components;
 using RayTracer.Runtime.ShaderPrograms;
+using RayTracer.Runtime.ShaderPrograms.Types;
 using RayTracer.Runtime.Util;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -28,7 +29,8 @@ namespace RayTracer.Runtime
             var vertexData = new Vector3[vertexCount];
             var normalData = new Vector3[vertexCount];
             var objectIndexData = new uint[vertexCount];
-            var triangleData = new uint[triangleCount * 3];
+            //var flatTriangleData = new IndexedTriangle[triangleCount];
+            var triangleData = new IndexedTriangle[triangleCount];
             var transformData = new Matrix4x4[objectCount];
 
             int vertexIndex = 0, triangleIndex = 0, transformIndex = 0;
@@ -37,10 +39,11 @@ namespace RayTracer.Runtime
                 var meshFilter = gameObject.GetComponent<MeshFilter>();
                 var mesh = meshFilter.sharedMesh;
 
-                mesh.triangles.CopyTo(triangleData, triangleIndex);
-                for (var i = triangleIndex; i < triangleIndex + mesh.triangles.Length; i++)
-                    triangleData[i] += (uint) vertexIndex;
-                triangleIndex += mesh.triangles.Length;
+                //mesh.triangles.CopyTo(flatTriangleData, triangleIndex);
+                for (var i = 0; i < mesh.triangles.Length/3; i++)
+                for (var j = 0; j < 3; j++)
+                    triangleData[i][j] = (uint) (mesh.triangles[triangleIndex + i + j] + vertexIndex);
+                triangleIndex += mesh.triangles.Length/3;
 
                 mesh.vertices.CopyTo(vertexData, vertexIndex);
                 mesh.normals.CopyTo(normalData, vertexIndex);
@@ -52,16 +55,16 @@ namespace RayTracer.Runtime
                 transformIndex++;
             }
 
-            var vertexBuffer = new StructuredBuffer<Vector3>(vertexCount, sizeof(float) * 3);
-            var normalBuffer = new StructuredBuffer<Vector3>(vertexCount, sizeof(float) * 3);
-            var objectIndexBuffer = new StructuredBuffer<uint>(vertexCount, sizeof(uint));
-            var triangleBuffer = new StructuredBuffer<Triangle>(triangleCount, sizeof(uint) * 3);
-            var transformBuffer = new StructuredBuffer<Matrix4x4>(objectCount, sizeof(float) * 4 * 4);
+            var vertexBuffer = new StructuredBuffer<Vector3>(vertexCount, ShaderSizes.s_Vector3);
+            var normalBuffer = new StructuredBuffer<Vector3>(vertexCount, ShaderSizes.s_Vector3);
+            var objectIndexBuffer = new StructuredBuffer<uint>(vertexCount, ShaderSizes.s_UInt);
+            var triangleBuffer = new StructuredBuffer<IndexedTriangle>(triangleCount, IndexedTriangle.s_Size);
+            var transformBuffer = new StructuredBuffer<Matrix4x4>(objectCount, ShaderSizes.s_Matrix4X4);
 
             vertexBuffer.data = vertexData;
             normalBuffer.data = normalData;
             objectIndexBuffer.data = objectIndexData;
-            triangleBuffer.computeBuffer.SetData(triangleData);
+            triangleBuffer.data = triangleData;
             transformBuffer.data = transformData;
 
             var transformProgram = new TransformProgram();
