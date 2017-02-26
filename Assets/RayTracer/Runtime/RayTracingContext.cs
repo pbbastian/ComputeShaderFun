@@ -7,57 +7,50 @@ using UnityEngine.SceneManagement;
 
 namespace RayTracer.Runtime
 {
-	public sealed class RayTracingContext
-	{
-		public RayTracingContext()
-		{
-		}
+    public sealed class RayTracingContext
+    {
+        public RayTracingContext()
+        {
+        }
 
-		private RenderTexture m_RenderTexture;
-		private SceneBuilder m_SceneBuilder = new SceneBuilder();
-		private ComputeBuffer m_TriangleBuffer;
+        private RenderTexture m_RenderTexture;
+        private SceneBuilder m_SceneBuilder = new SceneBuilder();
+        private ComputeBuffer m_TriangleBuffer;
+        private BasicRayTracerProgram m_Shader;
 
-		public RenderTexture renderTexture
-		{
-			get { return m_RenderTexture; }
-			set { m_RenderTexture = value; }
-		}
+        public RenderTexture renderTexture
+        {
+            get { return m_RenderTexture; }
+            set { m_RenderTexture = value; }
+        }
 
-		public void BuildScene()
-		{
-			m_SceneBuilder.Add(SceneManager.GetActiveScene());
-			if (m_TriangleBuffer != null)
-				m_TriangleBuffer.Release();
-			m_TriangleBuffer = m_SceneBuilder.BuildTriangleBuffer();
-		}
+        public void BuildScene()
+        {
+            m_SceneBuilder.Add(SceneManager.GetActiveScene());
+            if (m_TriangleBuffer != null)
+                m_TriangleBuffer.Release();
+            m_TriangleBuffer = m_SceneBuilder.BuildTriangleBuffer();
+            m_Shader = new BasicRayTracerProgram();
+        }
 
-		public bool Validate()
-		{
-			return renderTexture != null
-					&& renderTexture.IsCreated()
-					&& renderTexture.enableRandomWrite
-					&& m_TriangleBuffer != null;
-		}
+        public bool Validate()
+        {
+            return renderTexture != null
+                   && renderTexture.IsCreated()
+                   && renderTexture.enableRandomWrite
+                   && m_TriangleBuffer != null
+                   && m_Shader != null;
+        }
 
-		public void Render()
-		{
-			if (!Validate())
-				return;
+        public bool Render(Camera camera)
+        {
+            if (!Validate())
+                return false;
 
-			var light = UnityEngine.Object.FindObjectOfType<Light>();
-			var rtCamera = UnityEngine.Object.FindObjectOfType<RayTracingCamera>();
-			var camera = rtCamera.gameObject.GetComponent<Camera>();
+            var light = UnityEngine.Object.FindObjectOfType<Light>();
 
-			var shader = new BasicRayTracerProgram();
-			//shader.imageSize.value = new Vector2(renderTexture.width, renderTexture.height);
-			//shader.origin.value = rtCamera.gameObject.transform.position;
-			//shader.direction.value = camera.gameObject.transform.forward;
-			//shader.light.value = light.gameObject.transform.forward;
-			//shader.fieldOfView.value = Mathf.Deg2Rad * camera.fieldOfView;
-			//shader.triangleBuffer.value = m_TriangleBuffer;
-			//shader.result.value = renderTexture;
-			//shader.DispatchTrace(renderTexture.width, renderTexture.height);
-            shader.Dispatch(rtCamera.gameObject.transform.position, camera.gameObject.transform.forward, light.gameObject.transform.forward, Mathf.Deg2Rad * camera.fieldOfView, new StructuredBuffer<Triangle>(m_TriangleBuffer), renderTexture);
-		}
-	}
+            m_Shader.Dispatch(camera.gameObject.transform.position, camera.gameObject.transform.forward, light.gameObject.transform.forward, Mathf.Deg2Rad * camera.fieldOfView, new StructuredBuffer<Triangle>(m_TriangleBuffer), renderTexture);
+            return true;
+        }
+    }
 }

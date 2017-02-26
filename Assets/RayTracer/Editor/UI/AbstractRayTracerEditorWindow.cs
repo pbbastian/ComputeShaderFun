@@ -140,7 +140,7 @@ namespace RayTracer.Editor.UI
 			m_RenderTexture = new RenderTexture(width, height, 24) {enableRandomWrite = true};
 			m_RenderTexture.Create();
 			m_Context.renderTexture = m_RenderTexture;
-			m_Context.Render();
+            m_Context.Render(FindObjectOfType<Camera>());
 			Repaint();
 			sw.Stop();
 			Debug.LogFormat("Rendering took {0} seconds", sw.Elapsed.TotalSeconds);
