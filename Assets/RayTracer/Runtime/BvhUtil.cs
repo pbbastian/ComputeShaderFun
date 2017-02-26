@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using RayTracer.Runtime.Components;
 using RayTracer.Runtime.ShaderPrograms;
+using RayTracer.Runtime.Util;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -51,26 +52,20 @@ namespace RayTracer.Runtime
                 transformIndex++;
             }
 
-            var vertexBuffer = new ComputeBuffer(vertexCount, sizeof(float) * 3);
-            var normalBuffer = new ComputeBuffer(vertexCount, sizeof(float) * 3);
-            var objectIndexBuffer = new ComputeBuffer(vertexCount, sizeof(uint));
-            var triangleBuffer = new ComputeBuffer(triangleCount, sizeof(uint) * 3);
-            var transformBuffer = new ComputeBuffer(objectCount, sizeof(float) * 4 * 4);
+            var vertexBuffer = new StructuredBuffer<Vector3>(vertexCount, sizeof(float) * 3);
+            var normalBuffer = new StructuredBuffer<Vector3>(vertexCount, sizeof(float) * 3);
+            var objectIndexBuffer = new StructuredBuffer<uint>(vertexCount, sizeof(uint));
+            var triangleBuffer = new StructuredBuffer<Triangle>(triangleCount, sizeof(uint) * 3);
+            var transformBuffer = new StructuredBuffer<Matrix4x4>(objectCount, sizeof(float) * 4 * 4);
 
-            vertexBuffer.SetData(vertexData);
-            normalBuffer.SetData(normalData);
-            objectIndexBuffer.SetData(objectIndexData);
-            triangleBuffer.SetData(triangleData);
-            transformBuffer.SetData(transformData);
+            vertexBuffer.data = vertexData;
+            normalBuffer.data = normalData;
+            objectIndexBuffer.data = objectIndexData;
+            triangleBuffer.computeBuffer.SetData(triangleData);
+            transformBuffer.data = transformData;
 
-            var transformProgram = new TransformProgram
-            {
-                vertexBuffer = vertexBuffer,
-                normalBuffer = normalBuffer,
-                objectIndexBuffer = objectIndexBuffer,
-                transformBuffer = transformBuffer
-            };
-            transformProgram.Dispatch(vertexCount);
+            var transformProgram = new TransformProgram();
+            transformProgram.Dispatch(vertexBuffer, normalBuffer, objectIndexBuffer, transformBuffer);
         }
 
         public static bool IsValidForBvh(GameObject gameObject)

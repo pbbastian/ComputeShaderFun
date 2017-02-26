@@ -6,46 +6,46 @@ namespace RayTracer.Runtime.ShaderPrograms
 {
     public sealed class BasicRayTracerProgram
     {
+        private static readonly int s_ImageSizeId = Shader.PropertyToID("g_ImageSize");
+        private static readonly int s_OriginId = Shader.PropertyToID("g_Origin");
+        private static readonly int s_DirectionId = Shader.PropertyToID("g_Direction");
+        private static readonly int s_LightId = Shader.PropertyToID("g_Light");
+        private static readonly int s_FieldOfViewId = Shader.PropertyToID("g_FOV");
+        private static readonly int s_TrianglesId = Shader.PropertyToID("g_TriangleBuffer");
+        private static readonly int s_ResultId = Shader.PropertyToID("g_Result");
+
         private ComputeShader m_Shader;
-        private int m_TraceKernel;
+        private int m_KernelIndex;
+        private int m_SizeX;
+        private int m_SizeY;
 
         public BasicRayTracerProgram()
         {
             var shader = Resources.Load<ComputeShader>("Shaders/BasicRayTracer");
-            if (shader == null)
-                throw new Exception("Resource 'Shaders/BasicRayTracer' not found.");
-            var traceKernel = shader.FindKernel("Trace");
-            if (traceKernel == -1)
-                throw new Exception("Kernel 'Trace' not found in shader.");
+            var kernelIndex = shader.FindKernel("Trace");
             m_Shader = shader;
-            m_TraceKernel = traceKernel;
-
-            imageSize = new Vector2ShaderParameter(m_Shader, "g_ImageSize");
-            origin = new Vector3ShaderParameter(m_Shader, "g_Origin");
-            direction = new Vector3ShaderParameter(m_Shader, "g_Direction");
-            light = new Vector3ShaderParameter(m_Shader, "g_Light");
-            fieldOfView = new FloatShaderParameter(m_Shader, "g_FOV");
-            triangleBuffer = new BufferShaderParameter(m_Shader, traceKernel, "g_TriangleBuffer");
-            result = new TextureShaderParameter<RenderTexture>(m_Shader, traceKernel, "g_Result");
+            m_KernelIndex = kernelIndex;
+            uint x, y, z;
+            shader.GetKernelThreadGroupSizes(kernelIndex, out x, out y, out z);
+            m_SizeX = (int) x;
+            m_SizeY = (int) y;
         }
-
-        public IShaderParameter<Vector2> imageSize { get; private set; }
-
-        public IShaderParameter<Vector3> origin { get; private set; }
-
-        public IShaderParameter<Vector3> direction { get; private set; }
-
-        public IShaderParameter<Vector3> light { get; private set; }
-
-        public IShaderParameter<float> fieldOfView { get; private set; }
-
-        public IShaderParameter<ComputeBuffer> triangleBuffer { get; private set; }
-
-        public IShaderParameter<RenderTexture> result { get; private set; }
 
         public void DispatchTrace(int totalX, int totalY)
         {
-            m_Shader.Dispatch(m_TraceKernel, Mathf.CeilToInt(totalX / 8f), Mathf.CeilToInt(totalY / 8f), 1);
+            m_Shader.Dispatch(m_KernelIndex, Mathf.CeilToInt(totalX / 8f), Mathf.CeilToInt(totalY / 8f), 1);
+        }
+
+        public void Dispatch(Vector3 origin, Vector3 direction, Vector3 light, float fov, StructuredBuffer<Triangle> triangles, RenderTexture result)
+        {
+            m_Shader.SetVector(s_ImageSizeId, new Vector2(result.width, result.height));
+            m_Shader.SetVector(s_OriginId, origin);
+            m_Shader.SetVector(s_DirectionId, direction);
+            m_Shader.SetVector(s_LightId, light);
+            m_Shader.SetFloat(s_FieldOfViewId, fov);
+            m_Shader.SetBuffer(m_KernelIndex, s_TrianglesId, triangles);
+            m_Shader.SetTexture(m_KernelIndex, s_ResultId, result);
+            m_Shader.Dispatch(m_KernelIndex, result.width.CeilDiv(m_SizeX), result.height.CeilDiv(m_SizeY), 1);
         }
     }
 }

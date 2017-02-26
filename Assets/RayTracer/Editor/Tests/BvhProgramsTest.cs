@@ -90,7 +90,7 @@ namespace RayTracer.Editor.Tests
         }
 
         [TestCaseSource("testCaseDatas2")]
-        public void FitTest(TestData data)
+        public void ConstructAndFitTest(TestData data)
         {
             var constructProgram = new BvhConstructProgram();
             var fitProgram = new BvhFitProgram();

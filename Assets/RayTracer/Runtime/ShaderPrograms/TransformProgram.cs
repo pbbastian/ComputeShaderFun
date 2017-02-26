@@ -6,13 +6,14 @@ namespace RayTracer.Runtime.ShaderPrograms
 {
     public class TransformProgram
     {
+        private static readonly int s_VerticesId = Shader.PropertyToID("g_VertexBuffer");
+        private static readonly int s_NormalsId = Shader.PropertyToID("g_NormalBuffer");
+        private static readonly int s_ObjectIndicesId = Shader.PropertyToID("g_ObjectIndexBuffer");
+        private static readonly int s_TransformsId = Shader.PropertyToID("g_TransformBuffer");
+
         private int m_KernelIndex;
-        private BufferShaderParameter m_NormalBuffer;
-        private BufferShaderParameter m_ObjectIndexBuffer;
         private ComputeShader m_Shader;
-        private uint m_SizeX;
-        private BufferShaderParameter m_TransformBuffer;
-        private BufferShaderParameter m_VertexBuffer;
+        private int m_SizeX;
 
         public TransformProgram()
         {
@@ -24,42 +25,18 @@ namespace RayTracer.Runtime.ShaderPrograms
                 throw new Exception("Kernel 'CSMain' not found in shader.");
             m_Shader = shader;
             m_KernelIndex = kernelIndex;
-            uint y, z;
-            shader.GetKernelThreadGroupSizes(kernelIndex, out m_SizeX, out y, out z);
-
-            m_VertexBuffer = new BufferShaderParameter(shader, kernelIndex, "g_VertexBuffer");
-            m_NormalBuffer = new BufferShaderParameter(shader, kernelIndex, "g_NormalBuffer");
-            m_ObjectIndexBuffer = new BufferShaderParameter(shader, kernelIndex, "g_ObjectIndexBuffer");
-            m_TransformBuffer = new BufferShaderParameter(shader, kernelIndex, "g_TransformBuffer");
+            uint x, y, z;
+            shader.GetKernelThreadGroupSizes(kernelIndex, out x, out y, out z);
+            m_SizeX = (int) x;
         }
 
-        public ComputeBuffer vertexBuffer
+        public void Dispatch(StructuredBuffer<Vector3> vertices, StructuredBuffer<Vector3> normals, StructuredBuffer<uint> objectIndices, StructuredBuffer<Matrix4x4> transforms)
         {
-            get { return m_VertexBuffer.value; }
-            set { m_VertexBuffer.value = value; }
-        }
-
-        public ComputeBuffer normalBuffer
-        {
-            get { return m_NormalBuffer.value; }
-            set { m_NormalBuffer.value = value; }
-        }
-
-        public ComputeBuffer objectIndexBuffer
-        {
-            get { return m_ObjectIndexBuffer.value; }
-            set { m_ObjectIndexBuffer.value = value; }
-        }
-
-        public ComputeBuffer transformBuffer
-        {
-            get { return m_TransformBuffer.value; }
-            set { m_TransformBuffer.value = value; }
-        }
-
-        public void Dispatch(int vertexCount)
-        {
-            m_Shader.Dispatch(m_KernelIndex, Mathf.CeilToInt((float) vertexCount / m_SizeX), 1, 1);
+            m_Shader.SetBuffer(m_KernelIndex, s_VerticesId, vertices);
+            m_Shader.SetBuffer(m_KernelIndex, s_NormalsId, normals);
+            m_Shader.SetBuffer(m_KernelIndex, s_ObjectIndicesId, objectIndices);
+            m_Shader.SetBuffer(m_KernelIndex, s_TransformsId, transforms);
+            m_Shader.Dispatch(m_KernelIndex, vertices.count.CeilDiv(m_SizeX), 1, 1);
         }
     }
 }

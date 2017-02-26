@@ -49,14 +49,15 @@ namespace RayTracer.Runtime
 			var camera = rtCamera.gameObject.GetComponent<Camera>();
 
 			var shader = new BasicRayTracerProgram();
-			shader.imageSize.value = new Vector2(renderTexture.width, renderTexture.height);
-			shader.origin.value = rtCamera.gameObject.transform.position;
-			shader.direction.value = camera.gameObject.transform.forward;
-			shader.light.value = light.gameObject.transform.forward;
-			shader.fieldOfView.value = Mathf.Deg2Rad * camera.fieldOfView;
-			shader.triangleBuffer.value = m_TriangleBuffer;
-			shader.result.value = renderTexture;
-			shader.DispatchTrace(renderTexture.width, renderTexture.height);
+			//shader.imageSize.value = new Vector2(renderTexture.width, renderTexture.height);
+			//shader.origin.value = rtCamera.gameObject.transform.position;
+			//shader.direction.value = camera.gameObject.transform.forward;
+			//shader.light.value = light.gameObject.transform.forward;
+			//shader.fieldOfView.value = Mathf.Deg2Rad * camera.fieldOfView;
+			//shader.triangleBuffer.value = m_TriangleBuffer;
+			//shader.result.value = renderTexture;
+			//shader.DispatchTrace(renderTexture.width, renderTexture.height);
+            shader.Dispatch(rtCamera.gameObject.transform.position, camera.gameObject.transform.forward, light.gameObject.transform.forward, Mathf.Deg2Rad * camera.fieldOfView, new StructuredBuffer<Triangle>(m_TriangleBuffer), renderTexture);
 		}
 	}
 }

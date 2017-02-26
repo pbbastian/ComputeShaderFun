@@ -1,7 +1,9 @@
-﻿using UnityEngine;
+﻿using System.Runtime.InteropServices;
+using UnityEngine;
 
 namespace RayTracer.Runtime
 {
+    [StructLayout(LayoutKind.Sequential)]
 	public struct Triangle
 	{
 		public Vector3 a;

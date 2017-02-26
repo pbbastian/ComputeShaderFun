@@ -16,7 +16,12 @@ namespace RayTracer.Runtime.Util
         public StructuredBuffer(int count, int stride, ComputeBufferType type)
         {
             m_Buffer = new ComputeBuffer(count, stride, type);
-            
+        }
+
+        [Obsolete]
+        public StructuredBuffer(ComputeBuffer buffer)
+        {
+            m_Buffer = buffer;
         }
 
         public T[] data
