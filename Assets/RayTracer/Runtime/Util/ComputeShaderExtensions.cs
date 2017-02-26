@@ -12,5 +12,11 @@ namespace RayTracer.Runtime.Util
                 matrix.m02, matrix.m12, matrix.m22, matrix.m32,
                 matrix.m03, matrix.m13, matrix.m23, matrix.m33);
         }
+
+        public static void SetBuffer<T>(this ComputeShader shader, int kernelIndex, int nameId, StructuredBuffer<T> structuredBuffer)
+            where T : struct 
+        {
+            shader.SetBuffer(kernelIndex, nameId, structuredBuffer.computeBuffer);
+        }
     }
 }

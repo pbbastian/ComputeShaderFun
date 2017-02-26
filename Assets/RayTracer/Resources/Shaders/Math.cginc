@@ -1,6 +1,7 @@
 int CommonPrefix(int x, int y)
 {
-	return firstbithigh(x ^ y);
+	return 31 - floor(log2(x ^ y));
+	// return firstbithigh(x ^ y);
 }
 
 int AugmentedCommonPrefix(int x, int y, int i, int j)

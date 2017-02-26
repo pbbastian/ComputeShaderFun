@@ -1,0 +1,68 @@
+#pragma kernel BvhFit
+
+#include "Bvh.cginc"
+
+StructuredBuffer<int> _parentIndices;
+
+RWStructuredBuffer<int> _nodeCounters;
+RWStructuredBuffer<Bvh::Node> _nodes;
+
+int _internalNodeCount;
+
+int VisitInternalNode(int index)
+{
+	int originalCount;
+	InterlockedExchange(_nodeCounters[index], 1, originalCount);
+	return originalCount;
+}
+
+[numthreads(256, 1, 1)]
+void BvhFit(uint3 id : SV_DispatchThreadID)
+{
+	int leafIndex = id.x;
+
+	int nodeIndex = _parentIndices[_internalNodeCount + leafIndex - 1];
+
+	int previousNodeIndex = -1;
+	Bvh::Node previousNode;
+
+	// Traverse until we're the first thread to visit a node
+	while (VisitInternalNode(nodeIndex) == 1)
+	{
+		Bvh::Node node = _nodes[nodeIndex];
+		Bvh::AABB previousBounds = previousNode.GetBounds();
+
+		// Calculate bounding boxes, try to re-use information from traversed path
+		if (!node.isLeftLeaf)
+		{
+			Bvh::Node leftNode;
+			if (node.left == previousNodeIndex)
+				leftNode = previousNode;
+			else
+				leftNode = _nodes[node.left];
+			node.leftBounds = leftNode.GetBounds();
+		}
+
+		if (!node.isRightLeaf)
+		{
+			Bvh::Node rightNode;
+			if (node.right == previousNodeIndex)
+				rightNode = previousNode;
+			else
+				rightNode = _nodes[node.right];
+			node.rightBounds = rightNode.GetBounds();
+		}
+
+		_nodes[nodeIndex] = node;
+
+		// Save previous 
+		previousNode = node;
+		previousNodeIndex = nodeIndex;
+
+		if (nodeIndex == 0)
+			break;
+
+		// Fetch parent node index to traverse up the tree or end traversal
+		nodeIndex = _parentIndices[nodeIndex - 1];
+	}
+}

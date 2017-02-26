@@ -1,0 +1,89 @@
+#pragma kernel BvhConstruct
+
+#include "Math.cginc"
+#include "Bvh.cginc"
+
+StructuredBuffer<int> _keys;
+StructuredBuffer<Bvh::AABB> _leafBounds;
+RWStructuredBuffer<Bvh::Node> _nodes;
+RWStructuredBuffer<int> _parentIndices;
+int _internalNodeCount;
+
+// Augmented Common Prefix Lookup
+// Calculates the augmented common prefix of an already looked-up key (`key` and `i`)
+// and another key that is to be looked-up (`j`)
+int ACPL(int key, int i, int j)
+{
+	if (j < 0 || j >= _internalNodeCount + 1)
+		return -1;
+	return AugmentedCommonPrefix(key, _keys[j], i, j);
+}
+
+[numthreads(256, 1, 1)]
+void BvhConstruct(uint3 id : SV_DispatchThreadID)
+{
+	// Key index is equal to thread id, such that 1 thread handles 1 key
+	int i = id.x;
+	int keyCount = _internalNodeCount + 1;
+
+	if (i >= _internalNodeCount)
+		return;
+
+	int key = _keys[i];
+
+	// Determine direction of the range (+1 or -1)
+	int d = (ACPL(key, i, i+1) - ACPL(key, i, i-1)) > 0 ? 1 : -1;
+	
+	// // Compute upper bound for the length of the range
+	int minPrefix = ACPL(key, i, i-d);
+	int l_max = 2;
+	while (ACPL(key, i, i + l_max * d) > minPrefix)
+		l_max *= 2;
+
+	// // Find the other end using binary search
+	int l = 0;
+	int denominator = 2;
+	for (int t = l_max / denominator; t >= 1; denominator *= 2)
+	{
+		if (ACPL(key, i, i + (l + t) * d) > minPrefix)
+			l += t;
+		t = l_max / denominator;
+	}
+	int j = i + l * d;
+
+	// // Find the split position using binary search
+	int nodePrefix = ACPL(key, i, j);
+	int s = 0;
+	denominator = 2;
+	for (int t = (l + (denominator - 1)) / denominator; t >= 1; denominator *= 2)
+	{
+		if (ACPL(key, i, i + (s + t) * d) > nodePrefix)
+			s += t;
+		t = (l + (denominator - 1)) / denominator;
+	}
+
+	int split = i + s * d + min(d, 0);
+
+	// Output node
+	Bvh::Node node;
+	node.left = split;
+	node.right = split + 1;
+	node.isLeftLeaf = min(i, j) == node.left;
+	node.isRightLeaf = max(i, j) == node.right;
+
+	if (node.isLeftLeaf)
+		node.leftBounds = _leafBounds[node.left];
+	else
+		node.leftBounds = Bvh::EmptyBounds();
+
+	if (node.isRightLeaf)
+		node.rightBounds = _leafBounds[node.right];
+	else
+		node.rightBounds = Bvh::EmptyBounds();
+
+	_nodes[i] = node;
+
+	// Output parent indices
+	_parentIndices[node.left + (node.isLeftLeaf ? _internalNodeCount : 0) - 1] = i;
+	_parentIndices[node.right + (node.isRightLeaf ? _internalNodeCount : 0) - 1] = i;
+}
