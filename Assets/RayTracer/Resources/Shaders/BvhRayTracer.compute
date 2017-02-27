@@ -1,0 +1,15 @@
+#pragma kernel BvhRayTracer
+
+#include "Math.cginc"
+#include "Bvh.cginc"
+
+float3 _light;
+float2 _screenSize;
+float4x4 _inverseCameraMatrix;
+float3 _origin;
+
+[numthreads(8, 8, 1)]
+void BvhRayTracer(uint3 id : SV_DispatchThreadID)
+{
+	Ray r = CameraRay(_inverseCameraMatrix, _origin, _screenSize, id.xy);
+}

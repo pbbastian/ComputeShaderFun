@@ -48,8 +48,12 @@ namespace RayTracer.Runtime
                 return false;
 
             var light = UnityEngine.Object.FindObjectOfType<Light>();
-
-            m_Shader.Dispatch(camera.gameObject.transform.position, camera.gameObject.transform.forward, light.gameObject.transform.forward, Mathf.Deg2Rad * camera.fieldOfView, new StructuredBuffer<Triangle>(m_TriangleBuffer), renderTexture);
+            var inverseCameraMatrix = (camera.projectionMatrix * camera.worldToCameraMatrix).inverse;
+            var origin = inverseCameraMatrix.MultiplyPoint(Vector3.zero);
+            var point = inverseCameraMatrix.MultiplyPoint(Vector3.one);
+            var direction = (inverseCameraMatrix.MultiplyPoint(new Vector3(1, 1, -1)) - inverseCameraMatrix.MultiplyPoint(new Vector3(1, 1, 1))).normalized;
+            //var point3 = new Vector3(point.x/point.w, point.y/point.w, point.z/point.w);
+            m_Shader.Dispatch(inverseCameraMatrix, camera.transform.position, light.gameObject.transform.forward, new StructuredBuffer<Triangle>(m_TriangleBuffer), renderTexture);
             return true;
         }
     }

@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 
 namespace RayTracer.Runtime
 {
@@ -9,6 +10,7 @@ namespace RayTracer.Runtime
         private RayTracingContext m_Context;
         private RenderTexture m_RenderTexture;
         private bool m_RayTrace;
+        private DateTime m_LastKeyPress = DateTime.Now;
 
         void OnEnable()
         {
@@ -28,8 +30,9 @@ namespace RayTracer.Runtime
 
         void Update()
         {
-            if (Input.GetKey(KeyCode.R))
+            if (Input.GetKey(KeyCode.R) && DateTime.Now - m_LastKeyPress > TimeSpan.FromMilliseconds(100))
             {
+                m_LastKeyPress = DateTime.Now;
                 m_Camera = GetComponent<Camera>();
                 m_Context = new RayTracingContext();
                 m_Context.BuildScene();
