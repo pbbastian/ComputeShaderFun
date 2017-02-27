@@ -38,6 +38,15 @@ struct Triangle
 	float3 c;
 };
 
+Triangle MakeTriangle(float3 a, float3 b, float3 c)
+{
+	Triangle tri;
+	tri.a = a;
+	tri.b = b;
+	tri.c = c;
+	return tri;
+}
+
 struct Ray
 {
 	float3 origin;

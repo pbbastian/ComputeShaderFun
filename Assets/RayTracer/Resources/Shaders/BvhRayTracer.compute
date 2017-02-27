@@ -3,13 +3,129 @@
 #include "Math.cginc"
 #include "Bvh.cginc"
 
+struct IndexedTriangle 
+{
+	uint v1;
+	uint v2;
+	uint v3;
+};
+
 float3 _light;
 float2 _screenSize;
 float4x4 _inverseCameraMatrix;
 float3 _origin;
+StructuredBuffer<Bvh::Node> _nodes;
+StructuredBuffer<IndexedTriangle> _triangles;
+StructuredBuffer<float3> _vertices;
+float _internalNodeCount;
+
+#define STACK_SIZE 64
+
+const int _entrypointSentinel = -1;
+
+struct FloatMinMax
+{
+	float min;
+	float max;
+};
+
+// https://tavianator.com/fast-branchless-raybounding-box-intersections/
+FloatMinMax IntersectAabb(Bvh::AABB b, float3 origin, float3 inverseDirection)
+{
+	float tx1 = (b.min.x - origin.x)*inverseDirection.x;
+    float tx2 = (b.max.x - origin.x)*inverseDirection.x;
+ 
+    float tmin = min(tx1, tx2);
+    float tmax = max(tx1, tx2);
+ 
+    float ty1 = (b.min.y - origin.y)*inverseDirection.y;
+    float ty2 = (b.max.y - origin.y)*inverseDirection.y;
+ 
+ 	FloatMinMax t;
+    t.min = max(tmin, min(ty1, ty2)); // tmin
+    t.max = min(tmax, max(ty1, ty2)); // tmax
+ 
+    return t;
+}
+
+int EncodeNodeIndex(int nodeIndex, bool isLeaf)
+{
+	if (isLeaf)
+		nodeIndex = -(nodeIndex+1);
+	return nodeIndex;
+}
+
+int DecodeNodeIndex(int nodeIndex)
+{
+	return -nodeIndex-1;
+}
 
 [numthreads(8, 8, 1)]
 void BvhRayTracer(uint3 id : SV_DispatchThreadID)
 {
 	Ray r = CameraRay(_inverseCameraMatrix, _origin, _screenSize, id.xy);
+	int traversalStack[STACK_SIZE];
+	traversalStack[0] = ~(1 << 31);
+	int nodeIndex = 0;
+	int stackIndex = 0;
+
+	float3 idir = 1 / r.direction;
+	float3 ood = r.origin / r.direction;
+
+	while (nodeIndex != _entrypointSentinel)
+	{
+		while (nodeIndex >= 0 && nodeIndex != _entrypointSentinel)
+		{
+			Bvh::Node node = _nodes[nodeIndex];
+			FloatMinMax tLeft =  IntersectAabb(node.leftBounds, r.origin, idir);
+			FloatMinMax tRight =  IntersectAabb(node.rightBounds, r.origin, idir);
+			bool traverseLeft = tLeft.max >= tLeft.min;
+			bool traverseRight = tRight.max >= tRight.min;
+
+			nodeIndex = EncodeNodeIndex(node.left, node.isLeftLeaf);
+
+			if (traverseLeft != traverseRight)
+			{
+				// If only a single child was intersected we simply go to that one
+				if (traverseRight)
+					nodeIndex = EncodeNodeIndex(node.right, node.isRightLeaf);
+			}
+			else
+			{
+				if (!traverseLeft)
+				{
+					// If neither child was intersected we pop the stack
+					nodeIndex = traversalStack[stackIndex];
+					stackIndex--;
+				}
+				else
+				{
+					// If both children were intersected we push one onto the stack
+					int postponeIndex = EncodeNodeIndex(node.right, node.isRightLeaf);
+					if (tRight.min < tLeft.min)
+					{
+						nodeIndex = postponeIndex;
+						postponeIndex = EncodeNodeIndex(node.left, node.isLeftLeaf);
+					}
+					stackIndex++;
+					traversalStack[stackIndex] = postponeIndex;
+				}
+			}
+		}
+
+		if (nodeIndex < 0)
+		{
+			int leafIndex = DecodeNodeIndex(nodeIndex);
+
+			IndexedTriangle indices = _triangles[leafIndex];
+			Triangle tri = MakeTriangle(_vertices[indices.v1], _vertices[indices.v2], _vertices[indices.v3]);
+
+			// intersect triangle
+
+			nodeIndex = traversalStack[stackIndex];
+			stackIndex--;
+		}
+
+
+	}
 }
