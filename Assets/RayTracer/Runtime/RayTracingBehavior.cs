@@ -7,10 +7,9 @@ namespace RayTracer.Runtime
     public class RayTracingBehavior : MonoBehaviour
     {
         private Camera m_Camera;
-        private RayTracingContext m_Context;
+        private IRayTracingContext m_Context;
         private RenderTexture m_RenderTexture;
         private bool m_RayTrace;
-        private DateTime m_LastKeyPress = DateTime.Now;
 
         void OnEnable()
         {
@@ -23,18 +22,21 @@ namespace RayTracer.Runtime
                 //if (destination == null)
                 //    destination = source;
                 m_Context.renderTexture = m_RenderTexture;
-                if (m_Context.Render(m_Camera))
+                m_Context.camera = m_Camera;
+                if (m_Context.Render())
                     Graphics.Blit(m_RenderTexture, destination);
             }
         }
 
         void Update()
         {
-            if (Input.GetKey(KeyCode.R) && DateTime.Now - m_LastKeyPress > TimeSpan.FromMilliseconds(100))
+            if (Input.GetKeyDown(KeyCode.R) || Input.GetKeyDown(KeyCode.T))
             {
-                m_LastKeyPress = DateTime.Now;
                 m_Camera = GetComponent<Camera>();
-                m_Context = new RayTracingContext();
+                if (Input.GetKeyDown(KeyCode.R))
+                    m_Context = new RayTracingContext();
+                else
+                    m_Context = new BvhRayTracingContext();
                 m_Context.BuildScene();
                 m_RenderTexture = new RenderTexture(m_Camera.pixelWidth, m_Camera.pixelHeight, 8) {enableRandomWrite = true};
                 m_RenderTexture.Create();

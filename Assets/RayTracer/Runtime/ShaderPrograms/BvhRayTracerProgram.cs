@@ -21,8 +21,8 @@ namespace RayTracer.Runtime.ShaderPrograms
 
         public BvhRayTracerProgram()
         {
-            var shader = Resources.Load<ComputeShader>("Shaders/BasicRayTracer");
-            var kernelIndex = shader.FindKernel("Trace");
+            var shader = Resources.Load<ComputeShader>("Shaders/BvhRayTracer");
+            var kernelIndex = shader.FindKernel("BvhRayTracer");
             m_Shader = shader;
             m_KernelIndex = kernelIndex;
             uint x, y, z;
@@ -31,10 +31,10 @@ namespace RayTracer.Runtime.ShaderPrograms
             m_SizeY = (int)y;
         }
 
-        public void Dispatch(Vector3 light, Matrix4x4 inverseCameraMatrix, Vector3 origin, StructuredBuffer<AlignedBvhNode> nodes, StructuredBuffer<IndexedTriangle> triangles, StructuredBuffer<Vector3> vertices, RenderTexture result)
+        public void Dispatch(Vector3 light, Matrix4x4 inverseCameraMatrix, Vector3 origin, StructuredBuffer<AlignedBvhNode> nodes, StructuredBuffer<IndexedTriangle> triangles, StructuredBuffer<Vector4> vertices, RenderTexture result)
         {
             m_Shader.SetVector(s_LightId, light);
-            m_Shader.SetMatrix(s_LightId, inverseCameraMatrix);
+            m_Shader.SetMatrix(s_InverseCameraMatrixId, inverseCameraMatrix);
             m_Shader.SetVector(s_OriginId, origin);
             m_Shader.SetBuffer(m_KernelIndex, s_NodesId, nodes);
             m_Shader.SetBuffer(m_KernelIndex, s_TrianglesId, triangles);

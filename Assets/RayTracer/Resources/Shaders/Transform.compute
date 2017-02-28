@@ -1,10 +1,11 @@
 ﻿// Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel Transform
 
+#include "Math.cginc"
 #include "Bvh.cginc"
 
-RWStructuredBuffer<float3> _vertices;
-RWStructuredBuffer<float3> _normals;
+RWStructuredBuffer<float4> _vertices;
+// RWStructuredBuffer<float3> _normals;
 StructuredBuffer<uint> _objectIndices;
 StructuredBuffer<float4x4> _transforms;
 
@@ -13,6 +14,6 @@ void Transform(uint3 id : SV_DispatchThreadID)
 {
     uint objectIndex = _objectIndices.Load(id.x);
     float4x4 transform = _transforms.Load(objectIndex);
-    _vertices[id.x] = mul(transform, float4(_vertices[id.x], 1));
-    _normals[id.x] = mul(transform, float4(_normals[id.x], 0));
+    _vertices[id.x] = mul(transform, float4(_vertices[id.x].xyz, 1));
+    // _normals[id.x] = mul(transform, float4(_normals[id.x], 0));
 }

@@ -62,5 +62,10 @@ namespace RayTracer.Runtime.Util
         {
             if (m_Buffer != null) m_Buffer.Dispose();
         }
+
+        public static implicit operator ComputeBuffer(StructuredBuffer<T> buffer)
+        {
+            return buffer.computeBuffer;
+        }
     }
 }

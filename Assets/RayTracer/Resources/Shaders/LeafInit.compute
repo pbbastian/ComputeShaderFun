@@ -4,10 +4,10 @@
 #include "Bvh.cginc"
 
 StructuredBuffer<IndexedTriangle> _triangles;
-StructuredBuffer<float3> _vertices;
-RWStructuredBuffer<Bvh::AABB> _leafBounds;
+StructuredBuffer<float4> _vertices;
+RWStructuredBuffer<Bvh::AlignedAABB> _leafBounds;
 RWStructuredBuffer<int> _leafKeys;
-float3 _sceneBounds[2];
+float _sceneBounds[6];
 
 // Expands a 10-bit integer into 30 bits
 // by inserting 2 zeros after each bit.
@@ -42,16 +42,20 @@ void LeafInit(uint3 id : SV_DispatchThreadID)
 	IndexedTriangle indexedTriangle = _triangles[index];
 
 	Bvh::AABB sceneBounds;
-	sceneBounds.min = _sceneBounds[0];
-	sceneBounds.max = _sceneBounds[1];
+	sceneBounds.min.x = _sceneBounds[0];
+	sceneBounds.min.y = _sceneBounds[1];
+	sceneBounds.min.z = _sceneBounds[2];
+	sceneBounds.max.x = _sceneBounds[3];
+	sceneBounds.max.y = _sceneBounds[4];
+	sceneBounds.max.z = _sceneBounds[5];
 
 	Triangle tri = MakeTriangle(_vertices[indexedTriangle.v1], _vertices[indexedTriangle.v2], _vertices[indexedTriangle.v3]);
 	
 	Bvh::AABB bounds;
 	bounds.min = min(tri.a, min(tri.b, tri.c));
 	bounds.max = max(tri.a, max(tri.b, tri.c));
-	_leafBounds[index] = bounds;
+	_leafBounds[index] = Bvh::MakeAlignedAABB(bounds);
 
-	float3 barycenter = ((bounds.min + bounds.max) * 0.5 - bounds.min) / bounds.max;
+	float3 barycenter = ((bounds.min + bounds.max) * 0.5 - sceneBounds.min) / sceneBounds.max;
 	_leafKeys[index] = morton3D(barycenter);
 }

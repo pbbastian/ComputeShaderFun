@@ -26,7 +26,7 @@ namespace RayTracer.Runtime.ShaderPrograms
             m_SizeX = (int)x;
         }
 
-        public void Dispatch(AlignedAabb sceneBounds, StructuredBuffer<IndexedTriangle> triangles, StructuredBuffer<Vector3> vertices, StructuredBuffer<AlignedAabb> leafBounds, StructuredBuffer<int> leafKeys)
+        public void Dispatch(Aabb sceneBounds, StructuredBuffer<IndexedTriangle> triangles, StructuredBuffer<Vector4> vertices, StructuredBuffer<AlignedAabb> leafBounds, StructuredBuffer<int> leafKeys)
         {
             m_Shader.SetBuffer(m_KernelIndex, s_TrianglesId, triangles);
             m_Shader.SetBuffer(m_KernelIndex, s_VerticesId, vertices);

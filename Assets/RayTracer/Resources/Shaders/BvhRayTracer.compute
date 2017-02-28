@@ -8,12 +8,12 @@ float4x4 _inverseCameraMatrix;
 float3 _origin;
 StructuredBuffer<Bvh::Node> _nodes;
 StructuredBuffer<IndexedTriangle> _triangles;
-StructuredBuffer<float3> _vertices;
+StructuredBuffer<float4> _vertices;
 RWTexture2D<float4> _result;
 
 #define STACK_SIZE 64
 
-const int _entrypointSentinel = ~(1 << 31);
+static const int _entrypointSentinel = 2147483647;
 
 struct FloatMinMax
 {
@@ -21,35 +21,34 @@ struct FloatMinMax
 	float max;
 };
 
-// https://tavianator.com/fast-branchless-raybounding-box-intersections/
-FloatMinMax IntersectAabb(Bvh::AABB b, float3 origin, float3 inverseDirection)
+float max4(float a, float b, float c, float d)
 {
-	float tx1 = (b.min.x - origin.x)*inverseDirection.x;
-    float tx2 = (b.max.x - origin.x)*inverseDirection.x;
- 
-    float tmin = min(tx1, tx2);
-    float tmax = max(tx1, tx2);
- 
-    float ty1 = (b.min.y - origin.y)*inverseDirection.y;
-    float ty2 = (b.max.y - origin.y)*inverseDirection.y;
+	return max(a, max(b, max(c, d)));
+}
+
+float min4(float a, float b, float c, float d)
+{
+	return min(a, min(b, min(c, d)));
+}
+
+// https://tavianator.com/fast-branchless-raybounding-box-intersections/
+FloatMinMax IntersectAabb(Bvh::AABB b, Ray r)
+{
+	float3 invD = 1.0 / r.direction;
+	float3 OoD = r.origin * invD;
+
+	float x0 = b.min.x * invD.x - OoD.x;
+	float y0 = b.min.y * invD.y - OoD.y;
+	float z0 = b.min.z * invD.z - OoD.z;
+	float x1 = b.max.x * invD.x - OoD.x;
+	float y1 = b.max.y * invD.y - OoD.y;
+	float z1 = b.max.z * invD.z - OoD.z;
  
  	FloatMinMax t;
-    t.min = max(tmin, min(ty1, ty2)); // tmin
-    t.max = min(tmax, max(ty1, ty2)); // tmax
+    t.min = max4(0.01, min(x0, x1), min(y0, y1), min(z0, z1));
+    t.max = min4(100000, max(x0, x1), max(y0, y1), max(z0, z1));
  
     return t;
-}
-
-int EncodeNodeIndex(int nodeIndex, bool isLeaf)
-{
-	if (isLeaf)
-		nodeIndex = -(nodeIndex+1);
-	return nodeIndex;
-}
-
-int DecodeNodeIndex(int nodeIndex)
-{
-	return -nodeIndex-1;
 }
 
 [numthreads(8, 8, 1)]
@@ -57,31 +56,39 @@ void BvhRayTracer(uint3 id : SV_DispatchThreadID)
 {
 	Ray r = CameraRay(_inverseCameraMatrix, _origin, id.xy);
 	int traversalStack[STACK_SIZE];
+	bool isLeafStack[STACK_SIZE];
 	traversalStack[0] = _entrypointSentinel;
 	int nodeIndex = 0;
+	int nodeIsLeaf = false;
 	int stackIndex = 0;
 
-	float3 idir = 1 / r.direction;
+	// float3 idir = 1.0 / r.direction;
 	float3 coordinates = float3(1, 0, 1);
-	float t = 3.402823466e+38F;
+	float t = 100000;
+
+	int iteration = 0;
 
 	while (nodeIndex != _entrypointSentinel)
 	{
-		while (nodeIndex >= 0 && nodeIndex != _entrypointSentinel)
+		while (!nodeIsLeaf && nodeIndex != _entrypointSentinel)
 		{
 			Bvh::Node node = _nodes[nodeIndex];
-			FloatMinMax tLeft =  IntersectAabb(node.leftBounds, r.origin, idir);
-			FloatMinMax tRight =  IntersectAabb(node.rightBounds, r.origin, idir);
-			bool traverseLeft = tLeft.max >= tLeft.min;
-			bool traverseRight = tRight.max >= tRight.min;
+			FloatMinMax tLeft = IntersectAabb(node.leftBounds, r);
+			FloatMinMax tRight = IntersectAabb(node.rightBounds, r);
+			bool traverseLeft = tLeft.min <= tLeft.max;
+			bool traverseRight = tRight.min <= tRight.max;
 
-			nodeIndex = EncodeNodeIndex(node.left, node.isLeftLeaf);
+			nodeIndex = node.left;
+			nodeIsLeaf = node.isLeftLeaf;
 
 			if (traverseLeft != traverseRight)
 			{
 				// If only a single child was intersected we simply go to that one
 				if (traverseRight)
-					nodeIndex = EncodeNodeIndex(node.right, node.isRightLeaf);
+				{
+					nodeIndex = node.right;
+					nodeIsLeaf = node.isRightLeaf;
+				}
 			}
 			else
 			{
@@ -89,42 +96,59 @@ void BvhRayTracer(uint3 id : SV_DispatchThreadID)
 				{
 					// If neither child was intersected we pop the stack
 					nodeIndex = traversalStack[stackIndex];
+					nodeIsLeaf = isLeafStack[stackIndex];
 					stackIndex--;
 				}
 				else
 				{
 					// If both children were intersected we push one onto the stack
-					int postponeIndex = EncodeNodeIndex(node.right, node.isRightLeaf);
+					int postponeIndex;
+					bool postponeIsLeaf;
 					if (tRight.min < tLeft.min)
 					{
-						nodeIndex = postponeIndex;
-						postponeIndex = EncodeNodeIndex(node.left, node.isLeftLeaf);
+						nodeIndex = node.right;
+						nodeIsLeaf = node.isRightLeaf;
+						postponeIndex = node.left;
+						postponeIsLeaf = node.isLeftLeaf;
+					}
+					else
+					{
+						nodeIndex = node.left;
+						nodeIsLeaf = node.isLeftLeaf;
+						postponeIndex = node.right;
+						postponeIsLeaf = node.isRightLeaf;
 					}
 					stackIndex++;
 					traversalStack[stackIndex] = postponeIndex;
+					isLeafStack[stackIndex] = postponeIsLeaf;
 				}
 			}
 		}
 
-		if (nodeIndex < 0)
+		if (nodeIsLeaf)
 		{
-			int leafIndex = DecodeNodeIndex(nodeIndex);
+			int leafIndex = nodeIndex;
+			// coordinates = float3(0, 0, 1);
+			// nodeIndex = _entrypointSentinel;
+			// break;
 
 			IndexedTriangle indices = _triangles[leafIndex];
-			Triangle tri = MakeTriangle(_vertices[indices.v1], _vertices[indices.v2], _vertices[indices.v3]);
+			Triangle tri = MakeTriangle(_vertices[indices.v1].xyz, _vertices[indices.v2].xyz, _vertices[indices.v3].xyz);
 
 			// intersect triangle
 			float3 candidateCoordinates;
 			float candidate_t = IntersectTriangle(tri, r, candidateCoordinates);
-			if (candidate_t > EPSILON && candidate_t < t)
+			if (candidate_t > 0.01 && candidate_t < t)
 			{
 				coordinates = candidateCoordinates;
 				t = candidate_t;
 			}
 
 			nodeIndex = traversalStack[stackIndex];
+			nodeIsLeaf = isLeafStack[stackIndex];
 			stackIndex--;
 		}
+		iteration++;
 	}
 
 	_result[id.xy] = float4(coordinates, 1);

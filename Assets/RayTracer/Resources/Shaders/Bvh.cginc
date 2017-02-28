@@ -6,6 +6,21 @@ namespace Bvh
 		float3 max;
 	};
 
+	struct AlignedAABB
+	{
+		AABB aabb;
+		int padding[2];
+	};
+
+	AlignedAABB MakeAlignedAABB(AABB aabb)
+	{
+		AlignedAABB alignedAabb;
+		alignedAabb.aabb = aabb;
+		alignedAabb.padding[0] = 0;
+		alignedAabb.padding[1] = 0;
+		return alignedAabb;
+	}
+
 	AABB EmptyBounds()
 	{
 		AABB bounds;

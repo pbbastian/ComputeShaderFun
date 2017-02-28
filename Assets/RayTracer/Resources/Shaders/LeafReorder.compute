@@ -1,0 +1,22 @@
+#pragma kernel LeafReorder
+
+#include "Math.cginc"
+#include "Bvh.cginc"
+
+StructuredBuffer<int> _indices;
+StructuredBuffer<Bvh::AlignedAABB> _boundsInput;
+RWStructuredBuffer<Bvh::AlignedAABB> _boundsOutput;
+StructuredBuffer<IndexedTriangle> _trianglesInput;
+RWStructuredBuffer<IndexedTriangle> _trianglesOutput;
+int _limit;
+
+[numthreads(256, 1, 1)]
+void LeafReorder(uint3 id : SV_DispatchThreadID)
+{
+	int index = id.x;
+	if (index >= _limit)
+		return;
+	int newIndex = _indices[index];
+	_boundsOutput[newIndex] = _boundsInput[index];
+	_trianglesOutput[newIndex] = _trianglesInput[index];
+}

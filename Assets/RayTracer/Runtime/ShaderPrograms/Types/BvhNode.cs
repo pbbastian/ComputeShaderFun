@@ -25,8 +25,8 @@ namespace RayTracer.Runtime.ShaderPrograms.Types
     [StructLayout(LayoutKind.Explicit)]
     public struct AlignedBvhNode
     {
-        [FieldOffset(0)] public AlignedAabb leftBounds;
-        [FieldOffset(24)] public AlignedAabb rightBounds;
+        [FieldOffset(0)] public Aabb leftBounds;
+        [FieldOffset(24)] public Aabb rightBounds;
         [FieldOffset(48)] public int left;
         [FieldOffset(52)] public int right;
         [FieldOffset(56)] private int m_IsLeftLeaf;

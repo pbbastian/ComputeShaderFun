@@ -4,7 +4,7 @@
 #include "Bvh.cginc"
 
 StructuredBuffer<int> _keys;
-StructuredBuffer<Bvh::AABB> _leafBounds;
+StructuredBuffer<Bvh::AlignedAABB> _leafBounds;
 RWStructuredBuffer<Bvh::Node> _nodes;
 RWStructuredBuffer<int> _parentIndices;
 int _internalNodeCount;
@@ -72,12 +72,12 @@ void BvhConstruct(uint3 id : SV_DispatchThreadID)
 	node.isRightLeaf = max(i, j) == node.right;
 
 	if (node.isLeftLeaf)
-		node.leftBounds = _leafBounds[node.left];
+		node.leftBounds = _leafBounds[node.left].aabb;
 	else
 		node.leftBounds = Bvh::EmptyBounds();
 
 	if (node.isRightLeaf)
-		node.rightBounds = _leafBounds[node.right];
+		node.rightBounds = _leafBounds[node.right].aabb;
 	else
 		node.rightBounds = Bvh::EmptyBounds();
 
