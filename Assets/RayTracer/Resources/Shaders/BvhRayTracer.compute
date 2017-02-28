@@ -51,26 +51,36 @@ FloatMinMax IntersectAabb(Bvh::AABB b, Ray r)
     return t;
 }
 
+int EncodeLeaf(int nodeIndex, bool isLeaf)
+{
+	if (isLeaf)
+		nodeIndex = -(nodeIndex + 1);
+	return nodeIndex;
+}
+
+int DecodeLeaf(int nodeIndex)
+{
+	return (-nodeIndex) - 1;
+}
+
 [numthreads(8, 8, 1)]
 void BvhRayTracer(uint3 id : SV_DispatchThreadID)
 {
 	Ray r = CameraRay(_inverseCameraMatrix, _origin, id.xy);
 	int traversalStack[STACK_SIZE];
-	bool isLeafStack[STACK_SIZE];
 	traversalStack[0] = _entrypointSentinel;
 	int nodeIndex = 0;
-	int nodeIsLeaf = false;
 	int stackIndex = 0;
 
 	// float3 idir = 1.0 / r.direction;
 	float3 coordinates = float3(1, 0, 1);
 	float t = 100000;
 
-	int iteration = 0;
+	int boxIntersections = 0;
 
 	while (nodeIndex != _entrypointSentinel)
 	{
-		while (!nodeIsLeaf && nodeIndex != _entrypointSentinel)
+		while (nodeIndex >= 0 && nodeIndex != _entrypointSentinel)
 		{
 			Bvh::Node node = _nodes[nodeIndex];
 			FloatMinMax tLeft = IntersectAabb(node.leftBounds, r);
@@ -78,17 +88,16 @@ void BvhRayTracer(uint3 id : SV_DispatchThreadID)
 			bool traverseLeft = tLeft.min <= tLeft.max;
 			bool traverseRight = tRight.min <= tRight.max;
 
-			nodeIndex = node.left;
-			nodeIsLeaf = node.isLeftLeaf;
+			int encodedLeft = EncodeLeaf(node.left, node.isLeftLeaf);
+			int encodedRight = EncodeLeaf(node.right, node.isRightLeaf);
+			nodeIndex = encodedLeft;
 
 			if (traverseLeft != traverseRight)
 			{
+				boxIntersections++;
 				// If only a single child was intersected we simply go to that one
 				if (traverseRight)
-				{
-					nodeIndex = node.right;
-					nodeIsLeaf = node.isRightLeaf;
-				}
+					nodeIndex = encodedRight;
 			}
 			else
 			{
@@ -96,43 +105,30 @@ void BvhRayTracer(uint3 id : SV_DispatchThreadID)
 				{
 					// If neither child was intersected we pop the stack
 					nodeIndex = traversalStack[stackIndex];
-					nodeIsLeaf = isLeafStack[stackIndex];
 					stackIndex--;
 				}
 				else
 				{
+					boxIntersections += 2;
 					// If both children were intersected we push one onto the stack
-					int postponeIndex;
-					bool postponeIsLeaf;
+					nodeIndex = encodedLeft;
+					int postponeIndex = encodedRight;
 					if (tRight.min < tLeft.min)
 					{
-						nodeIndex = node.right;
-						nodeIsLeaf = node.isRightLeaf;
-						postponeIndex = node.left;
-						postponeIsLeaf = node.isLeftLeaf;
+						nodeIndex = encodedRight;
+						postponeIndex = encodedLeft;
 					}
-					else
-					{
-						nodeIndex = node.left;
-						nodeIsLeaf = node.isLeftLeaf;
-						postponeIndex = node.right;
-						postponeIsLeaf = node.isRightLeaf;
-					}
+
 					stackIndex++;
 					traversalStack[stackIndex] = postponeIndex;
-					isLeafStack[stackIndex] = postponeIsLeaf;
 				}
 			}
 		}
 
-		if (nodeIsLeaf)
+		if (nodeIndex < 0)
 		{
-			int leafIndex = nodeIndex;
-			// coordinates = float3(0, 0, 1);
-			// nodeIndex = _entrypointSentinel;
-			// break;
-
-			IndexedTriangle indices = _triangles[leafIndex];
+			nodeIndex = DecodeLeaf(nodeIndex);
+			IndexedTriangle indices = _triangles[nodeIndex];
 			Triangle tri = MakeTriangle(_vertices[indices.v1].xyz, _vertices[indices.v2].xyz, _vertices[indices.v3].xyz);
 
 			// intersect triangle
@@ -145,11 +141,9 @@ void BvhRayTracer(uint3 id : SV_DispatchThreadID)
 			}
 
 			nodeIndex = traversalStack[stackIndex];
-			nodeIsLeaf = isLeafStack[stackIndex];
 			stackIndex--;
 		}
-		iteration++;
 	}
 
-	_result[id.xy] = float4(coordinates, 1);
+	_result[id.xy] = float4(coordinates, 1) + (boxIntersections/1024.0);
 }
