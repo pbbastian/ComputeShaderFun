@@ -10,7 +10,6 @@ struct TriangleData
 };
 
 float3 _light;
-float2 _screenSize;
 float4x4 _inverseCameraMatrix;
 float3 _origin;
 RWTexture2D<float4> _result;
@@ -22,7 +21,7 @@ static const float TMAX = 3.402823466e+38F;
 [numthreads(8, 8, 1)]
 void Trace(uint3 id : SV_DispatchThreadID)
 {
-	Ray r = CameraRay(_inverseCameraMatrix, _origin, _screenSize, id.xy);
+	Ray r = CameraRay(_inverseCameraMatrix, _origin, id.xy);
 
 	uint triangleCount, stride;
 	_triangles.GetDimensions(triangleCount, stride);

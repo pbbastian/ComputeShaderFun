@@ -31,6 +31,13 @@ float3 MultiplyPoint(float4x4 mat, float3 p)
 	return result.xyz / result.w;
 }
 
+struct IndexedTriangle 
+{
+	uint v1;
+	uint v2;
+	uint v3;
+};
+
 struct Triangle
 {
 	float3 a;
@@ -89,9 +96,10 @@ float IntersectTriangle(Triangle tri, Ray ray, out float3 coordinates)
 	return max(t, 0);
 }
 
-Ray CameraRay(float4x4 inverseCameraMatrix, float3 origin, float2 screenSize, int2 pixelCoordinates)
+Ray CameraRay(float4x4 inverseCameraMatrix, float3 origin, int2 pixelCoordinates)
 {
-	float2 position = float2(pixelCoordinates.x * 2 / screenSize.x - 1, pixelCoordinates.y * 2 / screenSize.y - 1);
+	// float2 position = float2(pixelCoordinates.x * 2 / screenSize.x - 1, pixelCoordinates.y * 2 / screenSize.y - 1);
+	float2 position = pixelCoordinates;
 	float3 direction = normalize(MultiplyPoint(inverseCameraMatrix, float3(position, 1)) - origin);
 	return MakeRay(origin, direction);
 }

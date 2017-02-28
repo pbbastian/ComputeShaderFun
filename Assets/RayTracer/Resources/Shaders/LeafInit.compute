@@ -1,0 +1,57 @@
+#pragma kernel LeafInit
+
+#include "Math.cginc"
+#include "Bvh.cginc"
+
+StructuredBuffer<IndexedTriangle> _triangles;
+StructuredBuffer<float3> _vertices;
+RWStructuredBuffer<Bvh::AABB> _leafBounds;
+RWStructuredBuffer<int> _leafKeys;
+float3 _sceneBounds[2];
+
+// Expands a 10-bit integer into 30 bits
+// by inserting 2 zeros after each bit.
+// https://devblogs.nvidia.com/parallelforall/thinking-parallel-part-iii-tree-construction-gpu/
+uint expandBits(uint v)
+{
+    v = (v * 0x00010001u) & 0xFF0000FFu;
+    v = (v * 0x00000101u) & 0x0F00F00Fu;
+    v = (v * 0x00000011u) & 0xC30C30C3u;
+    v = (v * 0x00000005u) & 0x49249249u;
+    return v;
+}
+
+// Calculates a 30-bit Morton code for the
+// given 3D point located within the unit cube [0,1].
+// https://devblogs.nvidia.com/parallelforall/thinking-parallel-part-iii-tree-construction-gpu/
+int morton3D(float3 p)
+{
+    p.x = min(max(p.x * 1024.0f, 0.0f), 1023.0f);
+    p.y = min(max(p.y * 1024.0f, 0.0f), 1023.0f);
+    p.z = min(max(p.z * 1024.0f, 0.0f), 1023.0f);
+    uint xx = expandBits((uint) p.x);
+    uint yy = expandBits((uint) p.y);
+    uint zz = expandBits((uint) p.z);
+    return xx * 4 + yy * 2 + zz;
+}
+
+[numthreads(256, 1, 1)]
+void LeafInit(uint3 id : SV_DispatchThreadID)
+{
+	int index = id.x;
+	IndexedTriangle indexedTriangle = _triangles[index];
+
+	Bvh::AABB sceneBounds;
+	sceneBounds.min = _sceneBounds[0];
+	sceneBounds.max = _sceneBounds[1];
+
+	Triangle tri = MakeTriangle(_vertices[indexedTriangle.v1], _vertices[indexedTriangle.v2], _vertices[indexedTriangle.v3]);
+	
+	Bvh::AABB bounds;
+	bounds.min = min(tri.a, min(tri.b, tri.c));
+	bounds.max = max(tri.a, max(tri.b, tri.c));
+	_leafBounds[index] = bounds;
+
+	float3 barycenter = ((bounds.min + bounds.max) * 0.5 - bounds.min) / bounds.max;
+	_leafKeys[index] = morton3D(barycenter);
+}

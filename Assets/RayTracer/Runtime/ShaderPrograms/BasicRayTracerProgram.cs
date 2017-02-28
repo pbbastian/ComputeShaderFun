@@ -6,7 +6,6 @@ namespace RayTracer.Runtime.ShaderPrograms
 {
     public sealed class BasicRayTracerProgram
     {
-        private static readonly int s_ScreenSizeId = Shader.PropertyToID("_screenSize");
         private static readonly int s_OriginId = Shader.PropertyToID("_origin");
         private static readonly int s_InverseCameraMatrixId = Shader.PropertyToID("_inverseCameraMatrix");
         private static readonly int s_LightId = Shader.PropertyToID("_light");
@@ -37,7 +36,6 @@ namespace RayTracer.Runtime.ShaderPrograms
 
         public void Dispatch(Matrix4x4 inverseCameraMatrix, Vector3 origin, Vector3 light, StructuredBuffer<Triangle> triangles, RenderTexture result)
         {
-            m_Shader.SetVector(s_ScreenSizeId, new Vector2(result.width, result.height));
             m_Shader.SetMatrix(s_InverseCameraMatrixId, inverseCameraMatrix);
             m_Shader.SetVector(s_OriginId, origin);
             m_Shader.SetVector(s_LightId, light);

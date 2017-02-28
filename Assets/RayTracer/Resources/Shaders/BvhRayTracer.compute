@@ -3,25 +3,17 @@
 #include "Math.cginc"
 #include "Bvh.cginc"
 
-struct IndexedTriangle 
-{
-	uint v1;
-	uint v2;
-	uint v3;
-};
-
 float3 _light;
-float2 _screenSize;
 float4x4 _inverseCameraMatrix;
 float3 _origin;
 StructuredBuffer<Bvh::Node> _nodes;
 StructuredBuffer<IndexedTriangle> _triangles;
 StructuredBuffer<float3> _vertices;
-float _internalNodeCount;
+RWTexture2D<float4> _result;
 
 #define STACK_SIZE 64
 
-const int _entrypointSentinel = -1;
+const int _entrypointSentinel = ~(1 << 31);
 
 struct FloatMinMax
 {
@@ -63,14 +55,15 @@ int DecodeNodeIndex(int nodeIndex)
 [numthreads(8, 8, 1)]
 void BvhRayTracer(uint3 id : SV_DispatchThreadID)
 {
-	Ray r = CameraRay(_inverseCameraMatrix, _origin, _screenSize, id.xy);
+	Ray r = CameraRay(_inverseCameraMatrix, _origin, id.xy);
 	int traversalStack[STACK_SIZE];
-	traversalStack[0] = ~(1 << 31);
+	traversalStack[0] = _entrypointSentinel;
 	int nodeIndex = 0;
 	int stackIndex = 0;
 
 	float3 idir = 1 / r.direction;
-	float3 ood = r.origin / r.direction;
+	float3 coordinates = float3(1, 0, 1);
+	float t = 3.402823466e+38F;
 
 	while (nodeIndex != _entrypointSentinel)
 	{
@@ -121,11 +114,18 @@ void BvhRayTracer(uint3 id : SV_DispatchThreadID)
 			Triangle tri = MakeTriangle(_vertices[indices.v1], _vertices[indices.v2], _vertices[indices.v3]);
 
 			// intersect triangle
+			float3 candidateCoordinates;
+			float candidate_t = IntersectTriangle(tri, r, candidateCoordinates);
+			if (candidate_t > EPSILON && candidate_t < t)
+			{
+				coordinates = candidateCoordinates;
+				t = candidate_t;
+			}
 
 			nodeIndex = traversalStack[stackIndex];
 			stackIndex--;
 		}
-
-
 	}
+
+	_result[id.xy] = float4(coordinates, 1);
 }

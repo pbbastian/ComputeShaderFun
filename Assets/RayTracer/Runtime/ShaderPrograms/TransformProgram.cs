@@ -18,11 +18,7 @@ namespace RayTracer.Runtime.ShaderPrograms
         public TransformProgram()
         {
             var shader = Resources.Load<ComputeShader>("Shaders/Transform");
-            if (shader == null)
-                throw new Exception("Resource 'Shaders/Transform' not found.");
-            var kernelIndex = shader.FindKernel("CSMain");
-            if (kernelIndex == -1)
-                throw new Exception("Kernel 'CSMain' not found in shader.");
+            var kernelIndex = shader.FindKernel("Transform");
             m_Shader = shader;
             m_KernelIndex = kernelIndex;
             uint x, y, z;
