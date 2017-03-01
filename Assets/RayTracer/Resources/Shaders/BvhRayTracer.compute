@@ -14,6 +14,7 @@ RWTexture2D<float4> _result;
 #define STACK_SIZE 64
 
 static const int _entrypointSentinel = 2147483647;
+static const bool _anyHit = true;
 
 struct FloatMinMax
 {
@@ -99,8 +100,8 @@ void BvhRayTracer(uint3 id : SV_DispatchThreadID)
 			Bvh::Node node = _nodes[nodeIndex];
 			FloatMinMax tLeft = IntersectAabb(node.leftBounds, r);
 			FloatMinMax tRight = IntersectAabb(node.rightBounds, r);
-			bool traverseLeft = tLeft.min <= tLeft.max   ;
-			bool traverseRight = tRight.min <= tRight.max;
+			bool traverseLeft = tLeft.min <= tLeft.max    && tLeft.min  < t;
+			bool traverseRight = tRight.min <= tRight.max && tRight.min  < t;
 
 			int encodedLeft = EncodeLeaf(node.left, node.isLeftLeaf);
 			int encodedRight = EncodeLeaf(node.right, node.isRightLeaf);
@@ -152,8 +153,12 @@ void BvhRayTracer(uint3 id : SV_DispatchThreadID)
 			{
 				coordinates = candidateCoordinates;
 				t = candidate_t;
-			}
+				nodeIndex = _entrypointSentinel;
 
+				if (_anyHit)
+					break;
+			}
+			
 			nodeIndex = traversalStack[stackIndex];
 			stackIndex--;
 		}
