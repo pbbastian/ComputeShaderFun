@@ -4,15 +4,17 @@ using UnityEngine;
 namespace RayTracer.Runtime
 {
     [RequireComponent(typeof(Camera)), DisallowMultipleComponent]
-    public class RayTracingBehavior : MonoBehaviour
+    public class BasicRayTracerBehavior : MonoBehaviour
     {
         private Camera m_Camera;
         private IRayTracingContext m_Context;
         private RenderTexture m_RenderTexture;
         private bool m_RayTrace;
+        private Material m_Material;
 
-        void OnEnable()
+        void Awake()
         {
+            m_Material = new Material(Shader.Find("Hidden/RayTracerIE"));
         }
 
         void OnRenderImage(RenderTexture source, RenderTexture destination)
@@ -23,8 +25,9 @@ namespace RayTracer.Runtime
                 //    destination = source;
                 m_Context.renderTexture = m_RenderTexture;
                 m_Context.camera = m_Camera;
-                if (m_Context.Render())
-                    Graphics.Blit(m_RenderTexture, destination);
+                //if (m_Context.Render())
+                //    Graphics.Blit(m_RenderTexture, destination);
+                Graphics.Blit(source, destination, m_Material);
             }
         }
 
@@ -41,7 +44,6 @@ namespace RayTracer.Runtime
                 m_RenderTexture = new RenderTexture(m_Camera.pixelWidth, m_Camera.pixelHeight, 8) {enableRandomWrite = true};
                 m_RenderTexture.Create();
                 m_RayTrace = !m_RayTrace;
-                Debug.LogFormat("Ray-tracing is {0}", m_RayTrace ? "on" : "off");
             }
         }
     }
