@@ -4,7 +4,8 @@ namespace RayTracer.Runtime
 {
     public class CameraControllerBehavior : MonoBehaviour
     {
-        public float sensitivity = 2f;
+        public float lookSpeed = 2f;
+        public float moveSpeed = 1f;
 
         private Vector2 m_Rotation;
         private Quaternion m_OriginalRotation;
@@ -19,12 +20,15 @@ namespace RayTracer.Runtime
         {
             if (Cursor.lockState == CursorLockMode.Locked)
             {
-                m_Rotation.x += Input.GetAxisRaw("Mouse X") * sensitivity;
-                m_Rotation.y += Input.GetAxisRaw("Mouse Y") * sensitivity;
+                m_Rotation.x += Input.GetAxisRaw("Mouse X") * lookSpeed;
+                m_Rotation.y += Input.GetAxisRaw("Mouse Y") * lookSpeed;
                 transform.localRotation = m_OriginalRotation * Quaternion.AngleAxis(m_Rotation.x, Vector3.up) * Quaternion.AngleAxis(m_Rotation.y, Vector3.left);
             }
 
-            if (Input.GetKey(KeyCode.L))
+            transform.position += transform.forward * moveSpeed * Input.GetAxis("Vertical") * Time.deltaTime;
+            transform.position += transform.right * moveSpeed * Input.GetAxis("Horizontal") * Time.deltaTime;
+
+            if (Input.GetKeyDown(KeyCode.L))
                 Cursor.lockState = Cursor.lockState == CursorLockMode.Locked ? CursorLockMode.None : CursorLockMode.Locked;
         }
     }
