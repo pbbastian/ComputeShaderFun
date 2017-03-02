@@ -193,6 +193,7 @@ fixed4 frag (v2f i) : SV_Target
 			if (candidate_t > 0 && candidate_t < t)
 			{
 				t = candidate_t;
+				break;
 				// nodeIndex = _entrypointSentinel;
 
 				// if (_anyHit)
