@@ -9,10 +9,17 @@ namespace RayTracer.Runtime
 
         void OnRenderImage(RenderTexture source, RenderTexture destination)
         {
+            //source.enableRandomWrite = true;
             if (enabled && m_Context != null && m_Context.Render())
             {
                 Graphics.Blit(m_Context.renderTexture, destination);
             }
+        }
+
+        void OnDisable()
+        {
+            m_Context.Dispose();
+            m_Context = null;
         }
 
         void Update()
@@ -24,13 +31,6 @@ namespace RayTracer.Runtime
                 m_Context.camera = GetComponent<Camera>();
                 m_Context.renderTexture = new RenderTexture(m_Context.camera.pixelWidth, m_Context.camera.pixelHeight, 8) { enableRandomWrite = true };
                 m_Context.renderTexture.Create();
-                enabled = true;
-            }
-            else if (!enabled && m_Context != null)
-            {
-                enabled = false;
-                m_Context.Dispose();
-                m_Context = null;
             }
         }
     }

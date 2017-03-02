@@ -24,8 +24,8 @@ namespace RayTracer.Runtime
         public bool Validate()
         {
             return renderTexture != null
-                   && renderTexture.IsCreated()
-                   && renderTexture.enableRandomWrite
+                   //&& renderTexture.IsCreated()
+                   //&& renderTexture.enableRandomWrite
                    && m_BvhContext != null
                    && m_Shader != null
                    && camera != null;

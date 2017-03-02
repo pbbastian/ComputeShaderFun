@@ -30,6 +30,22 @@ namespace RayTracer.Runtime
 
             if (Input.GetKeyDown(KeyCode.L))
                 Cursor.lockState = Cursor.lockState == CursorLockMode.Locked ? CursorLockMode.None : CursorLockMode.Locked;
+
+            if (Input.GetKeyDown(KeyCode.E))
+            {
+                GetComponent<BasicRayTracerBehavior>().enabled = false;
+                GetComponent<BvhRayTracerBehavior>().enabled = false;
+            }
+            if (Input.GetKeyDown(KeyCode.R))
+            {
+                GetComponent<BasicRayTracerBehavior>().enabled = true;
+                GetComponent<BvhRayTracerBehavior>().enabled = false;
+            }
+            if (Input.GetKeyDown(KeyCode.T))
+            {
+                GetComponent<BasicRayTracerBehavior>().enabled = false;
+                GetComponent<BvhRayTracerBehavior>().enabled = true;
+            }
         }
     }
 }

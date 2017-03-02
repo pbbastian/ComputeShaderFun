@@ -14,7 +14,7 @@ RWTexture2D<float4> _result;
 #define STACK_SIZE 64
 
 static const int _entrypointSentinel = 2147483647;
-static const bool _anyHit = true;
+static const bool _anyHit = false;
 
 struct FloatMinMax
 {
