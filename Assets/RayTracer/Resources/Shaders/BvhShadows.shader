@@ -48,6 +48,7 @@ sampler2D _MainTex;
 sampler2D _CameraGBufferTexture2;
 sampler2D_float _CameraDepthTexture;
 float4x4 _InverseView;
+float4x4 _projection;
 float3 _light;
 StructuredBuffer<Bvh::Node> _nodes;
 StructuredBuffer<IndexedTriangle> _triangles;
@@ -104,12 +105,12 @@ int DecodeLeaf(int nodeIndex)
 fixed4 frag (v2f i) : SV_Target
 {
 	float vz = LinearEyeDepth(SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, i.uv));
-    float2 p11_22 = float2(unity_CameraProjection._11, unity_CameraProjection._22);
+    float2 p11_22 = float2(_projection._11, _projection._22);
     float3 vpos = float3((i.uv * 2 - 1) / p11_22, -1) * vz;
     float4 wpos = mul(_InverseView, float4(vpos, 1));
     float3 normal = normalize(tex2D(_CameraGBufferTexture2, i.uv) * 2 - 1);
     float3 direction = normalize(-_light);
-    Ray r = MakeRay(wpos + normal*1e-4, direction);
+    Ray r = MakeRay(wpos + normal*1e-2, direction);
 
 	int traversalStack[STACK_SIZE];
 	traversalStack[0] = _entrypointSentinel;
@@ -123,8 +124,13 @@ fixed4 frag (v2f i) : SV_Target
 	int pushes = 0;
 	int pops = 0;
 
-	// if (dot(direction, normal) >= 0)
-	// 	nodeIndex = _entrypointSentinel;
+	float test = 0;
+
+	if (dot(direction, normal) <= 1e-3)
+	{
+		nodeIndex = _entrypointSentinel;
+		t = 1;
+	}
 
 	while (nodeIndex != _entrypointSentinel)
 	{

@@ -13,7 +13,7 @@ namespace RayTracer.Runtime
         void Start()
         {
             m_OriginalRotation = transform.localRotation;
-            Cursor.lockState = CursorLockMode.Locked;
+            //Cursor.lockState = CursorLockMode.Locked;
         }
 
         void Update()

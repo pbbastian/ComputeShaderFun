@@ -26,6 +26,7 @@ namespace RayTracer.Runtime.ImageEffects
             m_Material.SetBuffer("_triangles", m_BvhContext.trianglesBuffer);
             m_Material.SetBuffer("_vertices", m_BvhContext.verticesBuffer);
             m_Material.SetVector("_light", FindObjectOfType<Light>().transform.forward);
+            m_Material.SetMatrix("_projection", GetComponent<Camera>().projectionMatrix);
             Graphics.Blit(source, destination, m_Material);
         }
 
