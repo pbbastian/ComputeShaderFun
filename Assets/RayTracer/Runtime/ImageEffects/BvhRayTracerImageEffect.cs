@@ -3,7 +3,7 @@
 namespace RayTracer.Runtime
 {
     [RequireComponent(typeof(Camera)), DisallowMultipleComponent]
-    public class BvhRayTracerBehavior : MonoBehaviour
+    public class BvhRayTracerImageEffect : MonoBehaviour
     {
         private IRayTracingContext m_Context;
 

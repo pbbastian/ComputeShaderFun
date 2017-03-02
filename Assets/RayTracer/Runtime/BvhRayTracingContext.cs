@@ -40,9 +40,9 @@ namespace RayTracer.Runtime
             var scaleMatrix = Matrix4x4.TRS(new Vector3(-1, -1, 0), Quaternion.identity, new Vector3(2f / renderTexture.width, 2f / renderTexture.height, 1));
             var inverseCameraMatrix = (camera.projectionMatrix * camera.worldToCameraMatrix).inverse * scaleMatrix;
 
-            var nodes = m_BvhContext.nodesBuffer.data;
-            var triangles = m_BvhContext.trianglesBuffer.data;
-            var vertices = m_BvhContext.verticesBuffer.data;
+            //var nodes = m_BvhContext.nodesBuffer.data;
+            //var triangles = m_BvhContext.trianglesBuffer.data;
+            //var vertices = m_BvhContext.verticesBuffer.data;
 
             m_Shader.Dispatch(light.transform.position, inverseCameraMatrix, camera.transform.position, m_BvhContext.nodesBuffer, m_BvhContext.trianglesBuffer, m_BvhContext.verticesBuffer, renderTexture);
 

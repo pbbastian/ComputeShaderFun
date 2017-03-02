@@ -1,20 +1,57 @@
-#pragma kernel BvhRayTracer
+﻿Shader "Hidden/BvhShadows"
+{
+	Properties
+	{
+		_MainTex ("Texture", 2D) = "white" {}
+	}
+	SubShader
+	{
+		// No culling or depth
+		Cull Off ZWrite Off ZTest Always
 
-#include "Math.cginc"
+		Pass
+		{
+			CGPROGRAM
+#pragma vertex vert
+#pragma fragment frag
+
+#include "UnityCG.cginc"
 #include "Bvh.cginc"
+#include "Math.cginc"
 
-float3 _light;
-float4x4 _inverseCameraMatrix;
-float3 _origin;
-StructuredBuffer<Bvh::Node> _nodes;
-StructuredBuffer<IndexedTriangle> _triangles;
-StructuredBuffer<float4> _vertices;
-RWTexture2D<float4> _result;
+struct appdata
+{
+	float4 vertex : POSITION;
+	float2 uv : TEXCOORD0;
+};
+
+struct v2f
+{
+	float2 uv : TEXCOORD0;
+	float4 vertex : SV_POSITION;
+};
+
+v2f vert (appdata v)
+{
+	v2f o;
+	o.vertex = mul(UNITY_MATRIX_MVP, v.vertex);
+	o.uv = v.uv;
+	return o;
+}
 
 #define STACK_SIZE 64
 
 static const int _entrypointSentinel = 2147483647;
-static const bool _anyHit = false;
+static const bool _anyHit = true;
+
+sampler2D _MainTex;
+sampler2D _CameraGBufferTexture2;
+sampler2D_float _CameraDepthTexture;
+float4x4 _InverseView;
+float3 _light;
+StructuredBuffer<Bvh::Node> _nodes;
+StructuredBuffer<IndexedTriangle> _triangles;
+StructuredBuffer<float4> _vertices;
 
 struct FloatMinMax
 {
@@ -36,7 +73,7 @@ float min4(float a, float b, float c, float d)
 FloatMinMax IntersectAabb(Bvh::AABB b, Ray r)
 {
 	float3 invD = 1.0 / r.direction;
-	float3 OoD = r.origin * invD;
+	float3 OoD = r.origin / r.direction;
 
 	float x0 = b.min.x * invD.x - OoD.x;
 	float y0 = b.min.y * invD.y - OoD.y;
@@ -46,7 +83,7 @@ FloatMinMax IntersectAabb(Bvh::AABB b, Ray r)
 	float z1 = b.max.z * invD.z - OoD.z;
  
  	FloatMinMax t;
-    t.min = max4(0.01, min(x0, x1), min(y0, y1), min(z0, z1));
+    t.min = max4(0, min(x0, x1), min(y0, y1), min(z0, z1));
     t.max = min4(100000, max(x0, x1), max(y0, y1), max(z0, z1));
  
     return t;
@@ -64,36 +101,30 @@ int DecodeLeaf(int nodeIndex)
 	return (-nodeIndex) - 1;
 }
 
-float3 Hue(float H)
+fixed4 frag (v2f i) : SV_Target
 {
-    float R = abs(H * 6 - 3) - 1;
-    float G = 2 - abs(H * 6 - 2);
-    float B = 2 - abs(H * 6 - 4);
-    return saturate(float3(R,G,B));
-}
+	float vz = LinearEyeDepth(SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, i.uv));
+    float2 p11_22 = float2(unity_CameraProjection._11, unity_CameraProjection._22);
+    float3 vpos = float3((i.uv * 2 - 1) / p11_22, -1) * vz;
+    float4 wpos = mul(_InverseView, float4(vpos, 1));
+    float3 normal = normalize(tex2D(_CameraGBufferTexture2, i.uv) * 2 - 1);
+    float3 direction = normalize(-_light);
+    Ray r = MakeRay(wpos + normal*1e-4, direction);
 
-// http://chilliant.blogspot.dk/2010/11/rgbhsv-in-hlsl.html
-float3 HSVtoRGB(in float3 HSV)
-{
-    return ((Hue(HSV.x) - 1) * HSV.y + 1) * HSV.z;
-}
-
-[numthreads(8, 8, 1)]
-void BvhRayTracer(uint3 id : SV_DispatchThreadID)
-{
-	Ray r = CameraRay(_inverseCameraMatrix, _origin, id.xy);
 	int traversalStack[STACK_SIZE];
 	traversalStack[0] = _entrypointSentinel;
 	int nodeIndex = 0;
 	int stackIndex = 0;
 
 	// float3 idir = 1.0 / r.direction;
-	float3 coordinates = float3(1, 0, 1);
 	float t = 100000;
 
 	int boxIntersections = 0;
 	int pushes = 0;
 	int pops = 0;
+
+	// if (dot(direction, normal) >= 0)
+	// 	nodeIndex = _entrypointSentinel;
 
 	while (nodeIndex != _entrypointSentinel)
 	{
@@ -153,14 +184,13 @@ void BvhRayTracer(uint3 id : SV_DispatchThreadID)
 			// intersect triangle
 			float3 candidateCoordinates;
 			float candidate_t = IntersectTriangle(tri, r, candidateCoordinates);
-			if (candidate_t > 0.01 && candidate_t < t)
+			if (candidate_t > 0 && candidate_t < t)
 			{
-				coordinates = candidateCoordinates;
 				t = candidate_t;
-				nodeIndex = _entrypointSentinel;
+				// nodeIndex = _entrypointSentinel;
 
-				if (_anyHit)
-					break;
+				// if (_anyHit)
+				// 	break;
 			}
 			
 			nodeIndex = traversalStack[stackIndex];
@@ -168,15 +198,17 @@ void BvhRayTracer(uint3 id : SV_DispatchThreadID)
 		}
 	}
 
-	float hueBand = 20.0;
-	float valueBand = 20.0;
-	float saturationBand = 20.0;
+	// just invert the colors
+	//col = 1 - col;
 
-	int metric = pops;
-	float value = clamp(metric, 0.0, valueBand)/valueBand;
-	float hue = clamp(metric - valueBand, 0.0, hueBand)*0.85/hueBand;
-	float saturation = 1.0 - clamp(metric - valueBand - hueBand, 0.0, saturationBand)/saturationBand;
-
-	_result[id.xy] = float4(HSVtoRGB(float3(hue, saturation, value)), 1);
-	// _result[id.xy] = float4(coordinates, 1);
+	fixed4 col = tex2D(_MainTex, i.uv);
+	if (t < 99999)
+		col *= 0.5;
+	else
+		col *= 1.0;
+	return col;
+}
+			ENDCG
+		}
+	}
 }

@@ -75,20 +75,20 @@ namespace RayTracer.Runtime
 
             //var normalsBuffer = new StructuredBuffer<Vector3>(vertexCount, ShaderSizes.s_Vector3);
             //var objectIndexBuffer = new StructuredBuffer<uint>(vertexCount, ShaderSizes.s_UInt);
-            var trianglesBuffer1 = new StructuredBuffer<IndexedTriangle>(triangleCount, IndexedTriangle.s_Size);
-            var transformBuffer = new StructuredBuffer<Matrix4x4>(objectCount, ShaderSizes.s_Matrix4X4);
-            var leafBoundsBuffer1 = new StructuredBuffer<AlignedAabb>(triangleCount, AlignedAabb.s_Size);
-            var leafBoundsBuffer2 = new StructuredBuffer<AlignedAabb>(triangleCount, AlignedAabb.s_Size);
-            var leafKeysBuffer = new StructuredBuffer<int>(triangleCount, ShaderSizes.s_Int);
-            var leafKeysBackBuffer = new StructuredBuffer<int>(triangleCount, ShaderSizes.s_Int);
-            var leafIndexBuffer = new StructuredBuffer<int>(triangleCount, ShaderSizes.s_Int);
-            var leafIndexBackBuffer = new StructuredBuffer<int>(triangleCount, ShaderSizes.s_Int);
-            var leafHistogramBuffer = new StructuredBuffer<int>(triangleCount*16, ShaderSizes.s_Int);
-            var leafHistogramGroupResultsBuffer = new StructuredBuffer<int>(sortProgram.GetHistogramGroupCount(triangleCount), ShaderSizes.s_Int);
-            var leafCountBuffer = new StructuredBuffer<int>(16, ShaderSizes.s_Int);
-            var dummyBuffer = new StructuredBuffer<int>(1, ShaderSizes.s_Int);
-            var parentIndicesBuffer = new StructuredBuffer<int>(triangleCount * 2 - 2, ShaderSizes.s_Int);
-            var nodeCountersBuffer = new StructuredBuffer<int>(triangleCount - 1, ShaderSizes.s_Int);
+            using (var trianglesBuffer1 = new StructuredBuffer<IndexedTriangle>(triangleCount, IndexedTriangle.s_Size))
+            using (var transformBuffer = new StructuredBuffer<Matrix4x4>(objectCount, ShaderSizes.s_Matrix4X4))
+            using (var leafBoundsBuffer1 = new StructuredBuffer<AlignedAabb>(triangleCount, AlignedAabb.s_Size))
+            using (var leafBoundsBuffer2 = new StructuredBuffer<AlignedAabb>(triangleCount, AlignedAabb.s_Size))
+            using (var leafKeysBuffer = new StructuredBuffer<int>(triangleCount, ShaderSizes.s_Int))
+            using (var leafKeysBackBuffer = new StructuredBuffer<int>(triangleCount, ShaderSizes.s_Int))
+            using (var leafIndexBuffer = new StructuredBuffer<int>(triangleCount, ShaderSizes.s_Int))
+            using (var leafIndexBackBuffer = new StructuredBuffer<int>(triangleCount, ShaderSizes.s_Int))
+            using (var leafHistogramBuffer = new StructuredBuffer<int>(triangleCount*16, ShaderSizes.s_Int))
+            using (var leafHistogramGroupResultsBuffer = new StructuredBuffer<int>(sortProgram.GetHistogramGroupCount(triangleCount), ShaderSizes.s_Int))
+            using (var leafCountBuffer = new StructuredBuffer<int>(16, ShaderSizes.s_Int))
+            using (var dummyBuffer = new StructuredBuffer<int>(1, ShaderSizes.s_Int))
+            using (var parentIndicesBuffer = new StructuredBuffer<int>(triangleCount * 2 - 2, ShaderSizes.s_Int))
+            using (var nodeCountersBuffer = new StructuredBuffer<int>(triangleCount - 1, ShaderSizes.s_Int))
             {
                 verticesBuffer.data = vertexData;
                 //normalsBuffer.data = normalData;

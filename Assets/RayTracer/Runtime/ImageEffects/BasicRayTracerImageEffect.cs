@@ -4,7 +4,7 @@ using UnityEngine;
 namespace RayTracer.Runtime
 {
     [RequireComponent(typeof(Camera)), DisallowMultipleComponent]
-    public class BasicRayTracerBehavior : MonoBehaviour
+    public class BasicRayTracerImageEffect : MonoBehaviour
     {
         private IRayTracingContext m_Context;
         private Material m_Material;

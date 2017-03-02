@@ -33,18 +33,18 @@ namespace RayTracer.Runtime
 
             if (Input.GetKeyDown(KeyCode.E))
             {
-                GetComponent<BasicRayTracerBehavior>().enabled = false;
-                GetComponent<BvhRayTracerBehavior>().enabled = false;
+                GetComponent<BasicRayTracerImageEffect>().enabled = false;
+                GetComponent<BvhRayTracerImageEffect>().enabled = false;
             }
             if (Input.GetKeyDown(KeyCode.R))
             {
-                GetComponent<BasicRayTracerBehavior>().enabled = true;
-                GetComponent<BvhRayTracerBehavior>().enabled = false;
+                GetComponent<BasicRayTracerImageEffect>().enabled = true;
+                GetComponent<BvhRayTracerImageEffect>().enabled = false;
             }
             if (Input.GetKeyDown(KeyCode.T))
             {
-                GetComponent<BasicRayTracerBehavior>().enabled = false;
-                GetComponent<BvhRayTracerBehavior>().enabled = true;
+                GetComponent<BasicRayTracerImageEffect>().enabled = false;
+                GetComponent<BvhRayTracerImageEffect>().enabled = true;
             }
         }
     }
