@@ -208,11 +208,14 @@ fixed4 frag (v2f i) : SV_Target
 	// just invert the colors
 	//col = 1 - col;
 
+	// fixed4(HeatMap(100, boxIntersections), 1);
 	fixed4 col = tex2D(_MainTex, i.uv);
 	if (t < 99999)
 		col *= 0.5;
 	else
 		col *= 1.0;
+	// if (boxIntersections > 50-1)
+	// 	col = fixed4(1, 0, 0, 1);
 	return col;
 }
 			ENDCG

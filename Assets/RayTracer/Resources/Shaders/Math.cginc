@@ -103,3 +103,25 @@ Ray CameraRay(float4x4 inverseCameraMatrix, float3 origin, int2 pixelCoordinates
 	float3 direction = normalize(MultiplyPoint(inverseCameraMatrix, float3(position, 1)) - origin);
 	return MakeRay(origin, direction);
 }
+
+float3 Hue(float H)
+{
+    float R = abs(H * 6 - 3) - 1;
+    float G = 2 - abs(H * 6 - 2);
+    float B = 2 - abs(H * 6 - 4);
+    return saturate(float3(R,G,B));
+}
+
+// http://chilliant.blogspot.dk/2010/11/rgbhsv-in-hlsl.html
+float3 HSVtoRGB(in float3 HSV)
+{
+    return ((Hue(HSV.x) - 1) * HSV.y + 1) * HSV.z;
+}
+
+float3 HeatMap(float3 bands, float value)
+{
+	float v = clamp(value, 0.0, bands.x)/bands.x;
+	float h = clamp(value - bands.x, 0.0, bands.y)*0.85/bands.y;
+	float s = 1.0 - clamp(value - bands.x - bands.y, 0.0, bands.z)/bands.z;
+	return HSVtoRGB(float3(h, s, v));
+}

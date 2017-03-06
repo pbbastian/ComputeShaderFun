@@ -14,7 +14,7 @@ RWTexture2D<float4> _result;
 #define STACK_SIZE 64
 
 static const int _entrypointSentinel = 2147483647;
-static const bool _anyHit = false;
+static const bool _anyHit = true;
 
 struct FloatMinMax
 {
@@ -62,20 +62,6 @@ int EncodeLeaf(int nodeIndex, bool isLeaf)
 int DecodeLeaf(int nodeIndex)
 {
 	return (-nodeIndex) - 1;
-}
-
-float3 Hue(float H)
-{
-    float R = abs(H * 6 - 3) - 1;
-    float G = 2 - abs(H * 6 - 2);
-    float B = 2 - abs(H * 6 - 4);
-    return saturate(float3(R,G,B));
-}
-
-// http://chilliant.blogspot.dk/2010/11/rgbhsv-in-hlsl.html
-float3 HSVtoRGB(in float3 HSV)
-{
-    return ((Hue(HSV.x) - 1) * HSV.y + 1) * HSV.z;
 }
 
 [numthreads(8, 8, 1)]
@@ -168,15 +154,6 @@ void BvhRayTracer(uint3 id : SV_DispatchThreadID)
 		}
 	}
 
-	float hueBand = 20.0;
-	float valueBand = 20.0;
-	float saturationBand = 20.0;
-
-	int metric = pops;
-	float value = clamp(metric, 0.0, valueBand)/valueBand;
-	float hue = clamp(metric - valueBand, 0.0, hueBand)*0.85/hueBand;
-	float saturation = 1.0 - clamp(metric - valueBand - hueBand, 0.0, saturationBand)/saturationBand;
-
-	_result[id.xy] = float4(HSVtoRGB(float3(hue, saturation, value)), 1);
+	_result[id.xy] = float4(HeatMap(100, boxIntersections), 1);
 	// _result[id.xy] = float4(coordinates, 1);
 }
