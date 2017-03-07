@@ -73,6 +73,43 @@ namespace RayTracer.Runtime.ShaderPrograms.Types
         [FieldOffset(28)]
         private int padding;
 
+        public override bool Equals(object obj)
+        {
+            if (obj is Aabb)
+            {
+                return aabb.Equals(obj);
+            }
+            if (obj is AlignedAabb)
+            {
+                var other = (AlignedAabb)obj;
+                return aabb == other.aabb;
+            }
+            return base.Equals(obj);
+        }
+
+        public static bool operator ==(AlignedAabb bounds1, AlignedAabb bounds2)
+        {
+            return bounds1.aabb == bounds2.aabb;
+        }
+
+        public static bool operator !=(AlignedAabb bounds1, AlignedAabb bounds2)
+        {
+            return bounds1.aabb != bounds2.aabb;
+        }
+
+        public bool Equals(AlignedAabb other)
+        {
+            return aabb.Equals(other.aabb);
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                return aabb.GetHashCode();
+            }
+        }
+
         public override string ToString()
         {
             return aabb.ToString();
