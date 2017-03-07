@@ -4,6 +4,7 @@ using System.Linq;
 using NUnit.Framework;
 using RayTracer.Runtime.ShaderPrograms;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace RayTracer.Editor.Tests
 {
@@ -62,9 +63,12 @@ namespace RayTracer.Editor.Tests
             var scanProgram = new ScanProgram(data.warpSize);
             using (var inputBuffer = new ComputeBuffer(input.Length, sizeof(float)))
             using (var dummyBuffer = new ComputeBuffer(1, 4))
+            using (var cb = new CommandBuffer())
             {
+                scanProgram.Dispatch(cb, data.offset, data.limit, inputBuffer, dummyBuffer);
+
                 inputBuffer.SetData(input);
-                scanProgram.Dispatch(data.offset, data.limit, inputBuffer, dummyBuffer);
+                Graphics.ExecuteCommandBuffer(cb);
                 inputBuffer.GetData(output);
                 // Debug.Log(string.Join(", ", output.Select(x => x.ToString()).ToArray()));
                 Assert.AreEqual(expected, output);

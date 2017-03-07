@@ -1,14 +1,16 @@
 ﻿using RayTracer.Runtime.Util;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace RayTracer.Runtime.ShaderPrograms
 {
     public class ScanProgram
     {
-        private static readonly int s_BufferId = Shader.PropertyToID("g_Buffer");
-        private static readonly int s_GroupResultsBufferId = Shader.PropertyToID("g_GroupResultsBuffer");
-        private static readonly int s_LimitId = Shader.PropertyToID("g_Limit");
-        private static readonly int s_OffsetId = Shader.PropertyToID("g_Offset");
+        private const string kBuffer = "g_Buffer";
+        private const string kGroupResultsBuffer = "g_GroupResultsBuffer";
+        private const string kLimit = "g_Limit";
+        private const string kOffset = "g_Offset";
+
         private int m_KernelIndex;
         private ComputeShader m_Shader;
 
@@ -30,13 +32,13 @@ namespace RayTracer.Runtime.ShaderPrograms
             return itemCount.CeilDiv(groupSize);
         }
 
-        public void Dispatch(int offset, int limit, ComputeBuffer buffer, ComputeBuffer groupResultsBuffer)
+        public void Dispatch(CommandBuffer cb, int offset, int limit, ComputeBuffer buffer, ComputeBuffer groupResultsBuffer)
         {
-            m_Shader.SetBuffer(m_KernelIndex, s_BufferId, buffer);
-            m_Shader.SetBuffer(m_KernelIndex, s_GroupResultsBufferId, groupResultsBuffer);
-            m_Shader.SetInt(s_LimitId, limit);
-            m_Shader.SetInt(s_OffsetId, offset);
-            m_Shader.Dispatch(m_KernelIndex, GetGroupCount(limit), 1, 1);
+            cb.SetComputeBufferParam(m_Shader, m_KernelIndex, kBuffer, buffer);
+            cb.SetComputeBufferParam(m_Shader, m_KernelIndex, kGroupResultsBuffer, groupResultsBuffer);
+            cb.SetComputeIntParam(m_Shader, kLimit, limit);
+            cb.SetComputeIntParam(m_Shader, kOffset, offset);
+            cb.DispatchCompute(m_Shader, m_KernelIndex, GetGroupCount(limit), 1, 1);
         }
     }
 }

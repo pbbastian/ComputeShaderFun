@@ -5,6 +5,7 @@ using NUnit.Framework;
 using RayTracer.Runtime.ShaderPrograms;
 using RayTracer.Runtime.Util;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace RayTracer.Editor.Tests
 {
@@ -62,12 +63,13 @@ namespace RayTracer.Editor.Tests
             var countProgram = new RadixCountProgram();
             using (var keyBuffer = new ComputeBuffer(keys.Length, sizeof(int)))
             using (var countBuffer = new ComputeBuffer(16, sizeof(int)))
+            using (var cb = new CommandBuffer())
             {
+                countProgram.Dispatch(cb, keys.Length, data.keyData.keyShift, keyBuffer, countBuffer);
+
                 keyBuffer.SetData(keys);
                 countBuffer.SetData(counts);
-
-                countProgram.Dispatch(keys.Length, data.keyData.keyShift, keyBuffer, countBuffer);
-
+                Graphics.ExecuteCommandBuffer(cb);
                 countBuffer.GetData(counts);
 
                 Assert.AreEqual(expectedCounts, counts);

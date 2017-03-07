@@ -6,6 +6,7 @@ using RayTracer.Runtime.ShaderPrograms;
 using RayTracer.Runtime.ShaderPrograms.Types;
 using RayTracer.Runtime.Util;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
 
 namespace RayTracer.Runtime
@@ -89,6 +90,7 @@ namespace RayTracer.Runtime
             using (var dummyBuffer = new StructuredBuffer<int>(1, ShaderSizes.s_Int))
             using (var parentIndicesBuffer = new StructuredBuffer<int>(triangleCount * 2 - 2, ShaderSizes.s_Int))
             using (var nodeCountersBuffer = new StructuredBuffer<int>(triangleCount - 1, ShaderSizes.s_Int))
+            using (var cb = new CommandBuffer())
             {
                 verticesBuffer.data = vertexData;
                 //normalsBuffer.data = normalData;
@@ -97,14 +99,15 @@ namespace RayTracer.Runtime
                 transformBuffer.data = transformData;
 
                 //transformProgram.Dispatch(verticesBuffer/*, normalsBuffer*/, objectIndexBuffer, transformBuffer);
-                leafInitProgram.Dispatch(sceneBounds, trianglesBuffer1, verticesBuffer, leafBoundsBuffer1, leafKeysBuffer);
-                var leafBounds = leafBoundsBuffer1.data;
-                Debug.Log(string.Join("\n", leafBounds.Select(x => x.ToString()).ToArray()));
-                sortProgram.Dispatch(leafKeysBuffer, leafKeysBackBuffer, leafIndexBuffer, leafIndexBackBuffer, leafHistogramBuffer, leafHistogramGroupResultsBuffer, leafCountBuffer, dummyBuffer, triangleCount);
-                leafReorderProgram.Dispatch(leafIndexBuffer, leafBoundsBuffer1, leafBoundsBuffer2, trianglesBuffer1, trianglesBuffer2);
-                
-                bvhConstructProgram.Dispatch(leafKeysBuffer, leafBoundsBuffer2, nodesBuffer, parentIndicesBuffer);
-                bvhFitProgram.Dispatch(parentIndicesBuffer, nodeCountersBuffer, nodesBuffer);
+                leafInitProgram.Dispatch(cb, sceneBounds, trianglesBuffer1, verticesBuffer, leafBoundsBuffer1, leafKeysBuffer);
+                //var leafBounds = leafBoundsBuffer1.data;
+                //Debug.Log(string.Join("\n", leafBounds.Select(x => x.ToString()).ToArray()));
+                sortProgram.Dispatch(cb, leafKeysBuffer, leafKeysBackBuffer, leafIndexBuffer, leafIndexBackBuffer, leafHistogramBuffer, leafHistogramGroupResultsBuffer, leafCountBuffer, dummyBuffer, triangleCount);
+                leafReorderProgram.Dispatch(cb, leafIndexBuffer, leafBoundsBuffer1, leafBoundsBuffer2, trianglesBuffer1, trianglesBuffer2);
+
+                bvhConstructProgram.Dispatch(cb, leafKeysBuffer, leafBoundsBuffer2, nodesBuffer, parentIndicesBuffer);
+                bvhFitProgram.Dispatch(cb, parentIndicesBuffer, nodeCountersBuffer, nodesBuffer);
+                Graphics.ExecuteCommandBuffer(cb);
             }
 
             return new BvhContext

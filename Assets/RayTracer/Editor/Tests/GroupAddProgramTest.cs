@@ -4,6 +4,7 @@ using System.Linq;
 using NUnit.Framework;
 using RayTracer.Runtime.ShaderPrograms;
 using UnityEngine;
+using UnityEngine.Rendering;
 using Random = System.Random;
 
 namespace RayTracer.Editor.Tests
@@ -71,11 +72,14 @@ namespace RayTracer.Editor.Tests
 
             using (var perThreadBuffer = new ComputeBuffer(data.count, sizeof(int)))
             using (var perGroupBuffer = new ComputeBuffer(groupAddProgram.GetGroupCount(data.limit), sizeof(int)))
+            using (var cb = new CommandBuffer())
             {
+                groupAddProgram.Dispatch(cb, perThreadBuffer, perGroupBuffer, data.offset, data.limit);
+
                 perThreadBuffer.SetData(perThreadInput);
                 perGroupBuffer.SetData(perGroupInput);
-                groupAddProgram.Dispatch(perThreadBuffer, perGroupBuffer, data.offset, data.limit);
 
+                Graphics.ExecuteCommandBuffer(cb);
                 var output = new int[data.count];
                 perThreadBuffer.GetData(output);
                 //Debug.Log(string.Join(", ", perThreadInput.Select(x => x.ToString()).ToArray()));

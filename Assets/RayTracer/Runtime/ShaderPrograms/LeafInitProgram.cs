@@ -1,16 +1,17 @@
 ﻿using RayTracer.Runtime.ShaderPrograms.Types;
 using RayTracer.Runtime.Util;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace RayTracer.Runtime.ShaderPrograms
 {
     public class LeafInitProgram
     {
-        private static readonly int s_TrianglesId = Shader.PropertyToID("_triangles");
-        private static readonly int s_VerticesId = Shader.PropertyToID("_vertices");
-        private static readonly int s_LeafBoundsId = Shader.PropertyToID("_leafBounds");
-        private static readonly int s_LeafKeysId = Shader.PropertyToID("_leafKeys");
-        private static readonly int s_SceneBoundsId = Shader.PropertyToID("_sceneBounds");
+        private const string kTriangles = "_triangles";
+        private const string kVertices = "_vertices";
+        private const string kLeafBounds = "_leafBounds";
+        private const string kLeafKeys = "_leafKeys";
+        private const string kSceneBounds = "_sceneBounds";
 
         private int m_KernelIndex;
         private ComputeShader m_Shader;
@@ -26,14 +27,14 @@ namespace RayTracer.Runtime.ShaderPrograms
             m_SizeX = (int)x;
         }
 
-        public void Dispatch(Aabb sceneBounds, StructuredBuffer<IndexedTriangle> triangles, StructuredBuffer<Vector4> vertices, StructuredBuffer<AlignedAabb> leafBounds, StructuredBuffer<int> leafKeys)
+        public void Dispatch(CommandBuffer cb, Aabb sceneBounds, StructuredBuffer<IndexedTriangle> triangles, StructuredBuffer<Vector4> vertices, StructuredBuffer<AlignedAabb> leafBounds, StructuredBuffer<int> leafKeys)
         {
-            m_Shader.SetBuffer(m_KernelIndex, s_TrianglesId, triangles);
-            m_Shader.SetBuffer(m_KernelIndex, s_VerticesId, vertices);
-            m_Shader.SetBuffer(m_KernelIndex, s_LeafBoundsId, leafBounds);
-            m_Shader.SetBuffer(m_KernelIndex, s_LeafKeysId, leafKeys);
-            m_Shader.SetFloats(s_SceneBoundsId, sceneBounds.min.x, sceneBounds.min.y, sceneBounds.min.z, sceneBounds.max.x, sceneBounds.max.y, sceneBounds.max.z);
-            m_Shader.Dispatch(m_KernelIndex, triangles.count.CeilDiv(m_SizeX), 1, 1);
+            cb.SetComputeBufferParam(m_Shader, m_KernelIndex, kTriangles, triangles);
+            cb.SetComputeBufferParam(m_Shader, m_KernelIndex, kVertices, vertices);
+            cb.SetComputeBufferParam(m_Shader, m_KernelIndex, kLeafBounds, leafBounds);
+            cb.SetComputeBufferParam(m_Shader, m_KernelIndex, kLeafKeys, leafKeys);
+            cb.SetComputeFloatParams(m_Shader, kSceneBounds, sceneBounds.min.x, sceneBounds.min.y, sceneBounds.min.z, sceneBounds.max.x, sceneBounds.max.y, sceneBounds.max.z);
+            cb.DispatchCompute(m_Shader, m_KernelIndex, triangles.count.CeilDiv(m_SizeX), 1, 1);
         }
     }
 }

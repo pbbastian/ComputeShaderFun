@@ -1,17 +1,18 @@
 ﻿using RayTracer.Runtime.ShaderPrograms.Types;
 using RayTracer.Runtime.Util;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace RayTracer.Runtime.ShaderPrograms
 {
     public class LeafReorderProgram
     {
-        private static readonly int s_IndicesId = Shader.PropertyToID("_indices");
-        private static readonly int s_BoundsInputId = Shader.PropertyToID("_boundsInput");
-        private static readonly int s_BoundsOutputId = Shader.PropertyToID("_boundsOutput");
-        private static readonly int s_TrianglesInputId = Shader.PropertyToID("_trianglesInput");
-        private static readonly int s_TrianglesOutputId = Shader.PropertyToID("_trianglesOutput");
-        private static readonly int s_LimitId = Shader.PropertyToID("_limit");
+        private const string kIndices = "_indices";
+        private const string kBoundsInput = "_boundsInput";
+        private const string kBoundsOutput = "_boundsOutput";
+        private const string kTrianglesInput = "_trianglesInput";
+        private const string kTrianglesOutput = "_trianglesOutput";
+        private const string kLimit = "_limit";
 
         private int m_KernelIndex;
         private ComputeShader m_Shader;
@@ -27,15 +28,15 @@ namespace RayTracer.Runtime.ShaderPrograms
             m_SizeX = (int)x;
         }
 
-        public void Dispatch(StructuredBuffer<int> indices, StructuredBuffer<AlignedAabb> boundsInput, StructuredBuffer<AlignedAabb> boundsOutput, StructuredBuffer<IndexedTriangle> trianglesInput, StructuredBuffer<IndexedTriangle> trianglesOutput)
+        public void Dispatch(CommandBuffer cb, StructuredBuffer<int> indices, StructuredBuffer<AlignedAabb> boundsInput, StructuredBuffer<AlignedAabb> boundsOutput, StructuredBuffer<IndexedTriangle> trianglesInput, StructuredBuffer<IndexedTriangle> trianglesOutput)
         {
-            m_Shader.SetBuffer(m_KernelIndex, s_IndicesId, indices);
-            m_Shader.SetBuffer(m_KernelIndex, s_BoundsInputId, boundsInput);
-            m_Shader.SetBuffer(m_KernelIndex, s_BoundsOutputId, boundsOutput);
-            m_Shader.SetBuffer(m_KernelIndex, s_TrianglesInputId, trianglesInput);
-            m_Shader.SetBuffer(m_KernelIndex, s_TrianglesOutputId, trianglesOutput);
-            m_Shader.SetInt(s_LimitId, indices.count);
-            m_Shader.Dispatch(m_KernelIndex, indices.count.CeilDiv(m_SizeX), 1, 1);
+            cb.SetComputeBufferParam(m_Shader, m_KernelIndex, kIndices, indices);
+            cb.SetComputeBufferParam(m_Shader, m_KernelIndex, kBoundsInput, boundsInput);
+            cb.SetComputeBufferParam(m_Shader, m_KernelIndex, kBoundsOutput, boundsOutput);
+            cb.SetComputeBufferParam(m_Shader, m_KernelIndex, kTrianglesInput, trianglesInput);
+            cb.SetComputeBufferParam(m_Shader, m_KernelIndex, kTrianglesOutput, trianglesOutput);
+            cb.SetComputeIntParam(m_Shader, kLimit, indices.count);
+            cb.DispatchCompute(m_Shader, m_KernelIndex, indices.count.CeilDiv(m_SizeX), 1, 1);
         }
     }
 }

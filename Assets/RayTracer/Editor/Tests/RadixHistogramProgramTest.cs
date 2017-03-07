@@ -5,6 +5,7 @@ using Assets.RayTracer.Runtime.Util;
 using NUnit.Framework;
 using RayTracer.Runtime.ShaderPrograms;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace RayTracer.Editor.Tests
 {
@@ -58,11 +59,12 @@ namespace RayTracer.Editor.Tests
 
             using (var keyBuffer = new ComputeBuffer(input.Length, sizeof(int)))
             using (var histogramBuffer = new ComputeBuffer(input.Length * 16, sizeof(int)))
+            using (var cb = new CommandBuffer())
             {
+                program.Dispatch(cb, keyBuffer, histogramBuffer, input.Length, data.keyShift);
+
                 keyBuffer.SetData(input);
-
-                program.Dispatch(keyBuffer, histogramBuffer, input.Length, data.keyShift);
-
+                Graphics.ExecuteCommandBuffer(cb);
                 var output = new int[expectedHistogram.Length];
                 histogramBuffer.GetData(output);
 

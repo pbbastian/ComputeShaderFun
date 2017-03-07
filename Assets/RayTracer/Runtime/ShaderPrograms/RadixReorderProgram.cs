@@ -1,18 +1,19 @@
 ﻿using RayTracer.Runtime.Util;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace RayTracer.Runtime.ShaderPrograms
 {
     public class RadixReorderProgram
     {
-        private static readonly int s_InputKeyBufferId = Shader.PropertyToID("g_InputKeyBuffer");
-        private static readonly int s_InputIndexBufferId = Shader.PropertyToID("g_InputIndexBuffer");
-        private static readonly int s_OutputKeyBufferId = Shader.PropertyToID("g_OutputKeyBuffer");
-        private static readonly int s_OutputIndexBufferId = Shader.PropertyToID("g_OutputIndexBuffer");
-        private static readonly int s_HistogramBufferId = Shader.PropertyToID("g_HistogramBuffer");
-        private static readonly int s_CountBufferId = Shader.PropertyToID("g_CountBuffer");
-        private static readonly int s_LimitId = Shader.PropertyToID("g_Limit");
-        private static readonly int s_KeyShiftId = Shader.PropertyToID("g_KeyShift");
+        private const string kInputKeyBuffer = "g_InputKeyBuffer";
+        private const string kInputIndexBuffer = "g_InputIndexBuffer";
+        private const string kOutputKeyBuffer = "g_OutputKeyBuffer";
+        private const string kOutputIndexBuffer = "g_OutputIndexBuffer";
+        private const string kHistogramBuffer = "g_HistogramBuffer";
+        private const string kCountBuffer = "g_CountBuffer";
+        private const string kLimit = "g_Limit";
+        private const string kKeyShift = "g_KeyShift";
 
         private int m_KernelIndex;
         private ComputeShader m_Shader;
@@ -29,17 +30,17 @@ namespace RayTracer.Runtime.ShaderPrograms
             m_SizeX = (int)x;
         }
 
-        public void Dispatch(ComputeBuffer inputKeyBuffer, ComputeBuffer outputKeyBuffer, ComputeBuffer inputIndexBuffer, ComputeBuffer outputIndexBuffer, ComputeBuffer histogramBuffer, ComputeBuffer countBuffer, int limit, int keyShift)
+        public void Dispatch(CommandBuffer cb, ComputeBuffer inputKeyBuffer, ComputeBuffer outputKeyBuffer, ComputeBuffer inputIndexBuffer, ComputeBuffer outputIndexBuffer, ComputeBuffer histogramBuffer, ComputeBuffer countBuffer, int limit, int keyShift)
         {
-            m_Shader.SetBuffer(m_KernelIndex, s_InputKeyBufferId, inputKeyBuffer);
-            m_Shader.SetBuffer(m_KernelIndex, s_InputIndexBufferId, inputIndexBuffer);
-            m_Shader.SetBuffer(m_KernelIndex, s_OutputKeyBufferId, outputKeyBuffer);
-            m_Shader.SetBuffer(m_KernelIndex, s_OutputIndexBufferId, outputIndexBuffer);
-            m_Shader.SetBuffer(m_KernelIndex, s_HistogramBufferId, histogramBuffer);
-            m_Shader.SetBuffer(m_KernelIndex, s_CountBufferId, countBuffer);
-            m_Shader.SetInt(s_LimitId, limit);
-            m_Shader.SetInt(s_KeyShiftId, keyShift);
-            m_Shader.Dispatch(m_KernelIndex, limit.CeilDiv(m_SizeX), 1, 1);
+            cb.SetComputeBufferParam(m_Shader, m_KernelIndex, kInputKeyBuffer, inputKeyBuffer);
+            cb.SetComputeBufferParam(m_Shader, m_KernelIndex, kInputIndexBuffer, inputIndexBuffer);
+            cb.SetComputeBufferParam(m_Shader, m_KernelIndex, kOutputKeyBuffer, outputKeyBuffer);
+            cb.SetComputeBufferParam(m_Shader, m_KernelIndex, kOutputIndexBuffer, outputIndexBuffer);
+            cb.SetComputeBufferParam(m_Shader, m_KernelIndex, kHistogramBuffer, histogramBuffer);
+            cb.SetComputeBufferParam(m_Shader, m_KernelIndex, kCountBuffer, countBuffer);
+            cb.SetComputeIntParam(m_Shader, kLimit, limit);
+            cb.SetComputeIntParam(m_Shader, kKeyShift, keyShift);
+            cb.DispatchCompute(m_Shader, m_KernelIndex, limit.CeilDiv(m_SizeX), 1, 1);
         }
     }
 }

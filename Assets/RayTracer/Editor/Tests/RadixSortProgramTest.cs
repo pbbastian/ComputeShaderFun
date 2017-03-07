@@ -6,6 +6,7 @@ using Assets.RayTracer.Runtime.Util;
 using NUnit.Framework;
 using RayTracer.Runtime.ShaderPrograms;
 using UnityEngine;
+using UnityEngine.Rendering;
 using Random = System.Random;
 
 namespace RayTracer.Editor.Tests
@@ -71,9 +72,12 @@ namespace RayTracer.Editor.Tests
             using (var histogramGroupResultsBuffer = new ComputeBuffer(program.GetHistogramGroupCount(input.Length), sizeof(int)))
             using (var countBuffer = new ComputeBuffer(16, sizeof(int)))
             using (var dummyBuffer = new ComputeBuffer(1, 4))
+            using (var cb = new CommandBuffer())
             {
+                program.Dispatch(cb, keyBuffer, keyBackBuffer, indexBuffer, indexBackBuffer, histogramBuffer, histogramGroupResultsBuffer, countBuffer, dummyBuffer, data.count);
+
                 keyBuffer.SetData(input);
-                program.Dispatch(keyBuffer, keyBackBuffer, indexBuffer, indexBackBuffer, histogramBuffer, histogramGroupResultsBuffer, countBuffer, dummyBuffer, data.count);
+                Graphics.ExecuteCommandBuffer(cb);
                 var output = new int[data.count];
                 keyBuffer.GetData(output);
 
@@ -84,8 +88,8 @@ namespace RayTracer.Editor.Tests
                     for (var i = 0; i < input.Length; i++)
                         inputHistogram[input[i] * input.Length + i] = 1;
                     for (var j = 0; j < 16; j++)
-                    for (var i = 0; i < input.Length; i++)
-                        scannedInputHistogram[j * input.Length + i] = inputHistogram.Skip(j * input.Length).Take(i).Sum();
+                        for (var i = 0; i < input.Length; i++)
+                            scannedInputHistogram[j * input.Length + i] = inputHistogram.Skip(j * input.Length).Take(i).Sum();
 
                     Debug.Log("Input: " + string.Join(", ", input.Select(x => Convert.ToString(x, 2).PadLeft(4, '0')).ToArray()));
                     Debug.Log("Input: " + string.Join(", ", input.Select(x => x.ToString()).ToArray()));
@@ -133,14 +137,14 @@ namespace RayTracer.Editor.Tests
                         }
                         Debug.Log(sb.ToString());
                         // Debug.LogFormat("{2} ({0}) = {1}", i.ToString().PadLeft(2, '0'), string.Join(", ", histogram.Skip(i * input.Length).Take(input.Length).Select(x => x.ToString()).ToArray()), Convert.ToString(i, 2).PadLeft(4, '0'));
-                    }   
+                    }
                     if (false)
                         for (var i = 0; i < 16; i++)
-                        for (var j = 0; j < input.Length; j++)
-                        {
-                            if (histogram[i * input.Length + j] == 1 && input[j] != i)
-                                Debug.LogError(string.Format("input[{0}] should be {1} but is {2}", j, i, input[j]));
-                        }
+                            for (var j = 0; j < input.Length; j++)
+                            {
+                                if (histogram[i * input.Length + j] == 1 && input[j] != i)
+                                    Debug.LogError(string.Format("input[{0}] should be {1} but is {2}", j, i, input[j]));
+                            }
                     else
                         Assert.AreEqual(scannedInputHistogram, histogram);
                 }

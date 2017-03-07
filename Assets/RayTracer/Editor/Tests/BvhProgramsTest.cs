@@ -7,6 +7,7 @@ using RayTracer.Runtime.ShaderPrograms;
 using RayTracer.Runtime.ShaderPrograms.Types;
 using RayTracer.Runtime.Util;
 using UnityEngine;
+using UnityEngine.Rendering;
 using Random = System.Random;
 
 namespace RayTracer.Editor.Tests
@@ -76,10 +77,13 @@ namespace RayTracer.Editor.Tests
             using (var leafBoundsBuffer = new StructuredBuffer<AlignedAabb>(leafBounds.Length, AlignedAabb.s_Size))
             using (var nodesBuffer = new StructuredBuffer<AlignedBvhNode>(data.keyCount - 1, AlignedBvhNode.s_Size))
             using (var parentIndicesBuffer = new StructuredBuffer<int>(data.keyCount * 2 - 2, ShaderSizes.s_Int))
+            using (var cb = new CommandBuffer())
             {
+                program.Dispatch(cb, keysBuffer, leafBoundsBuffer, nodesBuffer, parentIndicesBuffer);
+
                 keysBuffer.data = keys;
                 leafBoundsBuffer.data = leafBounds;
-                program.Dispatch(keysBuffer, leafBoundsBuffer, nodesBuffer, parentIndicesBuffer);
+                Graphics.ExecuteCommandBuffer(cb);
                 nodes = nodesBuffer.data;
                 parentIndices = parentIndicesBuffer.data;
             }
@@ -108,11 +112,14 @@ namespace RayTracer.Editor.Tests
             using (var nodesBuffer = new StructuredBuffer<AlignedBvhNode>(data.keyCount - 1, AlignedBvhNode.s_Size))
             using (var parentIndicesBuffer = new StructuredBuffer<int>(data.keyCount * 2 - 2, ShaderSizes.s_Int))
             using (var nodeCountersBuffer = new StructuredBuffer<int>(data.keyCount - 1, ShaderSizes.s_Int))
+            using (var cb = new CommandBuffer())
             {
+                constructProgram.Dispatch(cb, keysBuffer, leafBoundsBuffer, nodesBuffer, parentIndicesBuffer);
+                fitProgram.Dispatch(cb, parentIndicesBuffer, nodeCountersBuffer, nodesBuffer);
+
                 keysBuffer.data = keys;
                 leafBoundsBuffer.data = leafBounds;
-                constructProgram.Dispatch(keysBuffer, leafBoundsBuffer, nodesBuffer, parentIndicesBuffer);
-                fitProgram.Dispatch(parentIndicesBuffer, nodeCountersBuffer, nodesBuffer);
+                Graphics.ExecuteCommandBuffer(cb);
                 nodes = nodesBuffer.data;
                 parentIndices = parentIndicesBuffer.data;
             }

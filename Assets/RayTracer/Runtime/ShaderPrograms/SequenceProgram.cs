@@ -1,11 +1,12 @@
 ﻿using RayTracer.Runtime.Util;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace RayTracer.Runtime.ShaderPrograms
 {
     public class SequenceProgram
     {
-        private static readonly int s_BufferId = Shader.PropertyToID("g_Buffer");
+        private const string kBuffer = "g_Buffer";
         private int m_KernelIndex;
         private ComputeShader m_Shader;
         private int m_SizeX;
@@ -19,10 +20,10 @@ namespace RayTracer.Runtime.ShaderPrograms
             m_SizeX = (int)x;
         }
 
-        public void Dispatch(int count, ComputeBuffer buffer)
+        public void Dispatch(CommandBuffer cb, int count, ComputeBuffer buffer)
         {
-            m_Shader.SetBuffer(m_KernelIndex, s_BufferId, buffer);
-            m_Shader.Dispatch(m_KernelIndex, count.CeilDiv(m_SizeX), 1, 1);
+            cb.SetComputeBufferParam(m_Shader, m_KernelIndex, kBuffer, buffer);
+            cb.DispatchCompute(m_Shader, m_KernelIndex, count.CeilDiv(m_SizeX), 1, 1);
         }
     }
 }

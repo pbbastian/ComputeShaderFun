@@ -1,17 +1,18 @@
 ﻿using RayTracer.Runtime.Util;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace RayTracer.Runtime.ShaderPrograms
 {
     public class RadixCountProgram
     {
-        private static readonly int s_KeyBufferId = Shader.PropertyToID("g_KeyBuffer");
-        private static readonly int s_CountBufferId = Shader.PropertyToID("g_CountBuffer");
-        private static readonly int s_SectionSizeId = Shader.PropertyToID("g_SectionSize");
-        private static readonly int s_KeyShiftId = Shader.PropertyToID("g_KeyShift");
-        private static readonly int s_ItemCountId = Shader.PropertyToID("g_ItemCount");
+        private const string kKeyBuffer = "g_KeyBuffer";
+        private const string kCountBuffer = "g_CountBuffer";
+        private const string kSectionSize = "g_SectionSize";
+        private const string kKeyShift = "g_KeyShift";
+        private const string kItemCount = "g_ItemCount";
 
-        private static readonly int s_GroupCount = 1024;
+        private static readonly int kGroupCou = 1024;
         private int m_KernelIndex;
         private ComputeShader m_Shader;
         private int m_SizeX;
@@ -27,15 +28,15 @@ namespace RayTracer.Runtime.ShaderPrograms
             m_SizeX = (int) x;
         }
 
-        public void Dispatch(int itemCount, int keyShift, ComputeBuffer keyBuffer, ComputeBuffer countBuffer)
+        public void Dispatch(CommandBuffer cb, int itemCount, int keyShift, ComputeBuffer keyBuffer, ComputeBuffer countBuffer)
         {
-            m_Shader.SetBuffer(m_KernelIndex, s_KeyBufferId, keyBuffer);
-            m_Shader.SetBuffer(m_KernelIndex, s_CountBufferId, countBuffer);
-            m_Shader.SetInt(s_SectionSizeId, itemCount.CeilDiv(m_SizeX * s_GroupCount));
-            // Debug.LogFormat("Section size: {0}", itemCount.CeilDiv(m_SizeX * s_GroupCount));
-            m_Shader.SetInt(s_KeyShiftId, keyShift);
-            m_Shader.SetInt(s_ItemCountId, itemCount);
-            m_Shader.Dispatch(m_KernelIndex, s_GroupCount, 1, 1);
+            cb.SetComputeBufferParam(m_Shader, m_KernelIndex, kKeyBuffer, keyBuffer);
+            cb.SetComputeBufferParam(m_Shader, m_KernelIndex, kCountBuffer, countBuffer);
+            cb.SetComputeIntParam(m_Shader, kSectionSize, itemCount.CeilDiv(m_SizeX * kGroupCou));
+            // Debug.LogFormat("Section size: {0}", itemCount.CeilDiv(m_SizeX * kGroupCou));
+            cb.SetComputeIntParam(m_Shader, kKeyShift, keyShift);
+            cb.SetComputeIntParam(m_Shader, kItemCount, itemCount);
+            cb.DispatchCompute(m_Shader, m_KernelIndex, kGroupCou, 1, 1);
         }
     }
 }

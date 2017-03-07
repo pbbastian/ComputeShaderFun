@@ -6,6 +6,7 @@ using NUnit.Framework;
 using RayTracer.Runtime.ShaderPrograms;
 using RayTracer.Runtime.Util;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace RayTracer.Editor.Tests
 {
@@ -70,17 +71,12 @@ namespace RayTracer.Editor.Tests
             using (var scanBuffer = new ComputeBuffer(input.Length, sizeof(int)))
             using (var groupResultsBuffer = new ComputeBuffer(globalScanProgram.GetGroupCount(input.Length), sizeof(int)))
             using (var dummyBuffer = new ComputeBuffer(1, 4))
+            using (var cb = new CommandBuffer())
             {
-                scanBuffer.SetData(input);
-                globalScanProgram.Dispatch(new GlobalScanData
-                {
-                    offset = data.offset,
-                    limit = data.limit,
-                    buffer = scanBuffer,
-                    groupResultsBuffer = groupResultsBuffer,
-                    dummyBuffer = dummyBuffer
-                });
+                globalScanProgram.Dispatch(cb, data.limit, data.offset, scanBuffer, groupResultsBuffer, dummyBuffer);
 
+                scanBuffer.SetData(input);
+                Graphics.ExecuteCommandBuffer(cb);
                 scanBuffer.GetData(output);
                 Assert.AreEqual(expected, output);
             }

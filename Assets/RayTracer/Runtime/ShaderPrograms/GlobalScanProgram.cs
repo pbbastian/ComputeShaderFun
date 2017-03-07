@@ -1,25 +1,8 @@
 ﻿using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace RayTracer.Runtime.ShaderPrograms
 {
-    public struct GlobalScanData
-    {
-        public int limit;
-        public int offset;
-        public ComputeBuffer buffer;
-        public ComputeBuffer groupResultsBuffer;
-        public ComputeBuffer dummyBuffer;
-
-        public GlobalScanData(int limit, int offset, ComputeBuffer buffer, ComputeBuffer groupResultsBuffer, ComputeBuffer dummyBuffer)
-        {
-            this.limit = limit;
-            this.offset = offset;
-            this.buffer = buffer;
-            this.groupResultsBuffer = groupResultsBuffer;
-            this.dummyBuffer = dummyBuffer;
-        }
-    }
-
     public class GlobalScanProgram
     {
         private GroupAddProgram m_GroupAddProgram;
@@ -36,15 +19,13 @@ namespace RayTracer.Runtime.ShaderPrograms
             return m_ScanProgram.GetGroupCount(itemCount);
         }
 
-        public void Dispatch(GlobalScanData data)
+        public void Dispatch(CommandBuffer cb, int limit, int offset, ComputeBuffer buffer, ComputeBuffer groupResultsBuffer, ComputeBuffer dummyBuffer)
         {
-            var groupCount = m_ScanProgram.GetGroupCount(data.limit);
+            var groupCount = m_ScanProgram.GetGroupCount(limit);
 
-            m_ScanProgram.Dispatch(data.offset, data.limit, data.buffer, data.groupResultsBuffer);
-
-            m_ScanProgram.Dispatch(0, groupCount, data.groupResultsBuffer, data.dummyBuffer);
-
-            m_GroupAddProgram.Dispatch(data.buffer, data.groupResultsBuffer, data.offset, data.limit);
+            m_ScanProgram.Dispatch(cb, offset, limit, buffer, groupResultsBuffer);
+            m_ScanProgram.Dispatch(cb, 0, groupCount, groupResultsBuffer, dummyBuffer);
+            m_GroupAddProgram.Dispatch(cb, buffer, groupResultsBuffer, offset, limit);
         }
     }
 }
