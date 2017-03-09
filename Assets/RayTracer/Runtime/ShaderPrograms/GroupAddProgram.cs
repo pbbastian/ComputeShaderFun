@@ -12,7 +12,6 @@ namespace RayTracer.Runtime.ShaderPrograms
         private const string kOffset = "g_Offset";
         private int m_KernelIndex;
         private ComputeShader m_Shader;
-        private int m_SizeX;
 
         public GroupAddProgram(WarpSize warpSize)
         {
@@ -21,14 +20,14 @@ namespace RayTracer.Runtime.ShaderPrograms
             m_KernelIndex = m_Shader.FindKernel(kernelName);
             uint x, y, z;
             m_Shader.GetKernelThreadGroupSizes(m_KernelIndex, out x, out y, out z);
-            m_SizeX = (int) x;
+            groupSize = (int) x;
         }
 
-        public int GroupSize { get { return m_SizeX; } }
+        public int groupSize { get; private set; }
 
         public int GetGroupCount(int itemCount)
         {
-            return itemCount.CeilDiv(m_SizeX);
+            return itemCount.CeilDiv(groupSize);
         }
 
         public void Dispatch(CommandBuffer cb, ComputeBuffer perThreadBuffer, ComputeBuffer perGroupBuffer, int offset, int limit)

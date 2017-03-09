@@ -5,16 +5,16 @@ namespace RayTracer.Runtime
 {
     public class BvhRayTracingContext : IRayTracingContext
     {
-        private BvhRayTracerProgram m_Shader;
         private BvhContext m_BvhContext;
-
-        public RenderTexture renderTexture { get; set; }
-        public Camera camera { get; set; }
+        private BvhRayTracerProgram m_Shader;
 
         public BvhRayTracingContext()
         {
             m_Shader = new BvhRayTracerProgram();
         }
+
+        public RenderTexture renderTexture { get; set; }
+        public Camera camera { get; set; }
 
         public void BuildScene()
         {

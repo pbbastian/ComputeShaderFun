@@ -12,18 +12,18 @@ namespace RayTracer.Editor.UI
 {
     public abstract class AbstractRayTracerEditorWindow : EditorWindow
     {
-        private RayTracingProfileAsset m_Asset;
-        private Texture2D m_BlackTexture;
-        private IRayTracingContext m_Context;
-        private RenderTexture m_RenderTexture;
-        private Rect m_RemainingRect;
-        private bool m_FillWindow;
-        private RayTracingProfileAsset[] m_Assets;
-        private int[] m_PopupValues;
-        private string[] m_PopupNames;
+        private string[] m_AccelerationPopupNames;
         private int m_AccelerationPopupValue;
         private int[] m_AccelerationPopupValues;
-        private string[] m_AccelerationPopupNames;
+        private RayTracingProfileAsset m_Asset;
+        private RayTracingProfileAsset[] m_Assets;
+        private Texture2D m_BlackTexture;
+        private IRayTracingContext m_Context;
+        private bool m_FillWindow;
+        private string[] m_PopupNames;
+        private int[] m_PopupValues;
+        private Rect m_RemainingRect;
+        private RenderTexture m_RenderTexture;
 
         public RayTracingProfileAsset asset
         {
@@ -133,7 +133,7 @@ namespace RayTracer.Editor.UI
                 new Vector3(previewRect.xMax + 1, previewRect.yMax + 1, 0f),
                 new Vector3(previewRect.xMax - 9, previewRect.yMax + 1, 0f),
                 new Vector3(previewRect.xMax + 1, previewRect.yMax + 1, 0f),
-                new Vector3(previewRect.xMax + 1, previewRect.yMax - 9, 0f),
+                new Vector3(previewRect.xMax + 1, previewRect.yMax - 9, 0f)
             };
             Handles.DrawLines(lines);
         }

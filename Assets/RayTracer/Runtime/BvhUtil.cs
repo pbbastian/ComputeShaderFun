@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using RayTracer.Runtime.Components;
 using RayTracer.Runtime.ShaderPrograms;
@@ -17,7 +16,7 @@ namespace RayTracer.Runtime
         {
             var scene = SceneManager.GetActiveScene();
             var gameObjects = scene.GetComponentsInChildren<RayTracingObject>().Select(x => x.gameObject).Where(x => x.activeInHierarchy).ToList();
-            var sceneBounds = new Aabb()
+            var sceneBounds = new Aabb
             {
                 min = new Vector3(float.PositiveInfinity, float.PositiveInfinity, float.PositiveInfinity),
                 max = new Vector3(float.NegativeInfinity, float.NegativeInfinity, float.NegativeInfinity)
@@ -28,7 +27,7 @@ namespace RayTracer.Runtime
             {
                 // RayTracingObject requires MeshFilter, so we can be sure that it's there.
                 var meshFilter = gameObject.GetComponent<MeshFilter>();
-                triangleCount += meshFilter.sharedMesh.triangles.Length/3;
+                triangleCount += meshFilter.sharedMesh.triangles.Length / 3;
                 vertexCount += meshFilter.sharedMesh.vertices.Length;
             }
 
@@ -44,12 +43,12 @@ namespace RayTracer.Runtime
             {
                 var meshFilter = gameObject.GetComponent<MeshFilter>();
                 var mesh = meshFilter.sharedMesh;
-                sceneBounds = sceneBounds.Merge(new Aabb { min = mesh.bounds.min, max = mesh.bounds.max });
+                sceneBounds = sceneBounds.Merge(new Aabb {min = mesh.bounds.min, max = mesh.bounds.max});
 
                 //mesh.triangles.CopyTo(flatTriangleData, triangleIndex);
                 for (var i = 0; i < mesh.triangles.Length / 3; i++)
                 for (var j = 0; j < 3; j++)
-                    triangleData[triangleIndex + i][j] = (uint) (mesh.triangles[i*3 + j] + vertexIndex);
+                    triangleData[triangleIndex + i][j] = (uint) (mesh.triangles[i * 3 + j] + vertexIndex);
                 triangleIndex += mesh.triangles.Length / 3;
 
                 for (var i = 0; i < mesh.vertices.Length; i++)
@@ -84,7 +83,7 @@ namespace RayTracer.Runtime
             using (var leafKeysBackBuffer = new StructuredBuffer<int>(triangleCount, ShaderSizes.s_Int))
             using (var leafIndexBuffer = new StructuredBuffer<int>(triangleCount, ShaderSizes.s_Int))
             using (var leafIndexBackBuffer = new StructuredBuffer<int>(triangleCount, ShaderSizes.s_Int))
-            using (var leafHistogramBuffer = new StructuredBuffer<int>(triangleCount*16, ShaderSizes.s_Int))
+            using (var leafHistogramBuffer = new StructuredBuffer<int>(triangleCount * 16, ShaderSizes.s_Int))
             using (var leafHistogramGroupResultsBuffer = new StructuredBuffer<int>(sortProgram.GetHistogramGroupCount(triangleCount), ShaderSizes.s_Int))
             using (var leafCountBuffer = new StructuredBuffer<int>(16, ShaderSizes.s_Int))
             using (var dummyBuffer = new StructuredBuffer<int>(1, ShaderSizes.s_Int))

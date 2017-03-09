@@ -5,16 +5,12 @@ namespace RayTracer.Runtime.ImageEffects
 {
     public class BvhShadowsImageEffect : MonoBehaviour
     {
-        private static class Uniforms
-        {
-            public static readonly int s_TempId = Shader.PropertyToID("_BvhShadowsTemp");
-        }
-
-        private Material m_Material;
         private BvhContext m_BvhContext;
-        private Light m_Light;
         private Camera m_Camera;
         private CommandBuffer m_Cb;
+        private Light m_Light;
+
+        private Material m_Material;
         private bool m_SceneLoaded;
 
         private void OnPreRender()
@@ -24,6 +20,9 @@ namespace RayTracer.Runtime.ImageEffects
                 m_Material.SetVector("_light", m_Light.transform.forward);
                 m_Material.SetMatrix("_projection", m_Camera.nonJitteredProjectionMatrix);
                 m_Material.SetMatrix("_InverseView", m_Camera.cameraToWorldMatrix);
+                m_Material.SetBuffer("_nodes", m_BvhContext.nodesBuffer);
+                m_Material.SetBuffer("_triangles", m_BvhContext.trianglesBuffer);
+                m_Material.SetBuffer("_vertices", m_BvhContext.verticesBuffer);
             }
         }
 
@@ -39,11 +38,6 @@ namespace RayTracer.Runtime.ImageEffects
             m_BvhContext = BvhUtil.CreateBvh();
 
             m_Material = new Material(Shader.Find("Hidden/BvhShadows"));
-            m_Material.SetBuffer("_nodes", m_BvhContext.nodesBuffer);
-            m_Material.SetBuffer("_triangles", m_BvhContext.trianglesBuffer);
-            m_Material.SetBuffer("_vertices", m_BvhContext.verticesBuffer);
-            m_Material.SetVector("_light", m_Light.transform.forward);
-            m_Material.SetMatrix("_projection", m_Camera.projectionMatrix);
 
             m_Cb = new CommandBuffer {name = "BVH shadows"};
             m_Cb.GetTemporaryRT(Uniforms.s_TempId, -1, -1, 0, FilterMode.Bilinear);
@@ -51,14 +45,14 @@ namespace RayTracer.Runtime.ImageEffects
             m_Cb.Blit(Uniforms.s_TempId, BuiltinRenderTextureType.CameraTarget);
             m_Cb.ReleaseTemporaryRT(Uniforms.s_TempId);
 
-            m_Camera.AddCommandBuffer(CameraEvent.BeforeImageEffects, m_Cb);
+            m_Camera.AddCommandBuffer(CameraEvent.BeforeImageEffectsOpaque, m_Cb);
         }
 
         private void Cleanup()
         {
             if (m_Cb != null)
             {
-                m_Camera.RemoveCommandBuffer(CameraEvent.BeforeImageEffects, m_Cb);
+                m_Camera.RemoveCommandBuffer(CameraEvent.BeforeImageEffectsOpaque, m_Cb);
                 m_Cb.Dispose();
                 m_Cb = null;
             }
@@ -91,6 +85,11 @@ namespace RayTracer.Runtime.ImageEffects
                 m_SceneLoaded = true;
                 OnEnable();
             }
+        }
+
+        private static class Uniforms
+        {
+            public static readonly int s_TempId = Shader.PropertyToID("_BvhShadowsTemp");
         }
     }
 }

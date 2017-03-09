@@ -1,58 +1,25 @@
-﻿Shader "Hidden/BvhShadows"
-{
-	Properties
-	{
-		_MainTex ("Texture", 2D) = "white" {}
-	}
-	SubShader
-	{
-		// No culling or depth
-		Cull Off ZWrite Off ZTest Always
-
-		Pass
-		{
-			CGPROGRAM
-#pragma vertex vert
-#pragma fragment frag
+#pragma kernel BvhShadows
 
 #include "UnityCG.cginc"
 #include "Bvh.cginc"
 #include "Math.cginc"
 
-struct appdata
-{
-	float4 vertex : POSITION;
-	float2 uv : TEXCOORD0;
-};
-
-struct v2f
-{
-	float2 uv : TEXCOORD0;
-	float4 vertex : SV_POSITION;
-};
-
-v2f vert (appdata v)
-{
-	v2f o;
-	o.vertex = mul(UNITY_MATRIX_MVP, v.vertex);
-	o.uv = v.uv;
-	return o;
-}
+Texture2D<float4> _MainTex;
+Texture2D<float4> _CameraGBufferTexture2;
+Texture2D<float> _CameraDepthTexture;
+RWTexture2D<float4> _TargetTex;
+StructuredBuffer<Bvh::Node> _Nodes;
+StructuredBuffer<IndexedTriangle> _Triangles;
+StructuredBuffer<float4> _Vertices;
+float4x4 _InverseView;
+float4x4 _Projection;
+float3 _Light;
+float2 _Size;
 
 #define STACK_SIZE 64
 
 static const int _entrypointSentinel = 2147483647;
 static const bool _anyHit = true;
-
-sampler2D _MainTex;
-sampler2D _CameraGBufferTexture2;
-sampler2D_float _CameraDepthTexture;
-float4x4 _InverseView;
-float4x4 _projection;
-float3 _light;
-StructuredBuffer<Bvh::Node> _nodes;
-StructuredBuffer<IndexedTriangle> _triangles;
-StructuredBuffer<float4> _vertices;
 
 struct FloatMinMax
 {
@@ -102,14 +69,19 @@ int DecodeLeaf(int nodeIndex)
 	return (-nodeIndex) - 1;
 }
 
-fixed4 frag (v2f i) : SV_Target
+[numthreads(8, 8, 1)]
+void BvhShadows(uint3 id : SV_DispatchThreadID)
 {
-	float vz = LinearEyeDepth(SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, i.uv));
-    float2 p11_22 = float2(_projection._11, _projection._22);
-    float3 vpos = float3((i.uv * 2 - 1) / p11_22, -1) * vz;
+	if ((float) id.x >= _Size.x || (float) id.y >= _Size.y)
+		return;
+
+	float vz = LinearEyeDepth(_CameraDepthTexture[id.xy]);
+    float2 p11_22 = float2(_Projection._11, _Projection._22);
+    float2 uv = id.xy / _Size;
+    float3 vpos = float3((uv * 2 - 1) / p11_22, -1) * vz;
     float4 wpos = mul(_InverseView, float4(vpos, 1));
-    float3 normal = normalize(tex2D(_CameraGBufferTexture2, i.uv) * 2 - 1);
-    float3 direction = normalize(-_light);
+    float3 normal = normalize(_CameraGBufferTexture2[id.xy] * 2 - 1);
+    float3 direction = normalize(-_Light);
     Ray r = MakeRay(wpos + normal*1e-2, direction);
 
 	int traversalStack[STACK_SIZE];
@@ -135,7 +107,7 @@ fixed4 frag (v2f i) : SV_Target
 	{
 		while (nodeIndex >= 0 && nodeIndex != _entrypointSentinel)
 		{
-			Bvh::Node node = _nodes[nodeIndex];
+			Bvh::Node node = _Nodes[nodeIndex];
 			FloatMinMax tLeft = IntersectAabb(node.leftBounds, r);
 			FloatMinMax tRight = IntersectAabb(node.rightBounds, r);
 			bool traverseLeft = tLeft.min <= tLeft.max    && tLeft.min  < t;
@@ -183,8 +155,8 @@ fixed4 frag (v2f i) : SV_Target
 		if (nodeIndex < 0)
 		{
 			nodeIndex = DecodeLeaf(nodeIndex);
-			IndexedTriangle indices = _triangles[nodeIndex];
-			Triangle tri = MakeTriangle(_vertices[indices.v1].xyz, _vertices[indices.v2].xyz, _vertices[indices.v3].xyz);
+			IndexedTriangle indices = _Triangles[nodeIndex];
+			Triangle tri = MakeTriangle(_Vertices[indices.v1].xyz, _Vertices[indices.v2].xyz, _Vertices[indices.v3].xyz);
 
 			// intersect triangle
 			float3 candidateCoordinates;
@@ -209,16 +181,12 @@ fixed4 frag (v2f i) : SV_Target
 	//col = 1 - col;
 
 	// fixed4(HeatMap(100, boxIntersections), 1);
-	fixed4 col = fixed4(HeatMap(10, triangleIntersections), 1); tex2D(_MainTex, i.uv);
+	fixed4 col = fixed4(HeatMap(10, triangleIntersections), 1); // tex2D(_MainTex, i.uv);
 	// if (t < 99999)
 	// 	col *= 0.5;
 	// else
 	// 	col *= 1.0;
 	// if (boxIntersections > 50-1)
 	// 	col = fixed4(1, 0, 0, 1);
-	return col;
-}
-			ENDCG
-		}
-	}
+	_TargetTex[id.xy] = col;
 }

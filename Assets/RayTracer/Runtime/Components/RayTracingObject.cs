@@ -2,7 +2,7 @@
 
 namespace RayTracer.Runtime.Components
 {
-	[RequireComponent(typeof(MeshFilter))]
+    [RequireComponent(typeof(MeshFilter))]
     public class RayTracingObject : MonoBehaviour
     {
         public Color albedo = Color.gray;

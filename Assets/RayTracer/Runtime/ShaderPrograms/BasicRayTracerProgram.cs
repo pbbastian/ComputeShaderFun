@@ -1,5 +1,4 @@
-﻿using System;
-using RayTracer.Runtime.Util;
+﻿using RayTracer.Runtime.Util;
 using UnityEngine;
 
 namespace RayTracer.Runtime.ShaderPrograms
@@ -11,9 +10,9 @@ namespace RayTracer.Runtime.ShaderPrograms
         private static readonly int s_LightId = Shader.PropertyToID("_light");
         private static readonly int s_TrianglesId = Shader.PropertyToID("_triangles");
         private static readonly int s_ResultId = Shader.PropertyToID("_result");
+        private int m_KernelIndex;
 
         private ComputeShader m_Shader;
-        private int m_KernelIndex;
         private int m_SizeX;
         private int m_SizeY;
 

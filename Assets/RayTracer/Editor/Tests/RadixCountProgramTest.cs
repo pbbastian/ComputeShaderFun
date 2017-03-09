@@ -11,28 +11,6 @@ namespace RayTracer.Editor.Tests
 {
     public class RadixCountProgramTest
     {
-        public struct KeyTestData
-        {
-            public int keyMask;
-            public int keyShift;
-
-            public override string ToString()
-            {
-                return string.Format("keyMask={0}, keyShift={1}", Convert.ToString(keyMask, 2).PadLeft(8, '0'), keyShift);
-            }
-        }
-
-        public struct TestData
-        {
-            public int count;
-            public KeyTestData keyData;
-
-            public override string ToString()
-            {
-                return string.Format("count={0}, {1}", count, keyData);
-            }
-        }
-
         public static IEnumerable<TestCaseData> testDatas
         {
             get
@@ -73,6 +51,28 @@ namespace RayTracer.Editor.Tests
                 countBuffer.GetData(counts);
 
                 Assert.AreEqual(expectedCounts, counts);
+            }
+        }
+
+        public struct KeyTestData
+        {
+            public int keyMask;
+            public int keyShift;
+
+            public override string ToString()
+            {
+                return string.Format("keyMask={0}, keyShift={1}", Convert.ToString(keyMask, 2).PadLeft(8, '0'), keyShift);
+            }
+        }
+
+        public struct TestData
+        {
+            public int count;
+            public KeyTestData keyData;
+
+            public override string ToString()
+            {
+                return string.Format("count={0}, {1}", count, keyData);
             }
         }
     }

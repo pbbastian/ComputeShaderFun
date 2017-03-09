@@ -23,7 +23,7 @@ namespace RayTracer.Runtime.ShaderPrograms.Types
         {
             if (obj is Aabb)
             {
-                var other = (Aabb)obj;
+                var other = (Aabb) obj;
                 return this == other;
             }
             return base.Equals(obj);
@@ -61,27 +61,23 @@ namespace RayTracer.Runtime.ShaderPrograms.Types
             }.ToString();
         }
 
-        public static readonly int s_Size = ShaderSizes.s_Vector3 * 2;
+        public static readonly int Size = ShaderSizes.s_Vector3 * 2;
     }
 
     [StructLayout(LayoutKind.Explicit)]
     public struct AlignedAabb
     {
-        [FieldOffset(0)]
-        public Aabb aabb;
+        [FieldOffset(0)] public Aabb aabb;
 
-        [FieldOffset(28)]
-        private int padding;
+        [FieldOffset(28)] private int padding;
 
         public override bool Equals(object obj)
         {
             if (obj is Aabb)
-            {
                 return aabb.Equals(obj);
-            }
             if (obj is AlignedAabb)
             {
-                var other = (AlignedAabb)obj;
+                var other = (AlignedAabb) obj;
                 return aabb == other.aabb;
             }
             return base.Equals(obj);
@@ -104,10 +100,7 @@ namespace RayTracer.Runtime.ShaderPrograms.Types
 
         public override int GetHashCode()
         {
-            unchecked
-            {
-                return aabb.GetHashCode();
-            }
+            return aabb.GetHashCode();
         }
 
         public override string ToString()

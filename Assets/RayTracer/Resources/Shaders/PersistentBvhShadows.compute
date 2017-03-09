@@ -1,0 +1,9 @@
+#pragma kernel PersistentBvhShadows
+
+RWTexture2D<float4> _MainTex;
+
+[numthreads(8, 8, 1)]
+void PersistentBvhShadows(uint3 id : SV_DispatchThreadID)
+{
+
+}

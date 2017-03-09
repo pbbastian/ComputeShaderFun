@@ -5,13 +5,13 @@ namespace RayTracer.Runtime.ShaderPrograms
 {
     public class RadixSortProgram
     {
-        private RadixHistogramProgram m_HistogramProgram;
-        private GlobalScanProgram m_GlobalScanProgram;
-        private ScanProgram m_ScanProgram;
         private RadixCountProgram m_CountProgram;
+        private GlobalScanProgram m_GlobalScanProgram;
+        private RadixHistogramProgram m_HistogramProgram;
         private RadixReorderProgram m_ReorderProgram;
-        private ZeroProgram m_ZeroProgram;
+        private ScanProgram m_ScanProgram;
         private SequenceProgram m_SequenceProgram;
+        private ZeroProgram m_ZeroProgram;
 
         public RadixSortProgram(WarpSize warpSize)
         {
@@ -44,7 +44,7 @@ namespace RayTracer.Runtime.ShaderPrograms
                     m_ZeroProgram.Dispatch(cb, histogramGroupResultsBuffer, GetHistogramGroupCount(limit));
                     m_GlobalScanProgram.Dispatch(cb, limit, j * limit, histogramBuffer, histogramGroupResultsBuffer, dummyBuffer);
                 }
-                
+
                 m_ReorderProgram.Dispatch(cb, keyBuffer, keyBackBuffer, indexBuffer, indexBackBuffer, histogramBuffer, countBuffer, limit, keyShift);
 
                 var keyTemp = keyBuffer;

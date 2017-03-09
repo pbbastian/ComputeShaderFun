@@ -13,22 +13,7 @@ namespace RayTracer.Editor.Tests
 {
     public class RadixSortProgramTest
     {
-        public struct TestData
-        {
-            public int count;
-            public int seed;
-            public WarpSize warpSize;
-
-            public override string ToString()
-            {
-                return new DebugStringBuilder
-                {
-                    {"count", count},
-                    {"warpSize", warpSize},
-                    {"seed", seed}
-                }.ToString();
-            }
-        }
+        public static readonly bool s_Debug = false;
 
         public static IEnumerable<TestCaseData> tests
         {
@@ -36,7 +21,7 @@ namespace RayTracer.Editor.Tests
             {
                 var counts = new[] {16, 256, 1024, 1025, 2345, 9123, 50965, 150101};
                 var seeds = new[] {64589, 12309222, 54443333, 20694, 160792, 12345789};
-                var warpSizes = new List<WarpSize> { WarpSize.Warp16, WarpSize.Warp32 };
+                var warpSizes = new List<WarpSize> {WarpSize.Warp16, WarpSize.Warp32};
                 if (SystemInfo.graphicsDeviceVendorID != 0x10DE)
                     warpSizes.Add(WarpSize.Warp64);
 
@@ -44,14 +29,12 @@ namespace RayTracer.Editor.Tests
                     from count in counts
                     from warpSize in warpSizes
                     from seed in seeds
-                    where count <= Math.Pow((int)warpSize * ((int)warpSize - 1), 2)
+                    where count <= Math.Pow((int) warpSize * ((int) warpSize - 1), 2)
                     select new TestData {count = count, seed = seed, warpSize = warpSize};
 
                 return tests.AsNamedTestCase();
             }
         }
-
-        public static readonly bool s_Debug = false;
 
         [TestCaseSource("tests")]
         public void PseudoRandomTest(TestData data)
@@ -88,8 +71,8 @@ namespace RayTracer.Editor.Tests
                     for (var i = 0; i < input.Length; i++)
                         inputHistogram[input[i] * input.Length + i] = 1;
                     for (var j = 0; j < 16; j++)
-                        for (var i = 0; i < input.Length; i++)
-                            scannedInputHistogram[j * input.Length + i] = inputHistogram.Skip(j * input.Length).Take(i).Sum();
+                    for (var i = 0; i < input.Length; i++)
+                        scannedInputHistogram[j * input.Length + i] = inputHistogram.Skip(j * input.Length).Take(i).Sum();
 
                     Debug.Log("Input: " + string.Join(", ", input.Select(x => Convert.ToString(x, 2).PadLeft(4, '0')).ToArray()));
                     Debug.Log("Input: " + string.Join(", ", input.Select(x => x.ToString()).ToArray()));
@@ -111,12 +94,10 @@ namespace RayTracer.Editor.Tests
 
                     var outputHistogram = new int[output.Length];
                     foreach (var x in output)
-                    {
                         if (x < 0 || x >= outputHistogram.Length)
                             outputHistogram = outputHistogram; //Debug.Log("Out of range");
                         else
                             outputHistogram[x]++;
-                    }
 
                     Debug.Log("Output histogram: " + string.Join(", ", outputHistogram.Select((x, i) => string.Format("{0}={1}", i, x)).ToArray()));
 
@@ -140,16 +121,32 @@ namespace RayTracer.Editor.Tests
                     }
                     if (false)
                         for (var i = 0; i < 16; i++)
-                            for (var j = 0; j < input.Length; j++)
-                            {
-                                if (histogram[i * input.Length + j] == 1 && input[j] != i)
-                                    Debug.LogError(string.Format("input[{0}] should be {1} but is {2}", j, i, input[j]));
-                            }
-                    else
-                        Assert.AreEqual(scannedInputHistogram, histogram);
+                        for (var j = 0; j < input.Length; j++)
+                        {
+                            if (histogram[i * input.Length + j] == 1 && input[j] != i)
+                                Debug.LogError(string.Format("input[{0}] should be {1} but is {2}", j, i, input[j]));
+                        }
+                    Assert.AreEqual(scannedInputHistogram, histogram);
                 }
 
                 Assert.AreEqual(expected, output);
+            }
+        }
+
+        public struct TestData
+        {
+            public int count;
+            public int seed;
+            public WarpSize warpSize;
+
+            public override string ToString()
+            {
+                return new DebugStringBuilder
+                {
+                    {"count", count},
+                    {"warpSize", warpSize},
+                    {"seed", seed}
+                }.ToString();
             }
         }
     }

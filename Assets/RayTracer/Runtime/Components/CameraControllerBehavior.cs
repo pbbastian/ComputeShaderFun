@@ -5,18 +5,18 @@ namespace RayTracer.Runtime
     public class CameraControllerBehavior : MonoBehaviour
     {
         public float lookSpeed = 2f;
-        public float moveSpeed = 1f;
-
-        private Vector2 m_Rotation;
         private Quaternion m_OriginalRotation;
 
-        void Start()
+        private Vector2 m_Rotation;
+        public float moveSpeed = 1f;
+
+        private void Start()
         {
             m_OriginalRotation = transform.localRotation;
             //Cursor.lockState = CursorLockMode.Locked;
         }
 
-        void Update()
+        private void Update()
         {
             if (Cursor.lockState == CursorLockMode.Locked)
             {

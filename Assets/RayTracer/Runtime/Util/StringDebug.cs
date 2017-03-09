@@ -1,6 +1,4 @@
-﻿using System.Text;
-
-namespace RayTracer.Runtime.Util
+﻿namespace RayTracer.Runtime.Util
 {
     public static class StringDebug
     {

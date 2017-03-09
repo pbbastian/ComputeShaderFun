@@ -1,5 +1,4 @@
-﻿using System;
-using RayTracer.Runtime.Util;
+﻿using RayTracer.Runtime.Util;
 using UnityEngine;
 
 namespace RayTracer.Runtime.ShaderPrograms
@@ -26,7 +25,7 @@ namespace RayTracer.Runtime.ShaderPrograms
             m_SizeX = (int) x;
         }
 
-        public void Dispatch(StructuredBuffer<Vector4> vertices/*, StructuredBuffer<Vector3> normals*/, StructuredBuffer<uint> objectIndices, StructuredBuffer<Matrix4x4> transforms)
+        public void Dispatch(StructuredBuffer<Vector4> vertices /*, StructuredBuffer<Vector3> normals*/, StructuredBuffer<uint> objectIndices, StructuredBuffer<Matrix4x4> transforms)
         {
             m_Shader.SetBuffer(m_KernelIndex, s_VerticesId, vertices);
             //m_Shader.SetBuffer(m_KernelIndex, s_NormalsId, normals);

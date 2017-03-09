@@ -6,61 +6,53 @@ namespace RayTracer.Runtime.Util
     public class StructuredBuffer<T> : IDisposable
         where T : struct
     {
-        private ComputeBuffer m_Buffer;
-
         public StructuredBuffer(int count, int stride)
         {
-            m_Buffer = new ComputeBuffer(count, stride);
+            computeBuffer = new ComputeBuffer(count, stride);
         }
 
         public StructuredBuffer(int count, int stride, ComputeBufferType type)
         {
-            m_Buffer = new ComputeBuffer(count, stride, type);
+            computeBuffer = new ComputeBuffer(count, stride, type);
         }
 
         [Obsolete]
         public StructuredBuffer(ComputeBuffer buffer)
         {
-            m_Buffer = buffer;
+            computeBuffer = buffer;
         }
 
         public T[] data
         {
             get
             {
-                var array = new T[m_Buffer.count];
-                m_Buffer.GetData(array);
+                var array = new T[computeBuffer.count];
+                computeBuffer.GetData(array);
                 return array;
             }
-            set
-            {
-                m_Buffer.SetData(value);
-            }
+            set { computeBuffer.SetData(value); }
         }
 
         public int count
         {
-            get { return m_Buffer.count; }
+            get { return computeBuffer.count; }
         }
 
-        public ComputeBuffer computeBuffer
+        public ComputeBuffer computeBuffer { get; private set; }
+
+        public void Dispose()
         {
-            get { return m_Buffer; }
+            if (computeBuffer != null) computeBuffer.Dispose();
         }
 
         public void GetData(T[] data)
         {
-            m_Buffer.GetData(data);
+            computeBuffer.GetData(data);
         }
 
         public void GetData(Array data)
         {
-            m_Buffer.GetData(data);
-        }
-
-        public void Dispose()
-        {
-            if (m_Buffer != null) m_Buffer.Dispose();
+            computeBuffer.GetData(data);
         }
 
         public static implicit operator ComputeBuffer(StructuredBuffer<T> buffer)

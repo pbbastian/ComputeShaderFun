@@ -11,20 +11,6 @@ namespace RayTracer.Editor.Tests
 {
     public class GroupAddProgramTest
     {
-        public struct TestData
-        {
-            public int count;
-            public int offset;
-            public int limit;
-            public WarpSize warpSize;
-            public int seed;
-
-            public override string ToString()
-            {
-                return string.Format("count={0}, warpSize={1}, offset={2}, limit={3}, seed={4}", count, (int) warpSize, offset, limit, seed);
-            }
-        }
-
         public static IEnumerable<TestCaseData> testDatas
         {
             get
@@ -42,7 +28,7 @@ namespace RayTracer.Editor.Tests
                     from relativeLimit in relativeLimits
                     from seed in seeds
                     select new TestData {count = count, warpSize = warpSize, offset = offset, limit = (int) (relativeLimit * count), seed = seed};
-                
+
                 return tests.AsNamedTestCase();
             }
         }
@@ -65,8 +51,8 @@ namespace RayTracer.Editor.Tests
             for (var i = 0; i < perGroupInput.Length; i++)
             {
                 var limitIndex = data.offset + data.limit;
-                var nextGroupIndex = data.offset + (i + 1) * groupAddProgram.GroupSize;
-                for (var j = data.offset + i * groupAddProgram.GroupSize; j < Math.Min(perThreadInput.Length, Math.Min(limitIndex, nextGroupIndex)); j++)
+                var nextGroupIndex = data.offset + (i + 1) * groupAddProgram.groupSize;
+                for (var j = data.offset + i * groupAddProgram.groupSize; j < Math.Min(perThreadInput.Length, Math.Min(limitIndex, nextGroupIndex)); j++)
                     expected[j] += perGroupInput[i];
             }
 
@@ -88,6 +74,20 @@ namespace RayTracer.Editor.Tests
                 //Debug.Log(string.Join(", ", output.Select(x => x.ToString()).ToArray()));
 
                 Assert.AreEqual(expected, output);
+            }
+        }
+
+        public struct TestData
+        {
+            public int count;
+            public int offset;
+            public int limit;
+            public WarpSize warpSize;
+            public int seed;
+
+            public override string ToString()
+            {
+                return string.Format("count={0}, warpSize={1}, offset={2}, limit={3}, seed={4}", count, (int) warpSize, offset, limit, seed);
             }
         }
     }

@@ -14,20 +14,7 @@ namespace RayTracer.Editor.Tests
 {
     public class BvhProgramsTest
     {
-        public struct TestData
-        {
-            public int keyCount;
-            public int seed;
-
-            public override string ToString()
-            {
-                return new DebugStringBuilder
-                {
-                    {"keyCount", keyCount},
-                    {"seed", seed}
-                }.ToString();
-            }
-        }
+        public static IEnumerable<TestCaseData> testCaseDatas2 = testCaseDatas.ToList();
 
         public static IEnumerable<TestCaseData> testCaseDatas
         {
@@ -42,9 +29,6 @@ namespace RayTracer.Editor.Tests
                 return tests.AsNamedTestCase();
             }
         }
-
-
-        public static IEnumerable<TestCaseData> testCaseDatas2 = testCaseDatas.ToList();
 
         private void GenerateKeysAndBounds(TestData data, out int[] keys, out AlignedAabb[] leafBounds)
         {
@@ -181,7 +165,7 @@ namespace RayTracer.Editor.Tests
             // Verify that it is possible to walk from all leafs to the top
             for (var i = 0; i < keys.Length; i++)
             {
-                int levels = 0;
+                var levels = 0;
                 var i1 = i;
                 TraverseTreeUp(nodes, parentIndices, i, true, (nodeIndex, isLeaf) =>
                 {
@@ -199,7 +183,7 @@ namespace RayTracer.Editor.Tests
                 if (isLeaf) return;
                 var node = nodes[index];
 
-                var message = new DebugStringBuilder { { "index", index }, { "node", node.ToString(), "({1})" } }.ToString();
+                var message = new DebugStringBuilder {{"index", index}, {"node", node.ToString(), "({1})"}}.ToString();
                 if (node.isLeftLeaf)
                 {
                     var expected = leafBounds[node.left];
@@ -252,6 +236,21 @@ namespace RayTracer.Editor.Tests
                 var parentIndex = parentIndices[(isLeaf ? nodes.Length : 0) + index - 1];
                 index = parentIndex;
                 isLeaf = false;
+            }
+        }
+
+        public struct TestData
+        {
+            public int keyCount;
+            public int seed;
+
+            public override string ToString()
+            {
+                return new DebugStringBuilder
+                {
+                    {"keyCount", keyCount},
+                    {"seed", seed}
+                }.ToString();
             }
         }
     }

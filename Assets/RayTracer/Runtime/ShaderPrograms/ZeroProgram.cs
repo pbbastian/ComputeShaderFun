@@ -19,7 +19,7 @@ namespace RayTracer.Runtime.ShaderPrograms
 
             uint x, y, z;
             m_Shader.GetKernelThreadGroupSizes(m_KernelIndex, out x, out y, out z);
-            m_SizeX = (int)x;
+            m_SizeX = (int) x;
         }
 
         public void Dispatch(CommandBuffer cb, ComputeBuffer buffer, int count)
@@ -29,4 +29,3 @@ namespace RayTracer.Runtime.ShaderPrograms
         }
     }
 }
-

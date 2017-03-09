@@ -4,15 +4,15 @@ namespace RayTracer.Runtime.ImageEffects
 {
     public class LegacyBvhShadowsImageEffect : MonoBehaviour
     {
-        private Material m_Material;
         private BvhContext m_BvhContext;
+        private Material m_Material;
 
-        void Awake()
+        private void Awake()
         {
             m_Material = new Material(Shader.Find("Hidden/BvhShadows"));
         }
 
-        void OnRenderImage(RenderTexture source, RenderTexture destination)
+        private void OnRenderImage(RenderTexture source, RenderTexture destination)
         {
             if (m_BvhContext == null)
             {
@@ -30,13 +30,13 @@ namespace RayTracer.Runtime.ImageEffects
             Graphics.Blit(source, destination, m_Material);
         }
 
-        void OnDisable()
+        private void OnDisable()
         {
             m_BvhContext.Dispose();
             m_BvhContext = null;
         }
 
-        void Update()
+        private void Update()
         {
             if (enabled && m_BvhContext == null)
             {

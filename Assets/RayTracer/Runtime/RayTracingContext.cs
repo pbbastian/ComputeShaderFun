@@ -1,6 +1,4 @@
-﻿using System;
-using RayTracer.Runtime.Components;
-using RayTracer.Runtime.ShaderPrograms;
+﻿using RayTracer.Runtime.ShaderPrograms;
 using RayTracer.Runtime.Util;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -9,15 +7,10 @@ namespace RayTracer.Runtime
 {
     public sealed class RayTracingContext : IRayTracingContext
     {
-        public RayTracingContext()
-        {
-        }
-
         private RenderTexture m_RenderTexture;
         private SceneBuilder m_SceneBuilder = new SceneBuilder();
-        private ComputeBuffer m_TriangleBuffer;
         private BasicRayTracerProgram m_Shader;
-        private Camera m_Camera;
+        private ComputeBuffer m_TriangleBuffer;
 
         public RenderTexture renderTexture
         {
@@ -25,11 +18,7 @@ namespace RayTracer.Runtime
             set { m_RenderTexture = value; }
         }
 
-        public Camera camera
-        {
-            get { return m_Camera; }
-            set { m_Camera = value; }
-        }
+        public Camera camera { get; set; }
 
         public void BuildScene()
         {
@@ -47,7 +36,7 @@ namespace RayTracer.Runtime
                    && renderTexture.enableRandomWrite
                    && m_TriangleBuffer != null
                    && m_Shader != null
-                   && m_Camera != null;
+                   && camera != null;
         }
 
         public bool Render()
@@ -55,7 +44,7 @@ namespace RayTracer.Runtime
             if (!Validate())
                 return false;
 
-            var light = UnityEngine.Object.FindObjectOfType<Light>();
+            var light = Object.FindObjectOfType<Light>();
             var scaleMatrix = Matrix4x4.TRS(new Vector3(-1, -1, 0), Quaternion.identity, new Vector3(2f / renderTexture.width, 2f / renderTexture.height, 1));
             var inverseCameraMatrix = (camera.projectionMatrix * camera.worldToCameraMatrix).inverse * scaleMatrix;
             m_Shader.Dispatch(inverseCameraMatrix, camera.transform.position, light.gameObject.transform.forward, new StructuredBuffer<Triangle>(m_TriangleBuffer), renderTexture);

@@ -12,7 +12,7 @@ namespace RayTracer.Runtime.ShaderPrograms
         private const string kKeyShift = "g_KeyShift";
         private const string kItemCount = "g_ItemCount";
 
-        private static readonly int kGroupCou = 1024;
+        private static readonly int s_GroupCou = 1024;
         private int m_KernelIndex;
         private ComputeShader m_Shader;
         private int m_SizeX;
@@ -32,11 +32,11 @@ namespace RayTracer.Runtime.ShaderPrograms
         {
             cb.SetComputeBufferParam(m_Shader, m_KernelIndex, kKeyBuffer, keyBuffer);
             cb.SetComputeBufferParam(m_Shader, m_KernelIndex, kCountBuffer, countBuffer);
-            cb.SetComputeIntParam(m_Shader, kSectionSize, itemCount.CeilDiv(m_SizeX * kGroupCou));
+            cb.SetComputeIntParam(m_Shader, kSectionSize, itemCount.CeilDiv(m_SizeX * s_GroupCou));
             // Debug.LogFormat("Section size: {0}", itemCount.CeilDiv(m_SizeX * kGroupCou));
             cb.SetComputeIntParam(m_Shader, kKeyShift, keyShift);
             cb.SetComputeIntParam(m_Shader, kItemCount, itemCount);
-            cb.DispatchCompute(m_Shader, m_KernelIndex, kGroupCou, 1, 1);
+            cb.DispatchCompute(m_Shader, m_KernelIndex, s_GroupCou, 1, 1);
         }
     }
 }

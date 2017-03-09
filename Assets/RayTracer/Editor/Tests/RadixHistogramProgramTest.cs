@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using Assets.RayTracer.Runtime.Util;
 using NUnit.Framework;
@@ -11,21 +10,6 @@ namespace RayTracer.Editor.Tests
 {
     public class RadixHistogramProgramTest
     {
-        public struct TestData
-        {
-            public int patternCount;
-            public int keyShift;
-
-            public override string ToString()
-            {
-                return new DebugStringBuilder
-                {
-                    {"patternCount", patternCount},
-                    {"keyShift", keyShift}
-                }.ToString();
-            }
-        }
-
         public static IEnumerable<TestCaseData> testCases
         {
             get
@@ -69,6 +53,21 @@ namespace RayTracer.Editor.Tests
                 histogramBuffer.GetData(output);
 
                 Assert.AreEqual(expectedHistogram, output);
+            }
+        }
+
+        public struct TestData
+        {
+            public int patternCount;
+            public int keyShift;
+
+            public override string ToString()
+            {
+                return new DebugStringBuilder
+                {
+                    {"patternCount", patternCount},
+                    {"keyShift", keyShift}
+                }.ToString();
             }
         }
     }

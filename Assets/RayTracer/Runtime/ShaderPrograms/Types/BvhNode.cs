@@ -13,7 +13,7 @@ namespace RayTracer.Runtime.ShaderPrograms.Types
         public bool isLeftLeaf;
         public bool isRightLeaf;
 
-        public static readonly int s_Size = Aabb.s_Size * 2 + ShaderSizes.s_Int * 2 + ShaderSizes.s_Bool * 2;
+        public static readonly int Size = Aabb.Size * 2 + ShaderSizes.s_Int * 2 + ShaderSizes.s_Bool * 2;
 
         //public static int[] Convert(BvhNode[] data)
         //{
@@ -46,19 +46,19 @@ namespace RayTracer.Runtime.ShaderPrograms.Types
 
         public AlignedAabb bounds
         {
-            get { return leftBounds.Merge(rightBounds);}
+            get { return leftBounds.Merge(rightBounds); }
         }
 
         public override string ToString()
         {
             return new DebugStringBuilder
             {
-                {"leftBounds", leftBounds.ToString(), "({1})" },
-                {"rightBounds", rightBounds.ToString(), "({1})" },
-                {"left", left },
-                {"right", right },
-                {"isLeftLeaf", isLeftLeaf },
-                {"isRightLeaf", isRightLeaf }
+                {"leftBounds", leftBounds.ToString(), "({1})"},
+                {"rightBounds", rightBounds.ToString(), "({1})"},
+                {"left", left},
+                {"right", right},
+                {"isLeftLeaf", isLeftLeaf},
+                {"isRightLeaf", isRightLeaf}
             }.ToString();
         }
 

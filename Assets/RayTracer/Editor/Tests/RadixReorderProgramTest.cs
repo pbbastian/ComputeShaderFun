@@ -10,20 +10,7 @@ namespace RayTracer.Editor.Tests
 {
     public class RadixReorderProgramTest
     {
-        public struct TestData
-        {
-            public int keyShift;
-            public int patternCount;
-
-            public override string ToString()
-            {
-                return new DebugStringBuilder
-                {
-                    {"keyShift", keyShift},
-                    {"patternCount", patternCount}
-                }.ToString();
-            }
-        }
+        public static readonly bool s_Debug = false;
 
         public static IEnumerable<TestCaseData> testDatas
         {
@@ -41,8 +28,6 @@ namespace RayTracer.Editor.Tests
             }
         }
 
-        public static readonly bool s_Debug = false;
-
         [TestCaseSource("testDatas")]
         public void VerifyOutput(TestData data)
         {
@@ -55,7 +40,7 @@ namespace RayTracer.Editor.Tests
             for (var i = 0; i < data.patternCount; i++)
             {
                 inputPattern.CopyTo(input, i * inputPattern.Length);
-                for (int j = 0; j < 16; j++)
+                for (var j = 0; j < 16; j++)
                 {
                     histogram[i * 16 + j * input.Length + j] = 1;
                     expected[data.patternCount * j + i] = inputPattern[j];
@@ -70,9 +55,7 @@ namespace RayTracer.Editor.Tests
                 scannedCount[i] = count.Take(i).Sum();
                 var startIndex = i * input.Length;
                 for (var j = 0; j < input.Length; j++)
-                {
                     scannedHistogram[startIndex + j] = histogram.Skip(startIndex).Take(j).Sum();
-                }
             }
 
             using (var inputKeyBuffer = new ComputeBuffer(input.Length, sizeof(int)))
@@ -99,12 +82,25 @@ namespace RayTracer.Editor.Tests
                     Debug.Log("Expected: " + string.Join(", ", expected.Select(x => x.ToString()).ToArray()));
                     Debug.Log("Output: " + string.Join(", ", output.Select(x => x.ToString()).ToArray()));
                     for (var i = 0; i < 16; i++)
-                    {
                         Debug.LogFormat("{0} = {1}", i.ToString().PadLeft(2, '0'), string.Join(", ", scannedHistogram.Skip(i * input.Length).Take(input.Length).Select(x => x.ToString()).ToArray()));
-                    }
                 }
 
                 Assert.AreEqual(expected, output);
+            }
+        }
+
+        public struct TestData
+        {
+            public int keyShift;
+            public int patternCount;
+
+            public override string ToString()
+            {
+                return new DebugStringBuilder
+                {
+                    {"keyShift", keyShift},
+                    {"patternCount", patternCount}
+                }.ToString();
             }
         }
     }

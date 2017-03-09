@@ -17,12 +17,10 @@ namespace RayTracer.Editor.UI
                 GUILayout.Label("Render size", "boldLabel");
                 asset.profile.renderWidth = EditorGUILayout.IntField("Width", asset.profile.renderWidth);
                 asset.profile.renderHeight = EditorGUILayout.IntField("Height", asset.profile.renderHeight);
-                
+
 
                 if (check.changed)
-                {
                     RayTracerEditorWindow.window.Repaint();
-                }
             }
 
             var activeAsset = RayTracerEditorWindow.window.asset;
