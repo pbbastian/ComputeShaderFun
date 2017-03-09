@@ -40,10 +40,10 @@ namespace RayTracer.Runtime.ImageEffects
             m_Material = new Material(Shader.Find("Hidden/BvhShadows"));
 
             m_Cb = new CommandBuffer {name = "BVH shadows"};
-            m_Cb.GetTemporaryRT(Uniforms.s_TempId, -1, -1, 0, FilterMode.Bilinear);
-            m_Cb.Blit(BuiltinRenderTextureType.CameraTarget, Uniforms.s_TempId, m_Material);
-            m_Cb.Blit(Uniforms.s_TempId, BuiltinRenderTextureType.CameraTarget);
-            m_Cb.ReleaseTemporaryRT(Uniforms.s_TempId);
+            m_Cb.GetTemporaryRT(Uniforms.TempId, -1, -1, 0, FilterMode.Bilinear);
+            m_Cb.Blit(BuiltinRenderTextureType.CameraTarget, Uniforms.TempId, m_Material);
+            m_Cb.Blit(Uniforms.TempId, BuiltinRenderTextureType.CameraTarget);
+            m_Cb.ReleaseTemporaryRT(Uniforms.TempId);
 
             m_Camera.AddCommandBuffer(CameraEvent.BeforeImageEffectsOpaque, m_Cb);
         }
@@ -89,7 +89,7 @@ namespace RayTracer.Runtime.ImageEffects
 
         private static class Uniforms
         {
-            public static readonly int s_TempId = Shader.PropertyToID("_BvhShadowsTemp");
+            public static readonly int TempId = Shader.PropertyToID("_BvhShadowsTemp");
         }
     }
 }

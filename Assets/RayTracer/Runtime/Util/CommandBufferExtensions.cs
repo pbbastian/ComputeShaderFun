@@ -5,6 +5,16 @@ namespace RayTracer.Runtime.Util
 {
     public static class CommandBufferExtensions
     {
+        public static void DispatchCompute(this CommandBuffer cb, ComputeKernel kernel, int threadGroupsX, int threadGroupsY, int threadGroupsZ)
+        {
+            cb.DispatchCompute(kernel.shader, kernel.index, threadGroupsX, threadGroupsY, threadGroupsZ);
+        }
+
+        public static void DispatchCompute(this CommandBuffer cb, ComputeKernel kernel, ComputeBuffer argsBuffer, uint argsOffset = 0)
+        {
+            cb.DispatchCompute(kernel.shader, kernel.index, argsBuffer, argsOffset);
+        }
+
         #region CommandBuffer setters
 
         public static void SetValue(this CommandBuffer cb, ComputeKernel kernel, string name, int val)
@@ -52,12 +62,12 @@ namespace RayTracer.Runtime.Util
 
         public static void SetBuffer(this CommandBuffer cb, ComputeKernel kernel, string name, ComputeBuffer buffer)
         {
-            cb.SetComputeBufferParam(kernel.shader, kernel.kernelIndex, name, buffer);
+            cb.SetComputeBufferParam(kernel.shader, kernel.index, name, buffer);
         }
 
         public static void SetTexture(this CommandBuffer cb, ComputeKernel kernel, string name, RenderTargetIdentifier rt)
         {
-            cb.SetComputeTextureParam(kernel.shader, kernel.kernelIndex, name, rt);
+            cb.SetComputeTextureParam(kernel.shader, kernel.index, name, rt);
         }
 
         #endregion
@@ -100,12 +110,12 @@ namespace RayTracer.Runtime.Util
         public static void SetBuffer<T>(this CommandBuffer cb, ComputeKernel kernel, ShaderParamDescriptor<StructuredBuffer<T>> descriptor, StructuredBuffer<T> buffer)
             where T : struct
         {
-            cb.SetComputeBufferParam(kernel.shader, kernel.kernelIndex, descriptor.name, buffer);
+            cb.SetComputeBufferParam(kernel.shader, kernel.index, descriptor.name, buffer);
         }
 
         public static void SetTexture(this CommandBuffer cb, ComputeKernel kernel, ShaderParamDescriptor<Texture> descriptor, RenderTargetIdentifier rt)
         {
-            cb.SetComputeTextureParam(kernel.shader, kernel.kernelIndex, descriptor.name, rt);
+            cb.SetComputeTextureParam(kernel.shader, kernel.index, descriptor.name, rt);
         }
 
         #endregion

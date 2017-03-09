@@ -10,10 +10,10 @@ namespace RayTracer.Runtime.Util
         public ComputeKernel(string fileName, string kernelName)
         {
             shader = Resources.Load<ComputeShader>(fileName);
-            kernelIndex = shader.FindKernel(kernelName);
+            index = shader.FindKernel(kernelName);
 
             uint x, y, z;
-            shader.GetKernelThreadGroupSizes(kernelIndex, out x, out y, out z);
+            shader.GetKernelThreadGroupSizes(index, out x, out y, out z);
             m_ThreadGroupSize.x = (int) x;
             m_ThreadGroupSize.y = (int) y;
             m_ThreadGroupSize.z = (int) z;
@@ -23,7 +23,7 @@ namespace RayTracer.Runtime.Util
         {
         }
 
-        public int kernelIndex { get; private set; }
+        public int index { get; private set; }
 
         public ComputeShader shader { get; private set; }
 
@@ -34,23 +34,14 @@ namespace RayTracer.Runtime.Util
 
         public void Dispatch(int threadGroupsX, int threadGroupsY, int threadGroupsZ)
         {
-            shader.Dispatch(kernelIndex, threadGroupsX, threadGroupsY, threadGroupsZ);
+            shader.Dispatch(index, threadGroupsX, threadGroupsY, threadGroupsZ);
         }
 
         public void Dispatch(ComputeBuffer argsBuffer, uint argsOffset = 0)
         {
-            shader.DispatchIndirect(kernelIndex, argsBuffer, argsOffset);
+            shader.DispatchIndirect(index, argsBuffer, argsOffset);
         }
 
-        public void Dispatch(CommandBuffer cb, int threadGroupsX, int threadGroupsY, int threadGroupsZ)
-        {
-            cb.DispatchCompute(shader, kernelIndex, threadGroupsX, threadGroupsY, threadGroupsZ);
-        }
-
-        public void Dispatch(CommandBuffer cb, ComputeBuffer argsBuffer, uint argsOffset = 0)
-        {
-            cb.DispatchCompute(shader, kernelIndex, argsBuffer, argsOffset);
-        }
 
         #region String setters
 
@@ -101,20 +92,21 @@ namespace RayTracer.Runtime.Util
 
         public void SetBuffer(string name, ComputeBuffer buffer)
         {
-            shader.SetBuffer(kernelIndex, name, buffer);
+            shader.SetBuffer(index, name, buffer);
         }
 
         public void SetTexture(string name, Texture texture)
         {
-            shader.SetTexture(kernelIndex, name, texture);
+            shader.SetTexture(index, name, texture);
         }
 
         public void SetTexture(string name, string globalTextureName)
         {
-            shader.SetTextureFromGlobal(kernelIndex, name, globalTextureName);
+            shader.SetTextureFromGlobal(index, name, globalTextureName);
         }
 
         #endregion
+
 
         #region ID setters
 
@@ -165,20 +157,21 @@ namespace RayTracer.Runtime.Util
 
         public void SetBuffer(int nameId, ComputeBuffer buffer)
         {
-            shader.SetBuffer(kernelIndex, nameId, buffer);
+            shader.SetBuffer(index, nameId, buffer);
         }
 
         public void SetTexture(int nameId, Texture texture)
         {
-            shader.SetTexture(kernelIndex, nameId, texture);
+            shader.SetTexture(index, nameId, texture);
         }
 
         public void SetTexture(int nameId, int globalTextureNameId)
         {
-            shader.SetTextureFromGlobal(kernelIndex, nameId, globalTextureNameId);
+            shader.SetTextureFromGlobal(index, nameId, globalTextureNameId);
         }
 
         #endregion
+
 
         #region ShaderParamDescriptor setters
 
@@ -220,24 +213,25 @@ namespace RayTracer.Runtime.Util
         public void SetBuffer<T>(ShaderParamDescriptor<StructuredBuffer<T>> descriptor, StructuredBuffer<T> buffer)
             where T : struct
         {
-            shader.SetBuffer(kernelIndex, descriptor.nameId, buffer);
+            shader.SetBuffer(index, descriptor.nameId, buffer);
         }
 
         public void SetTexture(ShaderParamDescriptor<Texture> descriptor, Texture texture)
         {
-            shader.SetTexture(kernelIndex, descriptor.nameId, texture);
+            shader.SetTexture(index, descriptor.nameId, texture);
         }
 
         public void SetTexture(ShaderParamDescriptor<Texture> descriptor, string globalTextureName)
         {
-            shader.SetTextureFromGlobal(kernelIndex, descriptor.name, globalTextureName);
+            shader.SetTextureFromGlobal(index, descriptor.name, globalTextureName);
         }
 
         public void SetTexture(ShaderParamDescriptor<Texture> descriptor, int globalTextureNameId)
         {
-            shader.SetTextureFromGlobal(kernelIndex, descriptor.nameId, globalTextureNameId);
+            shader.SetTextureFromGlobal(index, descriptor.nameId, globalTextureNameId);
         }
 
         #endregion
+
     }
 }

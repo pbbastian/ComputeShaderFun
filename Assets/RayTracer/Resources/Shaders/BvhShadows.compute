@@ -1,20 +1,22 @@
 #pragma kernel BvhShadows
 
+// float4 _ZBufferParams;
+
 #include "UnityCG.cginc"
 #include "Bvh.cginc"
 #include "Math.cginc"
 
 Texture2D<float4> _MainTex;
 Texture2D<float4> _CameraGBufferTexture2;
-Texture2D<float> _CameraDepthTexture;
+UNITY_DECLARE_TEX2D_FLOAT(_CameraDepthTexture);
 RWTexture2D<float4> _TargetTex;
 StructuredBuffer<Bvh::Node> _Nodes;
 StructuredBuffer<IndexedTriangle> _Triangles;
 StructuredBuffer<float4> _Vertices;
-float4x4 _InverseView;
-float4x4 _Projection;
 float3 _Light;
 float2 _Size;
+float4x4 _Projection;
+float4x4 _InverseView;
 
 #define STACK_SIZE 64
 
@@ -69,18 +71,22 @@ int DecodeLeaf(int nodeIndex)
 	return (-nodeIndex) - 1;
 }
 
+
+
 [numthreads(8, 8, 1)]
 void BvhShadows(uint3 id : SV_DispatchThreadID)
 {
 	if ((float) id.x >= _Size.x || (float) id.y >= _Size.y)
 		return;
 
-	float vz = LinearEyeDepth(_CameraDepthTexture[id.xy]);
-    float2 p11_22 = float2(_Projection._11, _Projection._22);
-    float2 uv = id.xy / _Size;
+	float zbufDpth = _CameraDepthTexture[id.xy].x;
+	float vz = LinearEyeDepth(zbufDpth);
+	float2 p11_22 = float2(_Projection._11, _Projection._22);
+	float2 uv = ((float2)id.xy / _Size);
     float3 vpos = float3((uv * 2 - 1) / p11_22, -1) * vz;
     float4 wpos = mul(_InverseView, float4(vpos, 1));
     float3 normal = normalize(_CameraGBufferTexture2[id.xy] * 2 - 1);
+	
     float3 direction = normalize(-_Light);
     Ray r = MakeRay(wpos + normal*1e-2, direction);
 
@@ -160,7 +166,7 @@ void BvhShadows(uint3 id : SV_DispatchThreadID)
 
 			// intersect triangle
 			float3 candidateCoordinates;
-			float candidate_t = IntersectTriangle(tri, r, candidateCoordinates);
+			float candidate_t = IntersectTriangle(tri, r, candidateCoordinates); 
 			triangleIntersections++;
 			if (candidate_t > 0 && candidate_t < t)
 			{
@@ -176,16 +182,16 @@ void BvhShadows(uint3 id : SV_DispatchThreadID)
 			stackIndex--;
 		}
 	}
-
+	
 	// just invert the colors
 	//col = 1 - col;
-
+	
 	// fixed4(HeatMap(100, boxIntersections), 1);
-	fixed4 col = fixed4(HeatMap(10, triangleIntersections), 1); // tex2D(_MainTex, i.uv);
-	// if (t < 99999)
-	// 	col *= 0.5;
-	// else
-	// 	col *= 1.0;
+	fixed4 col = _MainTex[id.xy]; // tex2D(_MainTex, i.uv);
+	if (t < 99999)
+		col *= 0.5;
+	else
+		col *= 1.0;
 	// if (boxIntersections > 50-1)
 	// 	col = fixed4(1, 0, 0, 1);
 	_TargetTex[id.xy] = col;
