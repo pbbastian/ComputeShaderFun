@@ -7,8 +7,8 @@ namespace RayTracer.Runtime.ShaderPrograms
     public static class BvhShadowsProgram
     {
         public static readonly ShaderParamDescriptor<Texture> MainTexture = new ShaderParamDescriptor<Texture>("_MainTex");
-        public static readonly ShaderParamDescriptor<Texture> NormalTexture = new ShaderParamDescriptor<Texture>("_CameraGBufferTexture2");
-        public static readonly ShaderParamDescriptor<Texture> DepthTexture = new ShaderParamDescriptor<Texture>("_CameraDepthTexture");
+        public static readonly ShaderParamDescriptor<Texture> NormalTexture = new ShaderParamDescriptor<Texture>("_NormalTexture");
+        public static readonly ShaderParamDescriptor<Texture> DepthTexture = new ShaderParamDescriptor<Texture>("_DepthTexture");
         public static readonly ShaderParamDescriptor<Texture> TargetTexture = new ShaderParamDescriptor<Texture>("_TargetTex");
         public static readonly ShaderParamDescriptor<StructuredBuffer<AlignedBvhNode>> NodeBuffer = new ShaderParamDescriptor<StructuredBuffer<AlignedBvhNode>>("_Nodes");
         public static readonly ShaderParamDescriptor<StructuredBuffer<IndexedTriangle>> TriangleBuffer = new ShaderParamDescriptor<StructuredBuffer<IndexedTriangle>>("_Triangles");
