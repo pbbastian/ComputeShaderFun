@@ -41,7 +41,7 @@ void LeafInit(uint3 id : SV_DispatchThreadID)
 	int index = id.x;
 	IndexedTriangle indexedTriangle = _triangles[index];
 
-	Bvh::AABB sceneBounds;
+	AABB sceneBounds;
 	sceneBounds.min.x = _sceneBounds[0];
 	sceneBounds.min.y = _sceneBounds[1];
 	sceneBounds.min.z = _sceneBounds[2];
@@ -51,7 +51,7 @@ void LeafInit(uint3 id : SV_DispatchThreadID)
 
 	Triangle tri = MakeTriangle(_vertices[indexedTriangle.v1], _vertices[indexedTriangle.v2], _vertices[indexedTriangle.v3]);
 	
-	Bvh::AABB bounds;
+	AABB bounds;
 	bounds.min = min(tri.a, min(tri.b, tri.c));
 	bounds.max = max(tri.a, max(tri.b, tri.c));
 	_leafBounds[index] = Bvh::MakeAlignedAABB(bounds);

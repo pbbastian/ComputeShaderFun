@@ -16,8 +16,8 @@
 #pragma fragment frag
 
 #include "UnityCG.cginc"
-#include "Bvh.cginc"
 #include "Math.cginc"
+#include "Bvh.cginc"
 
 struct appdata
 {
@@ -53,42 +53,6 @@ float3 _light;
 StructuredBuffer<Bvh::Node> _nodes;
 StructuredBuffer<IndexedTriangle> _triangles;
 StructuredBuffer<float4> _vertices;
-
-struct FloatMinMax
-{
-	float min;
-	float max;
-};
-
-float max4(float a, float b, float c, float d)
-{
-	return max(a, max(b, max(c, d)));
-}
-
-float min4(float a, float b, float c, float d)
-{
-	return min(a, min(b, min(c, d)));
-}
-
-// https://tavianator.com/fast-branchless-raybounding-box-intersections/
-FloatMinMax IntersectAabb(Bvh::AABB b, Ray r)
-{
-	float3 invD = 1.0 / r.direction;
-	float3 OoD = r.origin / r.direction;
-
-	float x0 = b.min.x * invD.x - OoD.x;
-	float y0 = b.min.y * invD.y - OoD.y;
-	float z0 = b.min.z * invD.z - OoD.z;
-	float x1 = b.max.x * invD.x - OoD.x;
-	float y1 = b.max.y * invD.y - OoD.y;
-	float z1 = b.max.z * invD.z - OoD.z;
- 
- 	FloatMinMax t;
-    t.min = max4(0, min(x0, x1), min(y0, y1), min(z0, z1));
-    t.max = min4(100000, max(x0, x1), max(y0, y1), max(z0, z1));
- 
-    return t;
-}
 
 int EncodeLeaf(int nodeIndex, bool isLeaf)
 {

@@ -125,3 +125,45 @@ float3 HeatMap(float3 bands, float value)
 	float s = 1.0 - clamp(value - bands.x - bands.y, 0.0, bands.z)/bands.z;
 	return HSVtoRGB(float3(h, s, v));
 }
+
+struct AABB
+{
+	float3 min;
+	float3 max;
+};
+
+struct FloatMinMax
+{
+	float min;
+	float max;
+};
+
+float max4(float a, float b, float c, float d)
+{
+	return max(a, max(b, max(c, d)));
+}
+
+float min4(float a, float b, float c, float d)
+{
+	return min(a, min(b, min(c, d)));
+}
+
+// https://tavianator.com/fast-branchless-raybounding-box-intersections/
+FloatMinMax IntersectAabb(AABB b, Ray r)
+{
+	float3 invD = 1.0 / r.direction;
+	float3 OoD = r.origin / r.direction;
+
+	float x0 = b.min.x * invD.x - OoD.x;
+	float y0 = b.min.y * invD.y - OoD.y;
+	float z0 = b.min.z * invD.z - OoD.z;
+	float x1 = b.max.x * invD.x - OoD.x;
+	float y1 = b.max.y * invD.y - OoD.y;
+	float z1 = b.max.z * invD.z - OoD.z;
+ 
+ 	FloatMinMax t;
+    t.min = max4(0, min(x0, x1), min(y0, y1), min(z0, z1));
+    t.max = min4(100000, max(x0, x1), max(y0, y1), max(z0, z1));
+ 
+    return t;
+}

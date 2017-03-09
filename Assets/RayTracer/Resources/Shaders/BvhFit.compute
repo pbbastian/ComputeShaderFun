@@ -1,5 +1,6 @@
 #pragma kernel BvhFit
 
+#include "Math.cginc"
 #include "Bvh.cginc"
 
 StructuredBuffer<int> _parentIndices;
