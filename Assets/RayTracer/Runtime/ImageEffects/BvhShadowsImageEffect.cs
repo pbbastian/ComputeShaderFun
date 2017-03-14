@@ -5,15 +5,15 @@ namespace RayTracer.Runtime.ImageEffects
 {
     public class BvhShadowsImageEffect : MonoBehaviour
     {
-        private BvhContext m_BvhContext;
-        private Camera m_Camera;
-        private CommandBuffer m_Cb;
-        private Light m_Light;
+        BvhContext m_BvhContext;
+        Camera m_Camera;
+        CommandBuffer m_Cb;
+        Light m_Light;
 
-        private Material m_Material;
-        private bool m_SceneLoaded;
+        Material m_Material;
+        bool m_SceneLoaded;
 
-        private void OnPreRender()
+        void OnPreRender()
         {
             if (m_Material != null && m_Light != null && m_Camera != null)
             {
@@ -26,7 +26,7 @@ namespace RayTracer.Runtime.ImageEffects
             }
         }
 
-        private void OnEnable()
+        void OnEnable()
         {
             if (!m_SceneLoaded)
                 return;
@@ -48,7 +48,7 @@ namespace RayTracer.Runtime.ImageEffects
             m_Camera.AddCommandBuffer(CameraEvent.BeforeImageEffectsOpaque, m_Cb);
         }
 
-        private void Cleanup()
+        void Cleanup()
         {
             if (m_Cb != null)
             {
@@ -73,12 +73,12 @@ namespace RayTracer.Runtime.ImageEffects
             m_Camera = null;
         }
 
-        private void OnDisable()
+        void OnDisable()
         {
             Cleanup();
         }
 
-        private void Update()
+        void Update()
         {
             if (!m_SceneLoaded)
             {
@@ -87,7 +87,7 @@ namespace RayTracer.Runtime.ImageEffects
             }
         }
 
-        private static class Uniforms
+        static class Uniforms
         {
             public static readonly int TempId = Shader.PropertyToID("_BvhShadowsTemp");
         }

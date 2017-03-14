@@ -18,10 +18,12 @@ namespace RayTracer.Runtime.ShaderPrograms
         public static readonly ShaderParamDescriptor<Matrix4x4> Projection = new ShaderParamDescriptor<Matrix4x4>("_Projection");
         public static readonly ShaderParamDescriptor<Matrix4x4> InverseView = new ShaderParamDescriptor<Matrix4x4>("_InverseView");
         public static readonly ShaderParamDescriptor<Vector4> ZBufferParams = new ShaderParamDescriptor<Vector4>("_ZBufferParams");
+        public static readonly ShaderParamDescriptor<int> ThreadGroupCount = new ShaderParamDescriptor<int>("_ThreadGroupCount");
+        public static readonly ShaderParamDescriptor<StructuredBuffer<int>> WorkCounter = new ShaderParamDescriptor<StructuredBuffer<int>>("_WorkCounter");
 
-        public static ComputeKernel CreateKernel()
+        public static ComputeKernel CreateKernel(bool persistent)
         {
-            return new ComputeKernel("Shaders/BvhShadows", "BvhShadows");
+            return new ComputeKernel("Shaders/BvhShadows", persistent ? "PersistentBvhShadows" : "BvhShadows");
         }
     }
 }

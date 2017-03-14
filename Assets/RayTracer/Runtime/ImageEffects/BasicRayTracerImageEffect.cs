@@ -6,27 +6,27 @@ namespace RayTracer.Runtime
     [DisallowMultipleComponent]
     public class BasicRayTracerImageEffect : MonoBehaviour
     {
-        private IRayTracingContext m_Context;
-        private Material m_Material;
+        IRayTracingContext m_Context;
+        Material m_Material;
 
-        private void Awake()
+        void Awake()
         {
             m_Material = new Material(Shader.Find("Hidden/RayTracerIE"));
         }
 
-        private void OnRenderImage(RenderTexture source, RenderTexture destination)
+        void OnRenderImage(RenderTexture source, RenderTexture destination)
         {
             if (enabled && m_Context != null && m_Context.Render())
                 Graphics.Blit(m_Context.renderTexture, destination);
         }
 
-        private void OnDisable()
+        void OnDisable()
         {
             m_Context.Dispose();
             m_Context = null;
         }
 
-        private void Update()
+        void Update()
         {
             if (enabled && m_Context == null)
             {

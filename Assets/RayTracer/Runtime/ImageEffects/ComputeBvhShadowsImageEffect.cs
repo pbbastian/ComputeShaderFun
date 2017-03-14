@@ -8,15 +8,20 @@ namespace RayTracer.Runtime.ImageEffects
     [RequireComponent(typeof(Camera))]
     public class ComputeBvhShadowsImageEffect : MonoBehaviour
     {
-        private BvhContext m_BvhContext;
-        private Camera m_Camera;
-        private CommandBuffer m_Cb;
-        private ComputeKernel m_Kernel;
-        private Light m_Light;
-        private bool m_SceneLoaded;
-        private const bool kReversedZ = true;
+        BvhContext m_BvhContext;
+        Camera m_Camera;
+        CommandBuffer m_Cb;
+        ComputeKernel m_Kernel;
+        Light m_Light;
+        bool m_SceneLoaded;
+        bool m_Persistent;
+        int m_ThreadGroups;
+        StructuredBuffer<int> m_WorkCounterBuffer;
 
-        private void OnPreRender()
+        public bool persistent;
+        public int threadGroups = 100;
+
+        void OnPreRender()
         {
             if (m_Kernel != null)
             {
@@ -31,19 +36,35 @@ namespace RayTracer.Runtime.ImageEffects
             }
         }
 
-        private void OnEnable()
+        void OnEnable()
         {
             if (!m_SceneLoaded)
                 return;
 
             Cleanup();
 
+            m_Persistent = persistent;
             m_Light = FindObjectOfType<Light>();
             m_BvhContext = BvhUtil.CreateBvh();
             m_Camera = GetComponent<Camera>();
             m_Camera.depthTextureMode |= DepthTextureMode.Depth;
 
-            m_Kernel = BvhShadowsProgram.CreateKernel();
+            CreateCommandBuffer();
+        }
+
+        void CreateCommandBuffer()
+        {
+            CleanupCommandBuffer();
+
+            m_ThreadGroups = threadGroups;
+            m_Kernel = BvhShadowsProgram.CreateKernel(m_Persistent);
+
+            if (m_Persistent)
+            {
+                m_WorkCounterBuffer = new StructuredBuffer<int>(1, ShaderSizes.s_Int);
+                m_Kernel.SetBuffer(BvhShadowsProgram.WorkCounter, m_WorkCounterBuffer);
+                m_Kernel.SetValue(BvhShadowsProgram.ThreadGroupCount, m_ThreadGroups);
+            }
 
             m_Cb = new CommandBuffer {name = "Compute BVH shadows"};
             m_Cb.GetTemporaryRT(Uniforms.TempId, m_Camera.pixelWidth, m_Camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.Default, RenderTextureReadWrite.Default, 1, true);
@@ -51,26 +72,23 @@ namespace RayTracer.Runtime.ImageEffects
             m_Cb.SetTexture(m_Kernel, BvhShadowsProgram.DepthTexture, BuiltinRenderTextureType.ResolvedDepth);
             m_Cb.SetTexture(m_Kernel, BvhShadowsProgram.NormalTexture, BuiltinRenderTextureType.GBuffer2);
             m_Cb.SetTexture(m_Kernel, BvhShadowsProgram.TargetTexture, Uniforms.TempId);
-            m_Cb.DispatchCompute(m_Kernel, m_Camera.pixelWidth.CeilDiv(m_Kernel.threadGroupSize.x), m_Camera.pixelHeight.CeilDiv(m_Kernel.threadGroupSize.y), 1);
+            var threadGroupsX = m_Persistent ? m_ThreadGroups : m_Camera.pixelWidth.CeilDiv(m_Kernel.threadGroupSize.x);
+            var threadGroupsY = m_Persistent ? 1 : m_Camera.pixelHeight.CeilDiv(m_Kernel.threadGroupSize.y);
+            m_Cb.DispatchCompute(m_Kernel, threadGroupsX, threadGroupsY, 1);
             m_Cb.Blit(Uniforms.TempId, BuiltinRenderTextureType.CameraTarget);
             m_Cb.ReleaseTemporaryRT(Uniforms.TempId);
 
             m_Camera.AddCommandBuffer(CameraEvent.BeforeImageEffectsOpaque, m_Cb);
         }
 
-        private void OnDisable()
+        void OnDisable()
         {
             Cleanup();
         }
 
-        private void Cleanup()
+        void Cleanup()
         {
-            if (m_Cb != null)
-            {
-                m_Camera.RemoveCommandBuffer(CameraEvent.BeforeImageEffectsOpaque, m_Cb);
-                m_Cb.Dispose();
-                m_Cb = null;
-            }
+            CleanupCommandBuffer();
 
             if (m_BvhContext != null)
             {
@@ -80,19 +98,44 @@ namespace RayTracer.Runtime.ImageEffects
 
             m_Light = null;
             m_Camera = null;
-            m_Kernel = null;
         }
 
-        private void Update()
+        void CleanupCommandBuffer()
+        {
+            if (m_Cb != null)
+            {
+                m_Camera.RemoveCommandBuffer(CameraEvent.BeforeImageEffectsOpaque, m_Cb);
+                m_Cb.Dispose();
+                m_Cb = null;
+            }
+
+            m_Kernel = null;
+
+            if (m_WorkCounterBuffer != null)
+            {
+                m_WorkCounterBuffer.Dispose();
+                m_WorkCounterBuffer = null;
+            }
+        }
+
+        void Update()
         {
             if (!m_SceneLoaded)
             {
                 m_SceneLoaded = true;
                 OnEnable();
             }
+            else if (m_Persistent != persistent)
+            {
+                CreateCommandBuffer();
+            }
+            else if (m_ThreadGroups != threadGroups)
+            {
+                CreateCommandBuffer();
+            }
         }
 
-        private static class Uniforms
+        static class Uniforms
         {
             public static readonly int TempId = Shader.PropertyToID("_BvhShadowsTemp");
             public static readonly int WorldPositionId = Shader.PropertyToID("_WorldPosition");

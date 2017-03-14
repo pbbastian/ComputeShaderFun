@@ -6,22 +6,22 @@ namespace RayTracer.Runtime
     [DisallowMultipleComponent]
     public class BvhRayTracerImageEffect : MonoBehaviour
     {
-        private IRayTracingContext m_Context;
+        IRayTracingContext m_Context;
 
-        private void OnRenderImage(RenderTexture source, RenderTexture destination)
+        void OnRenderImage(RenderTexture source, RenderTexture destination)
         {
             //source.enableRandomWrite = true;
             if (enabled && m_Context != null && m_Context.Render())
                 Graphics.Blit(m_Context.renderTexture, destination);
         }
 
-        private void OnDisable()
+        void OnDisable()
         {
             m_Context.Dispose();
             m_Context = null;
         }
 
-        private void Update()
+        void Update()
         {
             if (enabled && m_Context == null)
             {
