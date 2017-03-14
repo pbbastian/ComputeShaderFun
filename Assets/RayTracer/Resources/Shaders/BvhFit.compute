@@ -42,7 +42,7 @@ void BvhFit(uint3 id : SV_DispatchThreadID)
 		//node.leftBounds.min = float3(1, 2, 3);
 
 		// Calculate bounding boxes, try to re-use information from traversed path
-		if (!node.isLeftLeaf)
+		if (!node.IsLeftLeaf())
 		{
 			// Bvh::Node leftNode;
 			// if (node.left == previousNodeIndex)
@@ -53,7 +53,7 @@ void BvhFit(uint3 id : SV_DispatchThreadID)
 			node.leftBounds = leftNode.GetBounds();
 		}
 
-		if (!node.isRightLeaf)
+		if (!node.IsRightLeaf())
 		{
 			// Bvh::Node rightNode;
 			// if (node.right == previousNodeIndex)

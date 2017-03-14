@@ -79,16 +79,14 @@ void PersistentBvhShadows(uint3 id : SV_DispatchThreadID)
 			bool traverseLeft = tLeft.min <= tLeft.max    && tLeft.min  < t;
 			bool traverseRight = tRight.min <= tRight.max && tRight.min  < t;
 
-			int encodedLeft = EncodeLeaf(node.left, node.isLeftLeaf);
-			int encodedRight = EncodeLeaf(node.right, node.isRightLeaf);
-			nodeIndex = encodedLeft;
+			nodeIndex = node.left;
 
 			if (traverseLeft != traverseRight)
 			{
 				boxIntersections++;
 				// If only a single child was intersected we simply go to that one
 				if (traverseRight)
-					nodeIndex = encodedRight;
+					nodeIndex = node.right;
 			}
 			else
 			{
@@ -103,12 +101,12 @@ void PersistentBvhShadows(uint3 id : SV_DispatchThreadID)
 				{
 					boxIntersections += 2;
 					// If both children were intersected we push one onto the stack
-					nodeIndex = encodedLeft;
-					int postponeIndex = encodedRight;
+					nodeIndex = node.left;
+					int postponeIndex = node.right;
 					if (tRight.min < tLeft.min)
 					{
-						nodeIndex = encodedRight;
-						postponeIndex = encodedLeft;
+						nodeIndex = node.right;
+						postponeIndex = node.left;
 					}
 
 					stackIndex++;

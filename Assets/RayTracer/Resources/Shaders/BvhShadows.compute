@@ -26,18 +26,6 @@ RWStructuredBuffer<uint> _WorkCounter;
 static const int _entrypointSentinel = 2147483647;
 static const int _rayBatchSize = 64;
 
-int EncodeLeaf(int nodeIndex, bool isLeaf)
-{
-	if (isLeaf)
-		nodeIndex = -(nodeIndex + 1);
-	return nodeIndex;
-}
-
-int DecodeLeaf(int nodeIndex)
-{
-	return (-nodeIndex) - 1;
-}
-
 interface IStatistics
 {
 	void BoxIntersection(int n);
@@ -131,15 +119,13 @@ void Traverse(inout TraversalState s, inout FakeStatistics stats)
 			bool traverseRight = tRight.min <= tRight.max && tRight.min < s.t;
 			stats.BoxIntersection(2);
 
-			int encodedLeft = EncodeLeaf(node.left, node.isLeftLeaf);
-			int encodedRight = EncodeLeaf(node.right, node.isRightLeaf);
-			s.nodeIndex = encodedLeft;
+			s.nodeIndex = node.left;
 
 			if (traverseLeft != traverseRight)
 			{
 				// If only a single child was intersected we simply go to that one
 				if (traverseRight)
-					s.nodeIndex = encodedRight;
+					s.nodeIndex = node.right;
 			}
 			else
 			{
@@ -153,12 +139,12 @@ void Traverse(inout TraversalState s, inout FakeStatistics stats)
 				else
 				{
 					// If both children were intersected we push one onto the stack
-					s.nodeIndex = encodedLeft;
-					int postponeIndex = encodedRight;
+					s.nodeIndex = node.left;
+					int postponeIndex = node.right;
 					if (tRight.min < tLeft.min)
 					{
-						s.nodeIndex = encodedRight;
-						postponeIndex = encodedLeft;
+						s.nodeIndex = node.right;
+						postponeIndex = node.left;
 					}
 
 					s.stackIndex++;
@@ -170,7 +156,7 @@ void Traverse(inout TraversalState s, inout FakeStatistics stats)
 
 		if (s.nodeIndex < 0)
 		{
-			s.nodeIndex = DecodeLeaf(s.nodeIndex);
+			s.nodeIndex = Bvh::DecodeLeaf(s.nodeIndex);
 			IndexedTriangle indices = _Triangles[s.nodeIndex];
 			Triangle tri = MakeTriangle(_Vertices[indices.v1].xyz, _Vertices[indices.v2].xyz, _Vertices[indices.v3].xyz);
 
@@ -250,13 +236,10 @@ void PersistentBvhShadows(uint3 did : SV_DispatchThreadID, uint3 tid : SV_GroupT
 			break;
 
 		// GroupMemoryBarrier();
-		uint2 localCluster;
-		localCluster.x = _localClusterId % clusterCount.x;
-		localCluster.y = _localClusterId / clusterCount.x;
 
 		uint2 clusterCoords;
-		clusterCoords.x = localCluster.x * _clusterSize;
-		clusterCoords.y = localCluster.y * _clusterSize;
+		clusterCoords.x = (_localClusterId % clusterCount.x) * _clusterSize;
+		clusterCoords.y = (_localClusterId / clusterCount.x) * _clusterSize;
 
 		uint2 id;
 		id.x = clusterCoords.x + tid.x;

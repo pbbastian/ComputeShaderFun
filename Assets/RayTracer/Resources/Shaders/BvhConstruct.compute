@@ -68,22 +68,34 @@ void BvhConstruct(uint3 id : SV_DispatchThreadID)
 	Bvh::Node node;
 	node.left = split;
 	node.right = split + 1;
-	node.isLeftLeaf = min(i, j) == node.left;
-	node.isRightLeaf = max(i, j) == node.right;
+	node.padding[0] = 0;
+	node.padding[1] = 0;
 
-	if (node.isLeftLeaf)
+	// Check whether left is a leaf
+	if (min(i, j) == node.left)
+	{
+		_parentIndices[node.left + _internalNodeCount - 1] = i;
 		node.leftBounds = _leafBounds[node.left].aabb;
+		node.left = Bvh::EncodeLeaf(node.left);
+	}
 	else
+	{
+		_parentIndices[node.left - 1] = i;
 		node.leftBounds = Bvh::EmptyBounds();
+	}
 
-	if (node.isRightLeaf)
+	// Check whether right is a leaf
+	if (max(i, j) == node.right)
+	{
+		_parentIndices[node.right + _internalNodeCount - 1] = i;
 		node.rightBounds = _leafBounds[node.right].aabb;
+		node.right = Bvh::EncodeLeaf(node.right);
+	}
 	else
+	{
+		_parentIndices[node.right - 1] = i;
 		node.rightBounds = Bvh::EmptyBounds();
+	}
 
 	_nodes[i] = node;
-
-	// Output parent indices
-	_parentIndices[node.left + (node.isLeftLeaf ? _internalNodeCount : 0) - 1] = i;
-	_parentIndices[node.right + (node.isRightLeaf ? _internalNodeCount : 0) - 1] = i;
 }

@@ -54,18 +54,6 @@ StructuredBuffer<Bvh::Node> _nodes;
 StructuredBuffer<IndexedTriangle> _triangles;
 StructuredBuffer<float4> _vertices;
 
-int EncodeLeaf(int nodeIndex, bool isLeaf)
-{
-	if (isLeaf)
-		nodeIndex = -(nodeIndex + 1);
-	return nodeIndex;
-}
-
-int DecodeLeaf(int nodeIndex)
-{
-	return (-nodeIndex) - 1;
-}
-
 fixed4 frag (v2f i) : SV_Target
 {
 	float vz = LinearEyeDepth(SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, i.uv));
@@ -105,16 +93,14 @@ fixed4 frag (v2f i) : SV_Target
 			bool traverseLeft = tLeft.min <= tLeft.max    && tLeft.min  < t;
 			bool traverseRight = tRight.min <= tRight.max && tRight.min  < t;
 
-			int encodedLeft = EncodeLeaf(node.left, node.isLeftLeaf);
-			int encodedRight = EncodeLeaf(node.right, node.isRightLeaf);
-			nodeIndex = encodedLeft;
+			nodeIndex = node.left;
 
 			if (traverseLeft != traverseRight)
 			{
 				boxIntersections++;
 				// If only a single child was intersected we simply go to that one
 				if (traverseRight)
-					nodeIndex = encodedRight;
+					nodeIndex = node.right;
 			}
 			else
 			{
@@ -129,12 +115,12 @@ fixed4 frag (v2f i) : SV_Target
 				{
 					boxIntersections += 2;
 					// If both children were intersected we push one onto the stack
-					nodeIndex = encodedLeft;
-					int postponeIndex = encodedRight;
+					nodeIndex = node.left;
+					int postponeIndex = node.right;
 					if (tRight.min < tLeft.min)
 					{
-						nodeIndex = encodedRight;
-						postponeIndex = encodedLeft;
+						nodeIndex = node.right;
+						postponeIndex = node.left;
 					}
 
 					stackIndex++;
@@ -146,7 +132,7 @@ fixed4 frag (v2f i) : SV_Target
 
 		if (nodeIndex < 0)
 		{
-			nodeIndex = DecodeLeaf(nodeIndex);
+			nodeIndex = Bvh::DecodeLeaf(nodeIndex);
 			IndexedTriangle indices = _triangles[nodeIndex];
 			Triangle tri = MakeTriangle(_vertices[indices.v1].xyz, _vertices[indices.v2].xyz, _vertices[indices.v3].xyz);
 

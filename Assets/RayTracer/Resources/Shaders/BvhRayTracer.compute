@@ -16,18 +16,6 @@ RWTexture2D<float4> _result;
 static const int _entrypointSentinel = 2147483647;
 static const bool _anyHit = true;
 
-int EncodeLeaf(int nodeIndex, bool isLeaf)
-{
-	if (isLeaf)
-		nodeIndex = -(nodeIndex + 1);
-	return nodeIndex;
-}
-
-int DecodeLeaf(int nodeIndex)
-{
-	return (-nodeIndex) - 1;
-}
-
 [numthreads(8, 8, 1)]
 void BvhRayTracer(uint3 id : SV_DispatchThreadID)
 {
@@ -55,16 +43,14 @@ void BvhRayTracer(uint3 id : SV_DispatchThreadID)
 			bool traverseLeft = tLeft.min <= tLeft.max    && tLeft.min  < t;
 			bool traverseRight = tRight.min <= tRight.max && tRight.min  < t;
 
-			int encodedLeft = EncodeLeaf(node.left, node.isLeftLeaf);
-			int encodedRight = EncodeLeaf(node.right, node.isRightLeaf);
-			nodeIndex = encodedLeft;
+			nodeIndex = node.left;
 
 			if (traverseLeft != traverseRight)
 			{
 				boxIntersections++;
 				// If only a single child was intersected we simply go to that one
 				if (traverseRight)
-					nodeIndex = encodedRight;
+					nodeIndex = node.right;
 			}
 			else
 			{
@@ -79,12 +65,12 @@ void BvhRayTracer(uint3 id : SV_DispatchThreadID)
 				{
 					boxIntersections += 2;
 					// If both children were intersected we push one onto the stack
-					nodeIndex = encodedLeft;
-					int postponeIndex = encodedRight;
+					nodeIndex = node.left;
+					int postponeIndex = node.right;
 					if (tRight.min < tLeft.min)
 					{
-						nodeIndex = encodedRight;
-						postponeIndex = encodedLeft;
+						nodeIndex = node.right;
+						postponeIndex = node.left;
 					}
 
 					stackIndex++;
@@ -96,7 +82,7 @@ void BvhRayTracer(uint3 id : SV_DispatchThreadID)
 
 		if (nodeIndex < 0)
 		{
-			nodeIndex = DecodeLeaf(nodeIndex);
+			nodeIndex = Bvh::DecodeLeaf(nodeIndex);
 			IndexedTriangle indices = _triangles[nodeIndex];
 			Triangle tri = MakeTriangle(_vertices[indices.v1].xyz, _vertices[indices.v2].xyz, _vertices[indices.v3].xyz);
 

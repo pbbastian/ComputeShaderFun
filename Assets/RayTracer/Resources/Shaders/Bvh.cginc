@@ -31,18 +31,37 @@ namespace Bvh
 		return bounds;
 	}
 
+	int EncodeLeaf(int nodeIndex)
+	{
+		return -(nodeIndex + 1);
+	}
+
+	int DecodeLeaf(int nodeIndex)
+	{
+		return (-nodeIndex) - 1;
+	}
+
 	struct Node
 	{
 		AABB leftBounds;
 		AABB rightBounds;
 		int left;
 		int right;
-		bool isLeftLeaf;
-		bool isRightLeaf;
+		int padding[2];
 
 		AABB GetBounds()
 		{
 			return MergeBounds(leftBounds, rightBounds);
+		}
+
+		bool IsLeftLeaf()
+		{
+			return left < 0;
+		}
+
+		bool IsRightLeaf()
+		{
+			return right < 0;
 		}
 	};
 };
