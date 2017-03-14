@@ -204,17 +204,16 @@ void BvhShadows(uint3 id : SV_DispatchThreadID, uint3 tid : SV_GroupThreadID)
 groupshared uint _localClusterId;
 groupshared uint _localClusterCount;
 
-static const uint _clusterSize = 8;
+static const uint2 _clusterSize = {8, 8};
 static const uint _batchSize = 1;
 
-[numthreads(8, 8, 1)]
+[numthreads(_clusterSize.x, _clusterSize.y, 1)]
 void PersistentBvhShadows(uint3 did : SV_DispatchThreadID, uint3 tid : SV_GroupThreadID, uint3 gid : SV_GroupID)
 {
 	uint2 size = (uint2) _Size;
-	uint2 clusterCount = uint2(size.x / _clusterSize, size.y / _clusterSize);
+	uint2 clusterCount = size / _clusterSize;
 
 	if (did.x == 0 && did.y == 0)
-		//_TargetTex[id] = float4(1,0,1,1);
 		_WorkCounter[0] = _ThreadGroupCount;
 
 	traversalStack[0] = _entrypointSentinel;
@@ -223,19 +222,14 @@ void PersistentBvhShadows(uint3 did : SV_DispatchThreadID, uint3 tid : SV_GroupT
 	
 	if (tid.x == 0 && tid.y == 0)
 	{
-		// _localPoolNextIndex = id.x + id.y * size.x;
 		_localClusterId = gid.x * _batchSize;
 		_localClusterCount = _batchSize;
 	}
 
 	while (true)
 	{
-		// GroupMemoryBarrier();
-
 		if (_localClusterId >= (clusterCount.x * clusterCount.y))
 			break;
-
-		// GroupMemoryBarrier();
 
 		uint2 clusterCoords;
 		clusterCoords.x = (_localClusterId % clusterCount.x) * _clusterSize;
@@ -248,9 +242,6 @@ void PersistentBvhShadows(uint3 did : SV_DispatchThreadID, uint3 tid : SV_GroupT
 		if (id.x >= size.x || id.y >= size.y)
 			continue;
 
-		// _TargetTex[id] = float4((float2)id / size, 0, 1);
-		// continue;
-
 		TraversalState s = InitializeState(id);
 		Traverse(s, stats);
 
@@ -259,7 +250,7 @@ void PersistentBvhShadows(uint3 did : SV_DispatchThreadID, uint3 tid : SV_GroupT
 			col *= 0.5;
 		else
 		    col *= 1.0;
-		_TargetTex[id.xy] = col;// float4(localCluster.x/100.0, localCluster.y/100.0, 0, 1);
+		_TargetTex[id.xy] = col;
 
 		if (tid.x == 0 && tid.y == 0)
 		{

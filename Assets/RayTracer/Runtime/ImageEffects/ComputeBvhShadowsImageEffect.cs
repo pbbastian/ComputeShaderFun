@@ -42,8 +42,7 @@ namespace RayTracer.Runtime.ImageEffects
                 return;
 
             Cleanup();
-
-            m_Persistent = persistent;
+            
             m_Light = FindObjectOfType<Light>();
             m_BvhContext = BvhUtil.CreateBvh();
             m_Camera = GetComponent<Camera>();
@@ -56,6 +55,8 @@ namespace RayTracer.Runtime.ImageEffects
         {
             CleanupCommandBuffer();
 
+            m_Persistent = persistent;
+
             m_ThreadGroups = threadGroups;
             m_Kernel = BvhShadowsProgram.CreateKernel(m_Persistent);
 
@@ -66,7 +67,7 @@ namespace RayTracer.Runtime.ImageEffects
                 m_Kernel.SetValue(BvhShadowsProgram.ThreadGroupCount, m_ThreadGroups);
             }
 
-            m_Cb = new CommandBuffer {name = "Compute BVH shadows"};
+            m_Cb = new CommandBuffer {name = "Compute BVH shadows" + (m_Persistent ? string.Format("P{0}", threadGroups) : "")};
             m_Cb.GetTemporaryRT(Uniforms.TempId, m_Camera.pixelWidth, m_Camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.Default, RenderTextureReadWrite.Default, 1, true);
             m_Cb.SetTexture(m_Kernel, BvhShadowsProgram.MainTexture, BuiltinRenderTextureType.CameraTarget);
             m_Cb.SetTexture(m_Kernel, BvhShadowsProgram.DepthTexture, BuiltinRenderTextureType.ResolvedDepth);
