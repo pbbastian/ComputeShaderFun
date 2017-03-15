@@ -204,7 +204,7 @@ void BvhShadows(uint3 id : SV_DispatchThreadID, uint3 tid : SV_GroupThreadID)
 groupshared uint _localClusterId;
 groupshared uint _localClusterCount;
 
-static const uint2 _clusterSize = {8, 8};
+static const uint2 _clusterSize = {8, 4};
 static const uint _batchSize = 1;
 
 [numthreads(_clusterSize.x, _clusterSize.y, 1)]
@@ -231,13 +231,9 @@ void PersistentBvhShadows(uint3 did : SV_DispatchThreadID, uint3 tid : SV_GroupT
 		if (_localClusterId >= (clusterCount.x * clusterCount.y))
 			break;
 
-		uint2 clusterCoords;
-		clusterCoords.x = (_localClusterId % clusterCount.x) * _clusterSize;
-		clusterCoords.y = (_localClusterId / clusterCount.x) * _clusterSize;
-
 		uint2 id;
-		id.x = clusterCoords.x + tid.x;
-		id.y = clusterCoords.y + tid.y;
+		id.x = (_localClusterId % clusterCount.x) * _clusterSize.x + tid.x;
+		id.y = (_localClusterId / clusterCount.x) * _clusterSize.y + tid.y;
 
 		if (id.x >= size.x || id.y >= size.y)
 			continue;
