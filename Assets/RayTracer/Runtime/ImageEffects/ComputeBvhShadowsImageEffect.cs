@@ -14,11 +14,11 @@ namespace RayTracer.Runtime.ImageEffects
         ComputeKernel m_Kernel;
         Light m_Light;
         bool m_SceneLoaded;
-        bool m_Persistent;
+        BvhShadowsProgram.Variant m_Variant;
         int m_ThreadGroups;
         StructuredBuffer<int> m_WorkCounterBuffer;
 
-        public bool persistent;
+        public BvhShadowsProgram.Variant variant;
         public int threadGroups = 100;
 
         void OnPreRender()
@@ -55,26 +55,26 @@ namespace RayTracer.Runtime.ImageEffects
         {
             CleanupCommandBuffer();
 
-            m_Persistent = persistent;
+            m_Variant = variant;
 
             m_ThreadGroups = threadGroups;
-            m_Kernel = BvhShadowsProgram.CreateKernel(m_Persistent);
+            m_Kernel = BvhShadowsProgram.CreateKernel(m_Variant);
 
-            if (m_Persistent)
+            if (m_Variant != BvhShadowsProgram.Variant.Original)
             {
                 m_WorkCounterBuffer = new StructuredBuffer<int>(1, ShaderSizes.s_Int);
                 m_Kernel.SetBuffer(BvhShadowsProgram.WorkCounter, m_WorkCounterBuffer);
                 m_Kernel.SetValue(BvhShadowsProgram.ThreadGroupCount, m_ThreadGroups);
             }
 
-            m_Cb = new CommandBuffer {name = "Compute BVH shadows" + (m_Persistent ? string.Format("P{0}", threadGroups) : "")};
+            m_Cb = new CommandBuffer {name = "Compute BVH shadows"};
             m_Cb.GetTemporaryRT(Uniforms.TempId, m_Camera.pixelWidth, m_Camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.Default, RenderTextureReadWrite.Default, 1, true);
             m_Cb.SetTexture(m_Kernel, BvhShadowsProgram.MainTexture, BuiltinRenderTextureType.CameraTarget);
             m_Cb.SetTexture(m_Kernel, BvhShadowsProgram.DepthTexture, BuiltinRenderTextureType.ResolvedDepth);
             m_Cb.SetTexture(m_Kernel, BvhShadowsProgram.NormalTexture, BuiltinRenderTextureType.GBuffer2);
             m_Cb.SetTexture(m_Kernel, BvhShadowsProgram.TargetTexture, Uniforms.TempId);
-            var threadGroupsX = m_Persistent ? m_ThreadGroups : m_Camera.pixelWidth.CeilDiv(m_Kernel.threadGroupSize.x);
-            var threadGroupsY = m_Persistent ? 1 : m_Camera.pixelHeight.CeilDiv(m_Kernel.threadGroupSize.y);
+            var threadGroupsX = m_Variant != BvhShadowsProgram.Variant.Original ? m_ThreadGroups : m_Camera.pixelWidth.CeilDiv(m_Kernel.threadGroupSize.x);
+            var threadGroupsY = m_Variant != BvhShadowsProgram.Variant.Original ? 1 : m_Camera.pixelHeight.CeilDiv(m_Kernel.threadGroupSize.y);
             m_Cb.DispatchCompute(m_Kernel, threadGroupsX, threadGroupsY, 1);
             m_Cb.Blit(Uniforms.TempId, BuiltinRenderTextureType.CameraTarget);
             m_Cb.ReleaseTemporaryRT(Uniforms.TempId);
@@ -126,7 +126,7 @@ namespace RayTracer.Runtime.ImageEffects
                 m_SceneLoaded = true;
                 OnEnable();
             }
-            else if (m_Persistent != persistent)
+            else if (m_Variant != variant)
             {
                 CreateCommandBuffer();
             }

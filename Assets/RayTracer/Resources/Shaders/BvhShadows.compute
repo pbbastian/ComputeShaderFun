@@ -1,5 +1,6 @@
 #pragma kernel BvhShadows
-#pragma kernel PersistentBvhShadows PERSISTENT
+#pragma kernel PersistentBvhShadows
+#pragma kernel CheckerboardBvhShadows
 
 #define STATS
 
@@ -21,8 +22,7 @@ float4x4 _InverseView;
 uint _ThreadGroupCount;
 RWStructuredBuffer<uint> _WorkCounter;
 
-#define STACK_SIZE 32
-
+static const int _stackSize = 32;
 static const int _entrypointSentinel = 2147483647;
 static const int _rayBatchSize = 64;
 
@@ -102,9 +102,7 @@ TraversalState InitializeState(uint2 id)
     return state;
 }
 
-static int traversalStack[STACK_SIZE];
-
-void Traverse(inout TraversalState s, inout FakeStatistics stats)
+void Traverse(inout TraversalState s, inout int traversalStack[_stackSize], inout FakeStatistics stats)
 {
 	while (s.nodeIndex != _entrypointSentinel)
 	{
@@ -187,11 +185,11 @@ void BvhShadows(uint3 id : SV_DispatchThreadID, uint3 tid : SV_GroupThreadID)
 
 	if (id.x >= size.x || id.y >= size.y)
 		return;
-
-	traversalStack[0] = _entrypointSentinel;
+	
+	int traversalStack[_stackSize] = {_entrypointSentinel, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 	TraversalState s = InitializeState(id);
 	FakeStatistics stats;
-	Traverse(s, stats);
+	Traverse(s, traversalStack, stats);
 
 	fixed4 col = _MainTex[id.xy];
 	if (s.t < 100000)
@@ -204,7 +202,7 @@ void BvhShadows(uint3 id : SV_DispatchThreadID, uint3 tid : SV_GroupThreadID)
 groupshared uint _localClusterId;
 groupshared uint _localClusterCount;
 
-static const uint2 _clusterSize = {8, 4};
+static const uint2 _clusterSize = {8, 8};
 static const uint _batchSize = 1;
 
 [numthreads(_clusterSize.x, _clusterSize.y, 1)]
@@ -216,7 +214,7 @@ void PersistentBvhShadows(uint3 did : SV_DispatchThreadID, uint3 tid : SV_GroupT
 	if (did.x == 0 && did.y == 0)
 		_WorkCounter[0] = _ThreadGroupCount;
 
-	traversalStack[0] = _entrypointSentinel;
+	int traversalStack[_stackSize] = {_entrypointSentinel, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 	FakeStatistics stats;// = MakeStatistics();
 	
@@ -239,7 +237,7 @@ void PersistentBvhShadows(uint3 did : SV_DispatchThreadID, uint3 tid : SV_GroupT
 			continue;
 
 		TraversalState s = InitializeState(id);
-		Traverse(s, stats);
+		Traverse(s, traversalStack, stats);
 
 		fixed4 col = _MainTex[id.xy];
 		if (s.t < 100000)
@@ -247,6 +245,89 @@ void PersistentBvhShadows(uint3 did : SV_DispatchThreadID, uint3 tid : SV_GroupT
 		else
 		    col *= 1.0;
 		_TargetTex[id.xy] = col;
+
+		if (tid.x == 0 && tid.y == 0)
+		{
+			if (_localClusterCount == 1)
+			{
+				InterlockedAdd(_WorkCounter[0], _batchSize, _localClusterId);
+				_localClusterCount = _batchSize;
+			}
+			else
+			{
+				_localClusterCount -= 1;
+				_localClusterId += 1;
+			}
+		}
+	}
+}
+
+void ShadowPixel(uint2 coords, float shadow)
+{
+	_TargetTex[coords] = _MainTex[coords] * shadow; 
+}
+
+groupshared float _shadow[_clusterSize.x][_clusterSize.y];
+
+void DetermineShadow(uint2 tid, uint2 delta, float shadow)
+{
+
+}
+
+float Contrib(int x, int y, inout int contrib)
+{
+	if (x >= 0 && x < _clusterSize.x && y >= 0 && y < _clusterSize.y)
+	{
+		contrib += 1;
+		return _shadow[x][y];
+	}
+	return 0;
+}
+
+[numthreads(_clusterSize.x, _clusterSize.y, 1)]
+void CheckerboardBvhShadows(uint3 did : SV_DispatchThreadID, uint3 tid : SV_GroupThreadID, uint3 gid : SV_GroupID)
+{
+	uint2 size = (uint2) _Size;
+	uint2 clusterCount = size / uint2(_clusterSize.x * 2, _clusterSize.y);
+
+	if (did.x == 0 && did.y == 0)
+		_WorkCounter[0] = _ThreadGroupCount;
+
+	int traversalStack[_stackSize] = {_entrypointSentinel, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+	FakeStatistics stats;// = MakeStatistics();
+	
+	if (tid.x == 0 && tid.y == 0)
+	{
+		_localClusterId = gid.x * _batchSize;
+		_localClusterCount = _batchSize;
+	}
+
+	while (true)
+	{
+		if (_localClusterId >= (clusterCount.x * clusterCount.y))
+			break;
+
+		uint2 id;
+		id.x = (_localClusterId % clusterCount.x) * _clusterSize.x * 2 + tid.x * 2 + tid.y%2;
+		id.y = (_localClusterId / clusterCount.x) * _clusterSize.y + tid.y;
+
+		if (id.x >= size.x || id.y >= size.y)
+			continue;
+
+		TraversalState s = InitializeState(id);
+		Traverse(s, traversalStack, stats);
+
+		float shadow = (s.t < 100000) ? 0.5 : 1.0;
+		// GroupMemoryBarrier();
+
+		ShadowPixel(id + uint2(0, 0), shadow);
+
+		int offset = (tid.y%2)*2 - 1;
+		// int contrib = 0;
+		// float shadow = Contrib(tid.x, tid.y, contrib) + Contrib(tid.x+offset, tid.y, contrib) + Contrib(tid.x, tid.y+1, contrib) + Contrib(tid.x, tid.y-1, contrib);
+		// ShadowPixel(id + int2(offset, 0), shadow);
+		_TargetTex[uint2(id.x+offset, id.y)] = _MainTex[uint2(id.x+offset, id.y)];
 
 		if (tid.x == 0 && tid.y == 0)
 		{

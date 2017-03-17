@@ -21,9 +21,21 @@ namespace RayTracer.Runtime.ShaderPrograms
         public static readonly ShaderParamDescriptor<int> ThreadGroupCount = new ShaderParamDescriptor<int>("_ThreadGroupCount");
         public static readonly ShaderParamDescriptor<StructuredBuffer<int>> WorkCounter = new ShaderParamDescriptor<StructuredBuffer<int>>("_WorkCounter");
 
-        public static ComputeKernel CreateKernel(bool persistent)
+        public enum Variant
         {
-            return new ComputeKernel("Shaders/BvhShadows", persistent ? "PersistentBvhShadows" : "BvhShadows");
+            Original,
+            Persistent,
+            Checkerboard
+        }
+
+        public static ComputeKernel CreateKernel(Variant variant)
+        {
+            return new ComputeKernel("Shaders/BvhShadows",
+                variant == Variant.Persistent
+                ? "PersistentBvhShadows"
+                : variant == Variant.Checkerboard
+                ? "CheckerboardBvhShadows"
+                : "BvhShadows");
         }
     }
 }
