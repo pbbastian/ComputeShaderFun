@@ -1,6 +1,7 @@
 #pragma kernel BvhShadows
 #pragma kernel PersistentBvhShadows
 #pragma kernel CheckerboardBvhShadows
+#pragma kernel LowResCheckerboardBvhShadows
 
 #define STATS
 
@@ -87,7 +88,7 @@ TraversalState InitializeState(uint2 id)
 
 	float depth = LinearEyeDepth(_DepthTexture[id.xy].x);
 	float2 p11_22 = float2(_Projection._11, _Projection._22);
-	float2 uv = ((float2)id.xy / _Size);
+	float2 uv = (((float2)id.xy + 0.5) / _Size);
     float3 vpos = float3((uv * 2 - 1) / p11_22, -1) * depth;
     float4 wpos = mul(_InverseView, float4(vpos, 1));
     float3 direction = normalize(-_Light);
@@ -236,28 +237,40 @@ void PersistentBvhShadows(uint3 did : SV_DispatchThreadID, uint3 tid : SV_GroupT
 		if (id.x >= size.x || id.y >= size.y)
 			continue;
 
-		TraversalState s = InitializeState(id);
-		Traverse(s, traversalStack, stats);
-
+		float3 normal = normalize(_NormalTexture[id] * 2 - 1);
 		fixed4 col = _MainTex[id.xy];
-		if (s.t < 100000)
-			col *= 0.5;
+
+		if (_DepthTexture[id.xy].x < 1e-3){}
+		else if (dot(_Light, normal) > 0)
+		{
+			col *= 0.75;
+		}
 		else
-		    col *= 1.0;
+		{
+			TraversalState s = InitializeState(id);
+			Traverse(s, traversalStack, stats);
+
+			if (s.t < 100000)
+				col *= 0.5;
+			else
+			    col *= 1.0;
+		}
+
 		_TargetTex[id.xy] = col;
 
 		if (tid.x == 0 && tid.y == 0)
 		{
-			if (_localClusterCount == 1)
-			{
-				InterlockedAdd(_WorkCounter[0], _batchSize, _localClusterId);
-				_localClusterCount = _batchSize;
-			}
-			else
-			{
-				_localClusterCount -= 1;
-				_localClusterId += 1;
-			}
+			InterlockedAdd(_WorkCounter[0], 1, _localClusterId);
+			// if (_localClusterCount == 1)
+			// {
+			// 	InterlockedAdd(_WorkCounter[0], _batchSize, _localClusterId);
+			// 	_localClusterCount = _batchSize;
+			// }
+			// else
+			// {
+			// 	_localClusterCount -= 1;
+			// 	_localClusterId += 1;
+			// }
 		}
 	}
 }
@@ -267,28 +280,23 @@ void ShadowPixel(uint2 coords, float shadow)
 	_TargetTex[coords] = _MainTex[coords] * shadow; 
 }
 
-groupshared float _shadow[_clusterSize.x][_clusterSize.y];
+//groupshared float _shadow[_clusterSize.x][_clusterSize.y];
 
-void DetermineShadow(uint2 tid, uint2 delta, float shadow)
-{
-
-}
-
-float Contrib(int x, int y, inout int contrib)
-{
-	if (x >= 0 && x < _clusterSize.x && y >= 0 && y < _clusterSize.y)
-	{
-		contrib += 1;
-		return _shadow[x][y];
-	}
-	return 0;
-}
+// float Contrib(int x, int y, inout int contrib)
+// {
+// 	if (x >= 0 && x < _clusterSize.x && y >= 0 && y < _clusterSize.y)
+// 	{
+// 		contrib += 1;
+// 		return _shadow[x][y];
+// 	}
+// 	return 0;
+// }
 
 [numthreads(_clusterSize.x, _clusterSize.y, 1)]
 void CheckerboardBvhShadows(uint3 did : SV_DispatchThreadID, uint3 tid : SV_GroupThreadID, uint3 gid : SV_GroupID)
 {
 	uint2 size = (uint2) _Size;
-	uint2 clusterCount = size / uint2(_clusterSize.x * 2, _clusterSize.y);
+	uint2 clusterCount = size / uint2(_clusterSize.x * 2, _clusterSize.y) + 1;
 
 	if (did.x == 0 && did.y == 0)
 		_WorkCounter[0] = _ThreadGroupCount;
@@ -328,6 +336,65 @@ void CheckerboardBvhShadows(uint3 did : SV_DispatchThreadID, uint3 tid : SV_Grou
 		// float shadow = Contrib(tid.x, tid.y, contrib) + Contrib(tid.x+offset, tid.y, contrib) + Contrib(tid.x, tid.y+1, contrib) + Contrib(tid.x, tid.y-1, contrib);
 		// ShadowPixel(id + int2(offset, 0), shadow);
 		_TargetTex[uint2(id.x+offset, id.y)] = _MainTex[uint2(id.x+offset, id.y)];
+
+		if (tid.x == 0 && tid.y == 0)
+		{
+			if (_localClusterCount == 1)
+			{
+				InterlockedAdd(_WorkCounter[0], _batchSize, _localClusterId);
+				_localClusterCount = _batchSize;
+			}
+			else
+			{
+				_localClusterCount -= 1;
+				_localClusterId += 1;
+			}
+		}
+	}
+}
+
+[numthreads(_clusterSize.x, _clusterSize.y, 1)]
+void LowResCheckerboardBvhShadows(uint3 did : SV_DispatchThreadID, uint3 tid : SV_GroupThreadID, uint3 gid : SV_GroupID)
+{
+	uint2 size = (uint2) _Size;
+	uint2 clusterCount = size / uint2(_clusterSize.x * 2, _clusterSize.y) + 1;
+
+	if (did.x == 0 && did.y == 0)
+		_WorkCounter[0] = _ThreadGroupCount;
+
+	int traversalStack[_stackSize] = {_entrypointSentinel, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+	FakeStatistics stats;// = MakeStatistics();
+	
+	if (tid.x == 0 && tid.y == 0)
+	{
+		_localClusterId = gid.x * _batchSize;
+		_localClusterCount = _batchSize;
+	}
+
+	while (true)
+	{
+		if (_localClusterId >= (clusterCount.x * clusterCount.y))
+			break;
+
+		uint rowClusterId = _localClusterId % clusterCount.x;
+
+		uint2 cid = uint2(
+			rowClusterId * _clusterSize.x + tid.x,
+			(_localClusterId / clusterCount.x) * _clusterSize.y + tid.y
+		);
+
+		uint2 id;
+		id.x = rowClusterId * _clusterSize.x * 2 + tid.x * 2 + tid.y%2;
+		id.y = cid.y;
+
+		if (id.x >= size.x || id.y >= size.y)
+			continue;
+
+		TraversalState s = InitializeState(id);
+		Traverse(s, traversalStack, stats);
+
+		_TargetTex[cid] = float4(s.t < 100000 ? 0.0 : 1.0, 0, 0, 1);
 
 		if (tid.x == 0 && tid.y == 0)
 		{

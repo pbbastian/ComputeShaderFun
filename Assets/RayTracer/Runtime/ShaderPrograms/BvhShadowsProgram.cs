@@ -25,17 +25,21 @@ namespace RayTracer.Runtime.ShaderPrograms
         {
             Original,
             Persistent,
-            Checkerboard
+            Checkerboard,
+            LowResCheckerboard
         }
 
         public static ComputeKernel CreateKernel(Variant variant)
         {
-            return new ComputeKernel("Shaders/BvhShadows",
-                variant == Variant.Persistent
-                ? "PersistentBvhShadows"
-                : variant == Variant.Checkerboard
-                ? "CheckerboardBvhShadows"
-                : "BvhShadows");
+            string kernelName = "BvhShadows";
+            if (variant == Variant.Persistent)
+                kernelName = "PersistentBvhShadows";
+            if (variant == Variant.Checkerboard)
+                kernelName = "CheckerboardBvhShadows";
+            if (variant == Variant.LowResCheckerboard)
+                kernelName = "LowResCheckerboardBvhShadows";
+
+            return new ComputeKernel("Shaders/BvhShadows", kernelName);
         }
     }
 }

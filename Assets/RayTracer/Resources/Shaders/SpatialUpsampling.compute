@@ -1,0 +1,102 @@
+#pragma kernel SpatialUpsampling
+
+#include "UnityCG.cginc"
+#include "Math.cginc"
+
+Texture2D<float4> _ShadowTexture;
+Texture2D<float4> _SourceTexture;
+RWTexture2D<float4> _TargetTexture;
+Texture2D<float4> _NormalTexture;
+UNITY_DECLARE_TEX2D_FLOAT(_DepthTexture);
+
+float2 _Size;
+float4x4 _Projection;
+float4x4 _InverseView;
+
+uint _ThreadGroupCount;
+RWStructuredBuffer<uint> _WorkCounter;
+
+groupshared uint _localClusterId;
+
+static const uint2 _clusterSize = {8, 8};
+
+float SampleShadow(float3 pos, float3 normal, uint2 shadowId, inout float weight)
+{
+	uint2 pixelId = uint2(shadowId.x * 2, shadowId.y);
+	float otherDepth = LinearEyeDepth(_DepthTexture[pixelId].x);
+    float3 otherPos = mul(_InverseView, float4(float3(((((float2)pixelId+0.5) / _Size) * 2 - 1) / float2(_Projection._11, _Projection._22), -1) * otherDepth, 1)).xyz;
+	float3 sigma = float3(100, 100, 100);
+    float3 otherNormal = normalize(_NormalTexture[pixelId] * 2 - 1);
+    float dotp = dot(normal, otherNormal);
+	weight += exp(- (((otherPos.x - pos.x)*(otherPos.x - pos.x))/(2*sigma.x*sigma.x) + ((otherPos.y - pos.y)*(otherPos.y - pos.y))/(2*sigma.y*sigma.y) + ((otherPos.z - pos.z)*(otherPos.z - pos.z))/(2*sigma.z*sigma.z)));
+
+    // weight += dotp;
+
+	return _ShadowTexture[shadowId];
+	return 0.0;
+}
+
+[numthreads(_clusterSize.x, _clusterSize.y, 1)]
+void SpatialUpsampling(uint3 dispatchId : SV_DispatchThreadID, uint3 threadId : SV_GroupThreadID, uint3 groupId : SV_GroupID)
+{
+	uint2 size = (uint2) _Size;
+	uint2 clusterCount = size / uint2(_clusterSize.x, _clusterSize.y) + 1;
+
+	if (dispatchId.x == 0 && dispatchId.y == 0)
+		_WorkCounter[0] = _ThreadGroupCount;
+
+	if (threadId.x == 0 && threadId.y == 0)
+	{
+		_localClusterId = groupId.x;
+	}
+
+	while (true)
+	{
+		if (_localClusterId >= (clusterCount.x * clusterCount.y))
+			break;
+
+		uint2 pixelId;
+		pixelId.x = (_localClusterId % clusterCount.x) * _clusterSize.x + threadId.x;
+		pixelId.y = (_localClusterId / clusterCount.x) * _clusterSize.y + threadId.y;
+
+		float depth = LinearEyeDepth(_DepthTexture[pixelId].x);
+	    float4 wpos = mul(_InverseView, float4(float3(((((float2)pixelId+0.5) / _Size) * 2 - 1) / float2(_Projection._11, _Projection._22), -1) * depth, 1));
+	    float3 normal = normalize(_NormalTexture[pixelId] * 2 - 1);
+
+
+	    uint2 shadowId = uint2(
+	    	Div2(pixelId.x),
+	    	pixelId.y
+		);
+
+		int offset = (pixelId.x % 2) * (1 - pixelId.y % 2);
+
+	    float shadow = 0.0;
+	    float weight = 0.0;
+	    for (int i = -1 + offset; i <= 1; i++)
+	    for (int j = -1; j <= 1; j++)
+	    {
+	    	shadow += SampleShadow(wpos, normal, shadowId + int2(i, j), weight);
+	    }
+
+	    // float shadow = SampleShadow(depth, shadowId + uint2(0, 1), weight)
+	    // 	+ SampleShadow(depth, shadowId + uint2(0,  0), weight)
+	    // 	+ SampleShadow(depth, shadowId + uint2(0,  1), weight)
+	    // 	+ SampleShadow(depth, shadowId + uint2(0, -1), weight)
+	    // 	+ SampleShadow(depth, shadowId + uint2(1,  0), weight)
+	    // 	+ SampleShadow(depth, shadowId + uint2(1,  1), weight)
+	    // 	+ SampleShadow(depth, shadowId + uint2(1, -1), weight)
+	    // 	+ SampleShadow(depth, shadowId + uint2(-1,  0), weight)
+	    // 	+ SampleShadow(depth, shadowId + uint2(-1,  1), weight)
+	    // 	+ SampleShadow(depth, shadowId + uint2(-1, -1), weight);
+    	shadow /= weight;
+	    // float shadow = (_ShadowTexture[shadowId + uint2(0, 1)] + _ShadowTexture[shadowId + uint2(0, -1)] + _ShadowTexture[shadowId + uint2(1, 0)] + _ShadowTexture[shadowId + uint2(-1, 0)] + _ShadowTexture[shadowId + uint2(1, -1)] + _ShadowTexture[shadowId + uint2(-1, 1)] + _ShadowTexture[shadowId + uint2(1, 1)] + _ShadowTexture[shadowId + uint2(-1, -1)] + _ShadowTexture[shadowId]) * 0.1111111111111111111;
+	    float4 color = _SourceTexture[pixelId];
+	    _TargetTexture[pixelId] = color * min(shadow + 0.5, 1.0);
+
+		if (threadId.x == 0 && threadId.y == 0)
+		{
+			InterlockedAdd(_WorkCounter[0], 1, _localClusterId);
+		}
+	}
+}

@@ -1,4 +1,5 @@
-﻿using RayTracer.Runtime.ShaderPrograms;
+﻿using Assets.RayTracer.Runtime.ShaderPrograms;
+using RayTracer.Runtime.ShaderPrograms;
 using RayTracer.Runtime.Util;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -12,6 +13,7 @@ namespace RayTracer.Runtime.ImageEffects
         Camera m_Camera;
         CommandBuffer m_Cb;
         ComputeKernel m_Kernel;
+        ComputeKernel m_UpsamplingKernel;
         Light m_Light;
         bool m_SceneLoaded;
         BvhShadowsProgram.Variant m_Variant;
@@ -33,6 +35,14 @@ namespace RayTracer.Runtime.ImageEffects
                 m_Kernel.SetBuffer(BvhShadowsProgram.NodeBuffer, m_BvhContext.nodesBuffer);
                 m_Kernel.SetBuffer(BvhShadowsProgram.TriangleBuffer, m_BvhContext.trianglesBuffer);
                 m_Kernel.SetBuffer(BvhShadowsProgram.VertexBuffer, m_BvhContext.verticesBuffer);
+            }
+
+            if (m_UpsamplingKernel != null)
+            {
+                m_UpsamplingKernel.SetValue(SpatialUpsamplingShader.ZBufferParams, m_Camera.GetZBufferParams(true));
+                m_UpsamplingKernel.SetValue(SpatialUpsamplingShader.InverseView, m_Camera.cameraToWorldMatrix);
+                m_UpsamplingKernel.SetValue(SpatialUpsamplingShader.Projection, m_Camera.projectionMatrix);
+                m_UpsamplingKernel.SetValue(SpatialUpsamplingShader.Size, new Vector2(m_Camera.pixelWidth, m_Camera.pixelHeight));
             }
         }
 
@@ -67,15 +77,37 @@ namespace RayTracer.Runtime.ImageEffects
                 m_Kernel.SetValue(BvhShadowsProgram.ThreadGroupCount, m_ThreadGroups);
             }
 
+            if (m_Variant == BvhShadowsProgram.Variant.LowResCheckerboard)
+            {
+                m_UpsamplingKernel = SpatialUpsamplingShader.CreateKernel();
+                m_UpsamplingKernel.SetBuffer(SpatialUpsamplingShader.WorkCounter, m_WorkCounterBuffer);
+                m_UpsamplingKernel.SetValue(SpatialUpsamplingShader.ThreadGroupCount, m_ThreadGroups);
+            }
+
             m_Cb = new CommandBuffer {name = "Compute BVH shadows"};
+
             m_Cb.GetTemporaryRT(Uniforms.TempId, m_Camera.pixelWidth, m_Camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.Default, RenderTextureReadWrite.Default, 1, true);
+            if (m_Variant == BvhShadowsProgram.Variant.LowResCheckerboard)
+                m_Cb.GetTemporaryRT(Uniforms.ShadowId, m_Camera.pixelWidth.CeilDiv(2), m_Camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.Default, RenderTextureReadWrite.Default, 1, true);
+
             m_Cb.SetTexture(m_Kernel, BvhShadowsProgram.MainTexture, BuiltinRenderTextureType.CameraTarget);
             m_Cb.SetTexture(m_Kernel, BvhShadowsProgram.DepthTexture, BuiltinRenderTextureType.ResolvedDepth);
             m_Cb.SetTexture(m_Kernel, BvhShadowsProgram.NormalTexture, BuiltinRenderTextureType.GBuffer2);
-            m_Cb.SetTexture(m_Kernel, BvhShadowsProgram.TargetTexture, Uniforms.TempId);
+            m_Cb.SetTexture(m_Kernel, BvhShadowsProgram.TargetTexture, m_Variant == BvhShadowsProgram.Variant.LowResCheckerboard ? Uniforms.ShadowId : Uniforms.TempId);
             var threadGroupsX = m_Variant != BvhShadowsProgram.Variant.Original ? m_ThreadGroups : m_Camera.pixelWidth.CeilDiv(m_Kernel.threadGroupSize.x);
             var threadGroupsY = m_Variant != BvhShadowsProgram.Variant.Original ? 1 : m_Camera.pixelHeight.CeilDiv(m_Kernel.threadGroupSize.y);
             m_Cb.DispatchCompute(m_Kernel, threadGroupsX, threadGroupsY, 1);
+
+            if (m_Variant == BvhShadowsProgram.Variant.LowResCheckerboard)
+            {
+                m_Cb.SetTexture(m_UpsamplingKernel, SpatialUpsamplingShader.SourceTexture, BuiltinRenderTextureType.CameraTarget);
+                m_Cb.SetTexture(m_UpsamplingKernel, SpatialUpsamplingShader.DepthTexture, BuiltinRenderTextureType.ResolvedDepth);
+                m_Cb.SetTexture(m_UpsamplingKernel, SpatialUpsamplingShader.ShadowTexture, Uniforms.ShadowId);
+                m_Cb.SetTexture(m_UpsamplingKernel, SpatialUpsamplingShader.NormalTexture, BuiltinRenderTextureType.GBuffer2);
+                m_Cb.SetTexture(m_UpsamplingKernel, SpatialUpsamplingShader.TargetTexture, Uniforms.TempId);
+                m_Cb.DispatchCompute(m_UpsamplingKernel, m_ThreadGroups, 1, 1);
+            }
+            
             m_Cb.Blit(Uniforms.TempId, BuiltinRenderTextureType.CameraTarget);
             m_Cb.ReleaseTemporaryRT(Uniforms.TempId);
 
@@ -111,6 +143,7 @@ namespace RayTracer.Runtime.ImageEffects
             }
 
             m_Kernel = null;
+            m_UpsamplingKernel = null;
 
             if (m_WorkCounterBuffer != null)
             {
@@ -138,6 +171,7 @@ namespace RayTracer.Runtime.ImageEffects
 
         static class Uniforms
         {
+            public static readonly int ShadowId = Shader.PropertyToID("_BvhShadow");
             public static readonly int TempId = Shader.PropertyToID("_BvhShadowsTemp");
             public static readonly int WorldPositionId = Shader.PropertyToID("_WorldPosition");
         }
