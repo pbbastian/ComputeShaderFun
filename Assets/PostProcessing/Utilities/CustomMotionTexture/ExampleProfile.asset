@@ -24,6 +24,10 @@ MonoBehaviour:
         motionVectorsOpacity: 1
         motionVectorsResolution: 48
         motionVectorsAmplitude: 64
+  fog:
+    m_Enabled: 0
+    m_Settings:
+      excludeSkybox: 1
   antialiasing:
     m_Enabled: 0
     m_Settings:
@@ -85,7 +89,8 @@ MonoBehaviour:
       highPercent: 95
       minLuminance: 0.03
       maxLuminance: 2
-      exposureCompensation: 0.5
+      keyValue: 0.25
+      dynamicKeyValue: 1
       adaptationType: 0
       speedUp: 2
       speedDown: 1
@@ -129,47 +134,26 @@ MonoBehaviour:
       colorWheels:
         mode: 1
         log:
-          slope:
-            r: 0
-            g: 0
-            b: 0
-            a: 0
-          power:
-            r: 0
-            g: 0
-            b: 0
-            a: 0
-          offset:
-            r: 0
-            g: 0
-            b: 0
-            a: 0
+          slope: {r: 0, g: 0, b: 0, a: 0}
+          power: {r: 0, g: 0, b: 0, a: 0}
+          offset: {r: 0, g: 0, b: 0, a: 0}
         linear:
-          lift:
-            r: 0
-            g: 0
-            b: 0
-            a: 0
-          gamma:
-            r: 0
-            g: 0
-            b: 0
-            a: 0
-          gain:
-            r: 0
-            g: 0
-            b: 0
-            a: 0
+          lift: {r: 0, g: 0, b: 0, a: 0}
+          gamma: {r: 0, g: 0, b: 0, a: 0}
+          gain: {r: 0, g: 0, b: 0, a: 0}
       curves:
         master:
           curve:
+            serializedVersion: 2
             m_Curve:
-            - time: 0
+            - serializedVersion: 2
+              time: 0
               value: 0
               inSlope: 1
               outSlope: 1
               tangentMode: 0
-            - time: 1
+            - serializedVersion: 2
+              time: 1
               value: 1
               inSlope: 1
               outSlope: 1
@@ -182,13 +166,16 @@ MonoBehaviour:
           m_Range: 1
         red:
           curve:
+            serializedVersion: 2
             m_Curve:
-            - time: 0
+            - serializedVersion: 2
+              time: 0
               value: 0
               inSlope: 1
               outSlope: 1
               tangentMode: 0
-            - time: 1
+            - serializedVersion: 2
+              time: 1
               value: 1
               inSlope: 1
               outSlope: 1
@@ -201,13 +188,16 @@ MonoBehaviour:
           m_Range: 1
         green:
           curve:
+            serializedVersion: 2
             m_Curve:
-            - time: 0
+            - serializedVersion: 2
+              time: 0
               value: 0
               inSlope: 1
               outSlope: 1
               tangentMode: 0
-            - time: 1
+            - serializedVersion: 2
+              time: 1
               value: 1
               inSlope: 1
               outSlope: 1
@@ -220,13 +210,16 @@ MonoBehaviour:
           m_Range: 1
         blue:
           curve:
+            serializedVersion: 2
             m_Curve:
-            - time: 0
+            - serializedVersion: 2
+              time: 0
               value: 0
               inSlope: 1
               outSlope: 1
               tangentMode: 0
-            - time: 1
+            - serializedVersion: 2
+              time: 1
               value: 1
               inSlope: 1
               outSlope: 1
@@ -239,6 +232,7 @@ MonoBehaviour:
           m_Range: 1
         hueVShue:
           curve:
+            serializedVersion: 2
             m_Curve: []
             m_PreInfinity: 2
             m_PostInfinity: 2
@@ -248,6 +242,7 @@ MonoBehaviour:
           m_Range: 1
         hueVSsat:
           curve:
+            serializedVersion: 2
             m_Curve: []
             m_PreInfinity: 2
             m_PostInfinity: 2
@@ -257,6 +252,7 @@ MonoBehaviour:
           m_Range: 1
         satVSsat:
           curve:
+            serializedVersion: 2
             m_Curve: []
             m_PreInfinity: 2
             m_PostInfinity: 2
@@ -266,6 +262,7 @@ MonoBehaviour:
           m_Range: 1
         lumVSsat:
           curve:
+            serializedVersion: 2
             m_Curve: []
             m_PreInfinity: 2
             m_PostInfinity: 2
@@ -299,20 +296,16 @@ MonoBehaviour:
     m_Enabled: 0
     m_Settings:
       mode: 0
-      color:
-        r: 0
-        g: 0
-        b: 0
-        a: 1
+      color: {r: 0, g: 0, b: 0, a: 1}
       center: {x: 0.5, y: 0.5}
       intensity: 0.45
       smoothness: 0.2
       roundness: 1
       mask: {fileID: 0}
       opacity: 1
+      rounded: 0
   dithering:
     m_Enabled: 0
-    m_Settings: {}
   monitors:
     currentMonitorID: 0
     refreshOnPlay: 0
