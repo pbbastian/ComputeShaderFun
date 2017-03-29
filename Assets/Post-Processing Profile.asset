@@ -85,13 +85,13 @@ MonoBehaviour:
   eyeAdaptation:
     m_Enabled: 1
     m_Settings:
-      lowPercent: 65
+      lowPercent: 45
       highPercent: 95
-      minLuminance: 0.03
-      maxLuminance: -2
+      minLuminance: -5
+      maxLuminance: 1
       keyValue: 0.25
       dynamicKeyValue: 1
-      adaptationType: 0
+      adaptationType: 1
       speedUp: 2
       speedDown: 1
       logMin: -8
@@ -122,9 +122,9 @@ MonoBehaviour:
       basic:
         postExposure: 1
         temperature: 0
-        tint: 0
+        tint: 10
         hueShift: 0
-        saturation: 1
+        saturation: 1.15
         contrast: 1
       channelMixer:
         red: {x: 1, y: 0, z: 0}
@@ -138,9 +138,9 @@ MonoBehaviour:
           power: {r: 1, g: 1, b: 1, a: 0}
           offset: {r: 1, g: 1, b: 1, a: 0}
         linear:
-          lift: {r: 0, g: 0, b: 0, a: 0}
-          gamma: {r: 0, g: 0, b: 0, a: 0}
-          gain: {r: 0, g: 0, b: 0, a: 0}
+          lift: {r: 1, g: 1, b: 1, a: 0}
+          gamma: {r: 1, g: 1, b: 1, a: 0}
+          gain: {r: 1, g: 1, b: 1, a: 0}
       curves:
         master:
           curve:
