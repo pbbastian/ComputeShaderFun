@@ -203,7 +203,7 @@ void BvhShadows(uint3 id : SV_DispatchThreadID, uint3 tid : SV_GroupThreadID)
 groupshared uint _localClusterId;
 groupshared uint _localClusterCount;
 
-static const uint2 _clusterSize = {8, 8};
+static const uint2 _clusterSize = {4, 8};
 static const uint _batchSize = 1;
 
 [numthreads(_clusterSize.x, _clusterSize.y, 1)]
