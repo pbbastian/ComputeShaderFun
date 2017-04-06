@@ -7,6 +7,28 @@ namespace ShadowRenderPipeline
 {
     public class ShadowRenderPipeline : IRenderPipeline
     {
+        readonly int m_CameraColorBuffer;
+        readonly int m_CameraDepthStencilBuffer;
+        readonly int[] m_GBuffer = new int[3];
+        
+        RenderTargetIdentifier m_CameraColorBufferRT;
+        RenderTargetIdentifier m_CameraDepthStencilBufferRT;
+        RenderTargetIdentifier[] m_GBufferRT = new RenderTargetIdentifier[3];
+
+        public ShadowRenderPipeline()
+        {
+            m_CameraColorBuffer = Shader.PropertyToID("_CameraColorTexture");
+            m_CameraDepthStencilBuffer = Shader.PropertyToID("_CameraDepthStencilBuffer");
+
+            m_CameraColorBufferRT = new RenderTargetIdentifier(m_CameraColorBuffer);
+            m_CameraDepthStencilBufferRT = new RenderTargetIdentifier(m_CameraDepthStencilBuffer);
+            for (var i = 0; i < m_GBuffer.Length; i++)
+            {
+                m_GBuffer[i] = Shader.PropertyToID("_GBufferTexture" + i);
+                m_GBufferRT[i] = new RenderTargetIdentifier(m_GBuffer[i]);
+            }
+        }
+
         public void Render(ScriptableRenderContext context, Camera[] cameras)
         {
             if (disposed)
@@ -25,12 +47,19 @@ namespace ShadowRenderPipeline
                 context.SetupCameraProperties(camera);
 
                 // clear depth buffer
-                var cmd = new CommandBuffer();
-                cmd.ClearRenderTarget(true, false, Color.black);
-                context.ExecuteCommandBuffer(cmd);
-                cmd.Release();
+                using (var cmd = new CommandBuffer() {name = "Init buffers"})
+                {
+                    cmd.GetTemporaryRT(m_CameraColorBuffer, camera.pixelWidth, camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.ARGBHalf, RenderTextureReadWrite.Linear, 1, true);
+                    cmd.GetTemporaryRT(m_CameraDepthStencilBuffer, camera.pixelWidth, camera.pixelHeight, 24, FilterMode.Point, RenderTextureFormat.Depth);
+                    cmd.GetTemporaryRT(m_GBuffer[0], camera.pixelWidth, camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB, 1, true);
+                    cmd.GetTemporaryRT(m_GBuffer[1], camera.pixelWidth, camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear, 1, true);
+                    cmd.GetTemporaryRT(m_GBuffer[2], camera.pixelWidth, camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.ARGB2101010, RenderTextureReadWrite.Linear, 1, true);
+                    cmd.SetRenderTarget(m_GBufferRT, m_CameraDepthStencilBufferRT);
+                    cmd.ClearRenderTarget(true, true, Color.black);
+                    context.ExecuteCommandBuffer(cmd);
+                }
 
-                // Setup global lighting shader variables
+                // Setup global lighting shader variables 
                 SetupLightShaderVariables(cull.visibleLights, context);
 
                 // Draw opaque objects using BasicPass shader pass
@@ -46,6 +75,17 @@ namespace ShadowRenderPipeline
                 settings.sorting.flags = SortFlags.CommonTransparent;
                 settings.inputFilter.SetQueuesTransparent();
                 context.DrawRenderers(ref settings);
+
+                using (var cmd = new CommandBuffer() {name = "Blit"})
+                {
+                    cmd.Blit(m_GBuffer[0], BuiltinRenderTextureType.CameraTarget);
+                    cmd.ReleaseTemporaryRT(m_CameraColorBuffer);
+                    cmd.ReleaseTemporaryRT(m_CameraDepthStencilBuffer);
+                    cmd.ReleaseTemporaryRT(m_GBuffer[0]);
+                    cmd.ReleaseTemporaryRT(m_GBuffer[1]);
+                    cmd.ReleaseTemporaryRT(m_GBuffer[2]);
+                    context.ExecuteCommandBuffer(cmd);
+                }
 
                 context.Submit();
             }

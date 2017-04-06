@@ -119,7 +119,7 @@ float _Glossiness;
 
 
 // Fragment shader
-half4 frag(v2f i) : SV_Target
+void frag(v2f i, out float4 gbuffer0 : SV_Target0, out float4 gbuffer1 : SV_Target1)
 {
     i.normalWS = normalize(i.normalWS);
     half3 eyeVec = normalize(i.positionWS - _WorldSpaceCameraPos);
@@ -154,5 +154,6 @@ half4 frag(v2f i) : SV_Target
     {
         color.rgb += EvaluateOneLight(il, i.positionWS, i.normalWS, eyeVec, s);
     }
-    return color;
+    gbuffer0 = color;
+    gbuffer1 = float4(1, 0, 0, 1);
 }
