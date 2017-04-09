@@ -15,6 +15,8 @@ namespace ShadowRenderPipeline
         RenderTargetIdentifier m_CameraDepthStencilBufferRT;
         RenderTargetIdentifier[] m_GBufferRT = new RenderTargetIdentifier[3];
 
+        Material m_DeferredLighting;
+
         public ShadowRenderPipeline()
         {
             m_CameraColorBuffer = Shader.PropertyToID("_CameraColorTexture");
@@ -27,6 +29,8 @@ namespace ShadowRenderPipeline
                 m_GBuffer[i] = Shader.PropertyToID("_GBufferTexture" + i);
                 m_GBufferRT[i] = new RenderTargetIdentifier(m_GBuffer[i]);
             }
+
+            m_DeferredLighting = new Material(Shader.Find("Hidden/DeferredLighting"));
         }
 
         public void Render(ScriptableRenderContext context, Camera[] cameras)
@@ -78,7 +82,8 @@ namespace ShadowRenderPipeline
 
                 using (var cmd = new CommandBuffer() {name = "Blit"})
                 {
-                    cmd.Blit(m_GBuffer[0], BuiltinRenderTextureType.CameraTarget);
+                    cmd.SetGlobalTexture(m_GBuffer[1], m_GBufferRT[1]);
+                    cmd.Blit(m_GBuffer[0], BuiltinRenderTextureType.CameraTarget, m_DeferredLighting);
                     cmd.ReleaseTemporaryRT(m_CameraColorBuffer);
                     cmd.ReleaseTemporaryRT(m_CameraDepthStencilBuffer);
                     cmd.ReleaseTemporaryRT(m_GBuffer[0]);
@@ -165,7 +170,7 @@ namespace ShadowRenderPipeline
             GetShaderConstantsFromNormalizedSH(ref ambientSH, shConstants);
 
             // setup global shader variables to contain all the data computed above
-            CommandBuffer cmd = new CommandBuffer();
+            CommandBuffer cmd = new CommandBuffer {name = "Setup light shader variables" };
             cmd.SetGlobalVectorArray("globalLightColor", lightColors);
             cmd.SetGlobalVectorArray("globalLightPos", lightPositions);
             cmd.SetGlobalVectorArray("globalLightSpotDir", lightSpotDirections);
