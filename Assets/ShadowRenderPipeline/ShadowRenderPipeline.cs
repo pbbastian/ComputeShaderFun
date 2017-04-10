@@ -10,12 +10,12 @@ namespace ShadowRenderPipeline
         readonly int m_CameraColorBuffer;
         readonly int m_CameraDepthStencilBuffer;
         readonly int[] m_GBuffer = new int[3];
-        
+
         RenderTargetIdentifier m_CameraColorBufferRT;
         RenderTargetIdentifier m_CameraDepthStencilBufferRT;
         RenderTargetIdentifier[] m_GBufferRT = new RenderTargetIdentifier[3];
 
-        Material m_DeferredLighting;
+        Material m_DeferredLightingMat;
 
         public ShadowRenderPipeline()
         {
@@ -30,7 +30,7 @@ namespace ShadowRenderPipeline
                 m_GBufferRT[i] = new RenderTargetIdentifier(m_GBuffer[i]);
             }
 
-            m_DeferredLighting = new Material(Shader.Find("Hidden/DeferredLighting"));
+            m_DeferredLightingMat = new Material(Shader.Find("Hidden/DeferredLighting"));
         }
 
         public void Render(ScriptableRenderContext context, Camera[] cameras)
@@ -51,11 +51,11 @@ namespace ShadowRenderPipeline
                 context.SetupCameraProperties(camera);
 
                 // clear depth buffer
-                using (var cmd = new CommandBuffer() {name = "Init buffers"})
+                using (var cmd = new CommandBuffer { name = "Init G-Buffer" })
                 {
-                    cmd.GetTemporaryRT(m_CameraColorBuffer, camera.pixelWidth, camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.ARGBHalf, RenderTextureReadWrite.Linear, 1, true);
+                    cmd.GetTemporaryRT(m_CameraColorBuffer, camera.pixelWidth, camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.ARGBHalf, RenderTextureReadWrite.sRGB, 1, true);
                     cmd.GetTemporaryRT(m_CameraDepthStencilBuffer, camera.pixelWidth, camera.pixelHeight, 24, FilterMode.Point, RenderTextureFormat.Depth);
-                    cmd.GetTemporaryRT(m_GBuffer[0], camera.pixelWidth, camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB, 1, true);
+                    cmd.GetTemporaryRT(m_GBuffer[0], camera.pixelWidth, camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear, 1, true);
                     cmd.GetTemporaryRT(m_GBuffer[1], camera.pixelWidth, camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear, 1, true);
                     cmd.GetTemporaryRT(m_GBuffer[2], camera.pixelWidth, camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.ARGB2101010, RenderTextureReadWrite.Linear, 1, true);
                     cmd.SetRenderTarget(m_GBufferRT, m_CameraDepthStencilBufferRT);
@@ -72,6 +72,17 @@ namespace ShadowRenderPipeline
                 settings.inputFilter.SetQueuesOpaque();
                 context.DrawRenderers(ref settings);
 
+                using (var cmd = new CommandBuffer { name = "Deferred Lighting" })
+                {
+                   // cmd.SetRenderTarget(m_CameraColorBufferRT);
+                    cmd.Blit(m_GBufferRT[0], m_CameraColorBufferRT, m_DeferredLightingMat);
+                    cmd.ReleaseTemporaryRT(m_GBuffer[0]);
+                    cmd.ReleaseTemporaryRT(m_GBuffer[1]);
+                    cmd.ReleaseTemporaryRT(m_GBuffer[2]);
+                    cmd.SetRenderTarget(m_CameraColorBufferRT, m_CameraDepthStencilBufferRT);
+                    context.ExecuteCommandBuffer(cmd);
+                }
+
                 // Draw skybox
                 context.DrawSkybox(camera);
 
@@ -80,18 +91,14 @@ namespace ShadowRenderPipeline
                 settings.inputFilter.SetQueuesTransparent();
                 context.DrawRenderers(ref settings);
 
-                using (var cmd = new CommandBuffer() {name = "Blit"})
+                using (var cmd = new CommandBuffer { name = "Release buffers" })
                 {
-                    cmd.SetGlobalTexture(m_GBuffer[1], m_GBufferRT[1]);
-                    cmd.Blit(m_GBuffer[0], BuiltinRenderTextureType.CameraTarget, m_DeferredLighting);
+                    cmd.Blit(m_CameraColorBufferRT, BuiltinRenderTextureType.CameraTarget);
                     cmd.ReleaseTemporaryRT(m_CameraColorBuffer);
                     cmd.ReleaseTemporaryRT(m_CameraDepthStencilBuffer);
-                    cmd.ReleaseTemporaryRT(m_GBuffer[0]);
-                    cmd.ReleaseTemporaryRT(m_GBuffer[1]);
-                    cmd.ReleaseTemporaryRT(m_GBuffer[2]);
                     context.ExecuteCommandBuffer(cmd);
                 }
-
+                
                 context.Submit();
             }
         }
@@ -103,6 +110,7 @@ namespace ShadowRenderPipeline
             // be doing some sort of per-object light setups, but here we go for simplest possible
             // approach.
             const int kMaxLights = 8;
+
             // Just take first 8 lights. Possible improvements: sort lights by intensity or distance
             // to the viewer, so that "most important" lights in the scene are picked, and not the 8
             // that happened to be first.
@@ -129,6 +137,7 @@ namespace ShadowRenderPipeline
                     var pos = light.localToWorld.GetColumn(3);
                     lightPositions[i] = new Vector4(pos.x, pos.y, pos.z, 1);
                 }
+
                 // attenuation set in a way where distance attenuation can be computed:
                 //  float lengthSq = dot(toLight, toLight);
                 //  float atten = 1.0 / (1.0 + lengthSq * LightAtten[i].z);
@@ -170,7 +179,7 @@ namespace ShadowRenderPipeline
             GetShaderConstantsFromNormalizedSH(ref ambientSH, shConstants);
 
             // setup global shader variables to contain all the data computed above
-            CommandBuffer cmd = new CommandBuffer {name = "Setup light shader variables" };
+            CommandBuffer cmd = new CommandBuffer { name = "Setup light shader variables" };
             cmd.SetGlobalVectorArray("globalLightColor", lightColors);
             cmd.SetGlobalVectorArray("globalLightPos", lightPositions);
             cmd.SetGlobalVectorArray("globalLightSpotDir", lightSpotDirections);
@@ -194,12 +203,14 @@ namespace ShadowRenderPipeline
                 outCoefficients[channelIdx].y = ambientProbe[channelIdx, 1];
                 outCoefficients[channelIdx].z = ambientProbe[channelIdx, 2];
                 outCoefficients[channelIdx].w = ambientProbe[channelIdx, 0] - ambientProbe[channelIdx, 6];
+
                 // Quadratic polynomials
                 outCoefficients[channelIdx + 3].x = ambientProbe[channelIdx, 4];
                 outCoefficients[channelIdx + 3].y = ambientProbe[channelIdx, 5];
                 outCoefficients[channelIdx + 3].z = ambientProbe[channelIdx, 6] * 3.0f;
                 outCoefficients[channelIdx + 3].w = ambientProbe[channelIdx, 7];
             }
+
             // Final quadratic polynomial
             outCoefficients[6].x = ambientProbe[0, 8];
             outCoefficients[6].y = ambientProbe[1, 8];

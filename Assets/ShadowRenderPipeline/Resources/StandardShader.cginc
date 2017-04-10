@@ -122,46 +122,47 @@ float _Glossiness;
 // Fragment shader
 void frag(v2f i, out half4 outGBuffer0 : SV_Target0, out half4 outGBuffer1 : SV_Target1, out half4 outGBuffer2 : SV_Target2)
 {
-    i.normalWS = normalize(i.normalWS);
-    half3 eyeVec = normalize(i.positionWS - _WorldSpaceCameraPos);
+    // i.normalWS = normalize(i.normalWS);
+    // half3 eyeVec = normalize(i.positionWS - _WorldSpaceCameraPos);
 
     // Sample textures
-    half4 diffuseAlbedo = tex2D(_MainTex, i.uv) * _Color;
+    // half4 diffuseAlbedo = tex2D(_MainTex, i.uv) * _Color;
+    // `x` contains metallic, `y` contains smoothness
     half2 metalSmooth;
-#ifdef _METALLICGLOSSMAP
-    metalSmooth = tex2D(_MetallicGlossMap, i.uv).ra;
-#else
-    metalSmooth.r = _Metallic;
-    metalSmooth.g = _Glossiness;
-#endif
+    #ifdef _METALLICGLOSSMAP
+        metalSmooth = tex2D(_MetallicGlossMap, i.uv).ra;
+    #else
+        metalSmooth.r = _Metallic;
+        metalSmooth.g = _Glossiness;
+    #endif
 
     // Fill in surface input structure
-    SurfaceInputData s;
-    s.diffColor = DiffuseAndSpecularFromMetallic(diffuseAlbedo.rgb, metalSmooth.x, s.specColor, s.oneMinusReflectivity);
-    s.smoothness = metalSmooth.y;
+    // SurfaceInputData s;
+    // s.diffColor = DiffuseAndSpecularFromMetallic(diffuseAlbedo.rgb, metalSmooth.x, s.specColor, s.oneMinusReflectivity);
+    // s.smoothness = metalSmooth.y;
 
-    // Ambient lighting
-    half4 color = half4(0, 0, 0, diffuseAlbedo.a);
-    UnityLight light;
-    light.color = 0;
-    light.dir = 0;
-    UnityIndirect indirect;
-    indirect.diffuse = EvaluateSH(i.normalWS);
-    indirect.specular = 0;
-    color.rgb += BRDF1_Unity_PBS(s.diffColor, s.specColor, s.oneMinusReflectivity, s.smoothness, i.normalWS, -eyeVec, light, indirect);
+    // // Ambient lighting
+    // half4 color = half4(0, 0, 0, diffuseAlbedo.a);
+    // UnityLight light;
+    // light.color = 0;
+    // light.dir = 0;
+    // UnityIndirect indirect;
+    // indirect.diffuse = EvaluateSH(i.normalWS);
+    // indirect.specular = 0;
+    // color.rgb += BRDF1_Unity_PBS(s.diffColor, s.specColor, s.oneMinusReflectivity, s.smoothness, i.normalWS, -eyeVec, light, indirect);
 
-    // Add illumination from all lights
-    for (int il = 0; il < globalLightCount.x; ++il)
-    {
-        color.rgb += EvaluateOneLight(il, i.positionWS, i.normalWS, eyeVec, s);
-    }
+    // // Add illumination from all lights
+    // for (int il = 0; il < globalLightCount.x; ++il)
+    // {
+    //     color.rgb += EvaluateOneLight(il, i.positionWS, i.normalWS, eyeVec, s);
+    // }
 
     UnityStandardData data;
-    data.diffuseColor = s.diffColor;
+    data.diffuseColor = tex2D(_MainTex, i.uv) * _Color;
     data.occlusion = 0.0;
-    data.specularColor = s.specColor;
-    data.smoothness = s.smoothness;
-    data.normalWorld = i.normalWS;
+    data.specularColor = lerp (unity_ColorSpaceDielectricSpec.rgb, data.diffuseColor, metalSmooth.x);
+    data.smoothness = metalSmooth.y;
+    data.normalWorld = normalize(i.normalWS);
     UnityStandardDataToGbuffer(data, outGBuffer0, outGBuffer1, outGBuffer2);
 }
 
