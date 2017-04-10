@@ -3,6 +3,8 @@
 #include "UnityStandardUtils.cginc"
 #include "UnityGBuffer.cginc"
 
+float4x4 _InverseView;
+
 // Global lighting data (setup from C# code once per frame).
 CBUFFER_START(GlobalLightData)
     // The variables are very similar to built-in unity_LightColor, unity_LightPosition,
@@ -17,33 +19,10 @@ int4 globalLightCount;
 float4 globalSH[7];
 CBUFFER_END
 
-struct appdata
-{
-	float4 vertex : POSITION;
-	float2 uv : TEXCOORD0;
-};
-
-struct v2f
-{
-	float4 uv : TEXCOORD0;
-	float4 vertex : SV_POSITION;
-	float3 ray : TEXCOORD1;
-};
-
-v2f vert (appdata v)
-{
-	v2f o;
-	o.vertex = UnityObjectToClipPos(v.vertex);
-	// o.uv = v.uv;
-	o.uv = ComputeScreenPos(o.vertex);
-	o.ray = UnityObjectToViewPos(v.vertex) * float3(-1,-1,1);
-	return o;
-}
-
 sampler2D _MainTex;
 sampler2D _GBufferTexture1;
 sampler2D _GBufferTexture2;
-UNITY_DECLARE_DEPTH_TEXTURE(_CameraDepthTexture);
+sampler2D_float _CameraDepthTexture;
 
 // Surface inputs for evaluating Standard BRDF
 struct SurfaceInputData
@@ -108,26 +87,24 @@ half3 EvaluateSH(half3 n)
     return res;
 }
 
-half4 frag (v2f i) : SV_Target
+half4 frag (v2f_img i) : SV_Target
 {
-	i.ray = i.ray * (_ProjectionParams.z / i.ray.z);
-    float2 uv = i.uv.xy / i.uv.w;
+    float depth = LinearEyeDepth(tex2D(_CameraDepthTexture, i.uv).x);
+    float2 p11_22 = float2(unity_CameraProjection._11, unity_CameraProjection._22);
+    float2 uv = i.uv;
+    float3 vpos = float3((uv * 2 - 1) / p11_22, -1) * depth;
+    float4 wpos = mul(_InverseView, float4(vpos, 1));
 
-	// read depth and reconstruct world position
-    float depth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, i.uv);
-    depth = Linear01Depth(depth);
-    float4 vpos = float4(i.ray * depth, 1);
-    float3 wpos = mul(unity_CameraToWorld, vpos).xyz;
     float3 eyeVec = normalize(wpos - _WorldSpaceCameraPos);
 
-	UnityStandardData data = UnityStandardDataFromGbuffer(tex2D(_MainTex, i.uv), tex2D(_GBufferTexture1, i.uv), tex2D(_GBufferTexture2, i.uv));
-	SurfaceInputData s;
-	s.diffColor = data.diffuseColor;
-	s.specColor = data.specularColor;
-	s.oneMinusReflectivity = 1 - SpecularStrength(data.specularColor.rgb);
-	s.smoothness = data.smoothness;
+    UnityStandardData data = UnityStandardDataFromGbuffer(tex2D(_MainTex, i.uv), tex2D(_GBufferTexture1, i.uv), tex2D(_GBufferTexture2, i.uv));
+    SurfaceInputData s;
+    s.diffColor = data.diffuseColor;
+    s.specColor = data.specularColor;
+    s.oneMinusReflectivity = 1 - SpecularStrength(data.specularColor.rgb);
+    s.smoothness = data.smoothness;
 
-	half4 color = half4(0.0, 0.0, 0.0, 1.0);
+    half4 color = half4(0.0, 0.0, 0.0, 1.0);
 
     // Ambient lighting
     UnityLight light;
@@ -144,5 +121,5 @@ half4 frag (v2f i) : SV_Target
         color.rgb += EvaluateOneLight(il, wpos, data.normalWorld, eyeVec, s);
     }
 
-	return color;
+    return color; 
 }

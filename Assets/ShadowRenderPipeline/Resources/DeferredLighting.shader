@@ -12,7 +12,7 @@
 		Pass
 		{
 			CGPROGRAM
-			#pragma vertex vert
+			#pragma vertex vert_img
 			#pragma fragment frag
 			#include "DeferredLighting.cginc"
 			ENDCG

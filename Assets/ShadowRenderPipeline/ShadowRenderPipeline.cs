@@ -1,4 +1,5 @@
 ﻿using System;
+using RayTracer.Runtime.Util;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
@@ -20,7 +21,7 @@ namespace ShadowRenderPipeline
         public ShadowRenderPipeline()
         {
             m_CameraColorBuffer = Shader.PropertyToID("_CameraColorTexture");
-            m_CameraDepthStencilBuffer = Shader.PropertyToID("_CameraDepthStencilBuffer");
+            m_CameraDepthStencilBuffer = Shader.PropertyToID("_CameraDepthTexture");
 
             m_CameraColorBufferRT = new RenderTargetIdentifier(m_CameraColorBuffer);
             m_CameraDepthStencilBufferRT = new RenderTargetIdentifier(m_CameraDepthStencilBuffer);
@@ -53,6 +54,7 @@ namespace ShadowRenderPipeline
                 // clear depth buffer
                 using (var cmd = new CommandBuffer { name = "Init G-Buffer" })
                 {
+                    cmd.SetGlobalMatrix("_InverseView", camera.cameraToWorldMatrix);
                     cmd.GetTemporaryRT(m_CameraColorBuffer, camera.pixelWidth, camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.ARGBHalf, RenderTextureReadWrite.sRGB, 1, true);
                     cmd.GetTemporaryRT(m_CameraDepthStencilBuffer, camera.pixelWidth, camera.pixelHeight, 24, FilterMode.Point, RenderTextureFormat.Depth);
                     cmd.GetTemporaryRT(m_GBuffer[0], camera.pixelWidth, camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear, 1, true);
@@ -74,7 +76,6 @@ namespace ShadowRenderPipeline
 
                 using (var cmd = new CommandBuffer { name = "Deferred Lighting" })
                 {
-                   // cmd.SetRenderTarget(m_CameraColorBufferRT);
                     cmd.Blit(m_GBufferRT[0], m_CameraColorBufferRT, m_DeferredLightingMat);
                     cmd.ReleaseTemporaryRT(m_GBuffer[0]);
                     cmd.ReleaseTemporaryRT(m_GBuffer[1]);
@@ -98,7 +99,7 @@ namespace ShadowRenderPipeline
                     cmd.ReleaseTemporaryRT(m_CameraDepthStencilBuffer);
                     context.ExecuteCommandBuffer(cmd);
                 }
-                
+
                 context.Submit();
             }
         }
