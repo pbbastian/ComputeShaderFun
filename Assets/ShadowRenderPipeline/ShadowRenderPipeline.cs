@@ -104,6 +104,23 @@ namespace ShadowRenderPipeline
             }
         }
 
+        private void DrawShadows(ref ScriptableRenderContext context, CullResults cullResults)
+        {
+            Matrix4x4 view, proj;
+            var settings = new DrawShadowsSettings(cullResults, 0);
+            var needsRendering = cullResults.ComputeSpotShadowMatricesAndCullingPrimitives(0, out view, out proj, out settings.splitData);
+            if (!needsRendering)
+                return;
+
+            using (var cmd = new CommandBuffer {name = "Setup Shadows"})
+            {
+                cmd.SetViewProjectionMatrices(view, proj);
+                context.ExecuteCommandBuffer(cmd);
+            }
+
+            context.DrawShadows(ref settings);
+        }
+
         // Setup lighting variables for shader to use
         private static void SetupLightShaderVariables(VisibleLight[] lights, ScriptableRenderContext context)
         {
