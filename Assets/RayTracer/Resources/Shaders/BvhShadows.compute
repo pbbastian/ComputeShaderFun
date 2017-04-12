@@ -210,7 +210,7 @@ static const uint _batchSize = 1;
 void PersistentBvhShadows(uint3 did : SV_DispatchThreadID, uint3 tid : SV_GroupThreadID, uint3 gid : SV_GroupID)
 {
 	uint2 size = (uint2) _Size;
-	uint2 clusterCount = size / _clusterSize;
+	uint2 clusterCount = (size+1) / _clusterSize;
 
 	if (did.x == 0 && did.y == 0)
 		_WorkCounter[0] = _ThreadGroupCount;

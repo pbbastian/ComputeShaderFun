@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using System;
+using System.Runtime.InteropServices;
 using Assets.RayTracer.Runtime.Util;
 using RayTracer.Runtime.Util;
 
@@ -22,6 +23,7 @@ namespace RayTracer.Runtime.ShaderPrograms.Types
         //}
     }
 
+    [Serializable]
     [StructLayout(LayoutKind.Explicit)]
     public struct AlignedBvhNode
     {

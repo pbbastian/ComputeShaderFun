@@ -20,8 +20,8 @@ float4 globalSH[7];
 CBUFFER_END
 
 sampler2D _MainTex;
-sampler2D _GBufferTexture1;
-sampler2D _GBufferTexture2;
+sampler2D _CameraGBufferTexture1;
+sampler2D _CameraGBufferTexture2;
 sampler2D_float _CameraDepthTexture;
 
 // Surface inputs for evaluating Standard BRDF
@@ -97,7 +97,7 @@ half4 frag (v2f_img i) : SV_Target
 
     float3 eyeVec = normalize(wpos - _WorldSpaceCameraPos);
 
-    UnityStandardData data = UnityStandardDataFromGbuffer(tex2D(_MainTex, i.uv), tex2D(_GBufferTexture1, i.uv), tex2D(_GBufferTexture2, i.uv));
+    UnityStandardData data = UnityStandardDataFromGbuffer(tex2D(_MainTex, i.uv), tex2D(_CameraGBufferTexture1, i.uv), tex2D(_CameraGBufferTexture2, i.uv));
     SurfaceInputData s;
     s.diffColor = data.diffuseColor;
     s.specColor = data.specularColor;

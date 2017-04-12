@@ -4,6 +4,7 @@ using RayTracer.Runtime.Util;
 
 namespace RayTracer.Runtime.ShaderPrograms.Types
 {
+    [Serializable]
     [StructLayout(LayoutKind.Sequential)]
     public struct IndexedTriangle
     {

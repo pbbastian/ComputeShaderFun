@@ -1,4 +1,6 @@
 ﻿using System;
+using RayTracer.Runtime;
+using RayTracer.Runtime.ShaderPrograms;
 using RayTracer.Runtime.Util;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
@@ -8,18 +10,26 @@ namespace ShadowRenderPipeline
 {
     public class ShadowRenderPipeline : IRenderPipeline
     {
+        private readonly ShadowRenderPipelineAsset m_Asset;
+        private DateTime m_BvhBuildDateTime;
+        private BvhContext m_BvhContext;
+
         readonly int m_CameraColorBuffer;
         readonly int m_CameraDepthStencilBuffer;
-        readonly int[] m_GBuffer = new int[3];
+        readonly int[] m_GBuffer = new int[4];
 
         RenderTargetIdentifier m_CameraColorBufferRT;
         RenderTargetIdentifier m_CameraDepthStencilBufferRT;
-        RenderTargetIdentifier[] m_GBufferRT = new RenderTargetIdentifier[3];
+        RenderTargetIdentifier[] m_GBufferRT = new RenderTargetIdentifier[4];
 
-        Material m_DeferredLightingMat;
+        private Material m_DeferredLightingMat;
+        private ComputeKernel m_ShadowKernel;
+        private StructuredBuffer<int> m_WorkCounterBuffer;
 
-        public ShadowRenderPipeline()
+        public ShadowRenderPipeline(ShadowRenderPipelineAsset asset)
         {
+            m_Asset = asset;
+
             m_CameraColorBuffer = Shader.PropertyToID("_CameraColorTexture");
             m_CameraDepthStencilBuffer = Shader.PropertyToID("_CameraDepthTexture");
 
@@ -27,17 +37,23 @@ namespace ShadowRenderPipeline
             m_CameraDepthStencilBufferRT = new RenderTargetIdentifier(m_CameraDepthStencilBuffer);
             for (var i = 0; i < m_GBuffer.Length; i++)
             {
-                m_GBuffer[i] = Shader.PropertyToID("_GBufferTexture" + i);
+                m_GBuffer[i] = Shader.PropertyToID("_CameraGBufferTexture" + i);
                 m_GBufferRT[i] = new RenderTargetIdentifier(m_GBuffer[i]);
             }
 
             m_DeferredLightingMat = new Material(Shader.Find("Hidden/DeferredLighting"));
+            m_ShadowKernel = BvhShadowsProgram.CreateKernel(BvhShadowsProgram.Variant.Persistent);
+            m_WorkCounterBuffer = new StructuredBuffer<int>(1, ShaderSizes.s_Int);
+            m_ShadowKernel.SetBuffer(BvhShadowsProgram.WorkCounter, m_WorkCounterBuffer);
+            m_ShadowKernel.SetValue(BvhShadowsProgram.ThreadGroupCount, 512);
         }
 
         public void Render(ScriptableRenderContext context, Camera[] cameras)
         {
             if (disposed)
                 throw new ObjectDisposedException(string.Format("{0} has been disposed. Do not call Render on disposed RenderLoops.", this));
+
+            UpdateBvhContext();
 
             foreach (var camera in cameras)
             {
@@ -55,11 +71,12 @@ namespace ShadowRenderPipeline
                 using (var cmd = new CommandBuffer { name = "Init G-Buffer" })
                 {
                     cmd.SetGlobalMatrix("_InverseView", camera.cameraToWorldMatrix);
-                    cmd.GetTemporaryRT(m_CameraColorBuffer, camera.pixelWidth, camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.ARGBHalf, RenderTextureReadWrite.sRGB, 1, true);
+                    cmd.GetTemporaryRT(m_CameraColorBuffer, camera.pixelWidth, camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.ARGBHalf, RenderTextureReadWrite.Linear, 1, true);
                     cmd.GetTemporaryRT(m_CameraDepthStencilBuffer, camera.pixelWidth, camera.pixelHeight, 24, FilterMode.Point, RenderTextureFormat.Depth);
                     cmd.GetTemporaryRT(m_GBuffer[0], camera.pixelWidth, camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear, 1, true);
                     cmd.GetTemporaryRT(m_GBuffer[1], camera.pixelWidth, camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear, 1, true);
                     cmd.GetTemporaryRT(m_GBuffer[2], camera.pixelWidth, camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.ARGB2101010, RenderTextureReadWrite.Linear, 1, true);
+                    cmd.GetTemporaryRT(m_GBuffer[3], camera.pixelWidth, camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.ARGBHalf, RenderTextureReadWrite.Linear, 1, true);
                     cmd.SetRenderTarget(m_GBufferRT, m_CameraDepthStencilBufferRT);
                     cmd.ClearRenderTarget(true, true, Color.black);
                     context.ExecuteCommandBuffer(cmd);
@@ -77,9 +94,27 @@ namespace ShadowRenderPipeline
                 using (var cmd = new CommandBuffer { name = "Deferred Lighting" })
                 {
                     cmd.Blit(m_GBufferRT[0], m_CameraColorBufferRT, m_DeferredLightingMat);
-                    cmd.ReleaseTemporaryRT(m_GBuffer[0]);
-                    cmd.ReleaseTemporaryRT(m_GBuffer[1]);
-                    cmd.ReleaseTemporaryRT(m_GBuffer[2]);
+                    cmd.SetRenderTarget(m_CameraColorBufferRT, m_CameraDepthStencilBufferRT);
+                    context.ExecuteCommandBuffer(cmd);
+                }
+
+                using (var cmd = new CommandBuffer { name = "Compute BVH shadows" })
+                {
+                    cmd.SetValue(m_ShadowKernel, BvhShadowsProgram.ZBufferParams, camera.GetZBufferParams(true));
+                    //Debug.Log(-(cull.visibleLights[0].localToWorld.GetColumn(2)));
+                    cmd.SetValue(m_ShadowKernel, BvhShadowsProgram.Light, new Vector3(-0.5f, -1, -0.012f));
+                    cmd.SetValue(m_ShadowKernel, BvhShadowsProgram.InverseView, camera.cameraToWorldMatrix);
+                    cmd.SetValue(m_ShadowKernel, BvhShadowsProgram.Projection, camera.projectionMatrix);
+                    cmd.SetValue(m_ShadowKernel, BvhShadowsProgram.Size, new Vector2(camera.pixelWidth, camera.pixelHeight));
+                    cmd.SetBuffer(m_ShadowKernel, BvhShadowsProgram.NodeBuffer, m_BvhContext.nodesBuffer);
+                    cmd.SetBuffer(m_ShadowKernel, BvhShadowsProgram.TriangleBuffer, m_BvhContext.trianglesBuffer);
+                    cmd.SetBuffer(m_ShadowKernel, BvhShadowsProgram.VertexBuffer, m_BvhContext.verticesBuffer);
+                    cmd.SetTexture(m_ShadowKernel, BvhShadowsProgram.MainTexture, m_CameraColorBufferRT);
+                    cmd.SetTexture(m_ShadowKernel, BvhShadowsProgram.DepthTexture, m_CameraDepthStencilBufferRT);
+                    cmd.SetTexture(m_ShadowKernel, BvhShadowsProgram.NormalTexture, m_GBufferRT[2]);
+                    cmd.SetTexture(m_ShadowKernel, BvhShadowsProgram.TargetTexture, m_GBufferRT[3]);
+                    cmd.DispatchCompute(m_ShadowKernel, 512, 1, 1);
+                    cmd.Blit(m_GBufferRT[3], m_CameraColorBufferRT);
                     cmd.SetRenderTarget(m_CameraColorBufferRT, m_CameraDepthStencilBufferRT);
                     context.ExecuteCommandBuffer(cmd);
                 }
@@ -95,12 +130,28 @@ namespace ShadowRenderPipeline
                 using (var cmd = new CommandBuffer { name = "Release buffers" })
                 {
                     cmd.Blit(m_CameraColorBufferRT, BuiltinRenderTextureType.CameraTarget);
+                    cmd.ReleaseTemporaryRT(m_GBuffer[0]);
+                    cmd.ReleaseTemporaryRT(m_GBuffer[1]);
+                    cmd.ReleaseTemporaryRT(m_GBuffer[2]);
+                    cmd.ReleaseTemporaryRT(m_GBuffer[3]);
                     cmd.ReleaseTemporaryRT(m_CameraColorBuffer);
                     cmd.ReleaseTemporaryRT(m_CameraDepthStencilBuffer);
                     context.ExecuteCommandBuffer(cmd);
                 }
 
                 context.Submit();
+            }
+        }
+
+        private void UpdateBvhContext()
+        {
+            if (m_BvhBuildDateTime < m_Asset.bvhBuildDateTime)
+            {
+                if (m_BvhContext != null)
+                    m_BvhContext.Dispose();
+
+                m_BvhContext = m_Asset.bvhContext.isValid ? m_Asset.bvhContext.Deserialize() : null;
+                m_BvhBuildDateTime = m_Asset.bvhBuildDateTime;
             }
         }
 
@@ -240,6 +291,10 @@ namespace ShadowRenderPipeline
 
         public void Dispose()
         {
+            if (m_BvhContext != null)
+                m_BvhContext.Dispose();
+            if (m_WorkCounterBuffer != null)
+                m_WorkCounterBuffer.Dispose();
             disposed = true;
         }
     }
