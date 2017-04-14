@@ -12,18 +12,18 @@ namespace RayTracer.Editor.UI
 {
     public abstract class AbstractRayTracerEditorWindow : EditorWindow
     {
-        private string[] m_AccelerationPopupNames;
-        private int m_AccelerationPopupValue;
-        private int[] m_AccelerationPopupValues;
-        private RayTracingProfileAsset m_Asset;
-        private RayTracingProfileAsset[] m_Assets;
-        private Texture2D m_BlackTexture;
-        private IRayTracingContext m_Context;
-        private bool m_FillWindow;
-        private string[] m_PopupNames;
-        private int[] m_PopupValues;
-        private Rect m_RemainingRect;
-        private RenderTexture m_RenderTexture;
+        string[] m_AccelerationPopupNames;
+        int m_AccelerationPopupValue;
+        int[] m_AccelerationPopupValues;
+        RayTracingProfileAsset m_Asset;
+        RayTracingProfileAsset[] m_Assets;
+        Texture2D m_BlackTexture;
+        IRayTracingContext m_Context;
+        bool m_FillWindow;
+        string[] m_PopupNames;
+        int[] m_PopupValues;
+        Rect m_RemainingRect;
+        RenderTexture m_RenderTexture;
 
         public RayTracingProfileAsset asset
         {
@@ -138,12 +138,12 @@ namespace RayTracer.Editor.UI
             Handles.DrawLines(lines);
         }
 
-        private void AssetDidChange(RayTracingProfileAsset previousAsset)
+        void AssetDidChange(RayTracingProfileAsset previousAsset)
         {
             Repaint();
         }
 
-        private void BuildScene()
+        void BuildScene()
         {
             var sw = new Stopwatch();
             sw.Start();
@@ -152,7 +152,7 @@ namespace RayTracer.Editor.UI
             Debug.LogFormat("Scene built in {0} seconds", sw.Elapsed.TotalSeconds);
         }
 
-        private void Render()
+        void Render()
         {
             var sw = new Stopwatch();
             sw.Start();

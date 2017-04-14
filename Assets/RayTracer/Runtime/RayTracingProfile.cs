@@ -6,9 +6,11 @@ namespace RayTracer.Runtime
     [Serializable]
     public class RayTracingProfile
     {
-        [SerializeField] private int m_RenderHeight = 480;
+        [SerializeField]
+        int m_RenderHeight = 480;
 
-        [SerializeField] private int m_RenderWidth = 640;
+        [SerializeField]
+        int m_RenderWidth = 640;
 
         public int renderWidth
         {

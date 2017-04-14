@@ -1,0 +1,239 @@
+#pragma kernel Shadows
+
+#define STATS
+
+#include "UnityCG.cginc"
+#include "Math.cginc"
+#include "Bvh.cginc"
+
+Texture2D<float4> _NormalTexture;
+UNITY_DECLARE_TEX2D_FLOAT(_DepthTexture);
+RWTexture2D<float4> _TargetTex;
+StructuredBuffer<Bvh::Node> _Nodes;
+StructuredBuffer<IndexedTriangle> _Triangles;
+StructuredBuffer<float4> _Vertices;
+float3 _Light;
+float2 _Size;
+float4x4 _Projection;
+float4x4 _InverseView;
+uint _ThreadGroupCount;
+RWStructuredBuffer<uint> _WorkCounter;
+
+static const int _stackSize = 32;
+static const int _entrypointSentinel = 2147483647;
+static const int _rayBatchSize = 64;
+
+interface IStatistics
+{
+	void BoxIntersection(int n);
+	void TriangleIntersection(int n);
+	void Push(int n);
+	void Pop(int n);
+};
+
+class Statistics : IStatistics
+{
+	int boxIntersections;
+	int triangleIntersections;
+	int pushes;
+	int pops;
+
+	void BoxIntersection(int n) { boxIntersections += n; }
+	void TriangleIntersection(int n) { triangleIntersections += n; }
+	void Push(int n) { pushes += n; }
+	void Pop(int n) { pops += n; }
+};
+
+Statistics MakeStatistics()
+{
+	Statistics stats;
+	stats.boxIntersections = 0;
+	stats.triangleIntersections = 0;
+	stats.pushes = 0;
+	stats.pops = 0;
+	return stats;
+}
+
+class FakeStatistics : IStatistics
+{
+	void BoxIntersection(int n) {}
+	void TriangleIntersection(int n) {}
+	void Push(int n) {}
+	void Pop(int n) {}
+};
+
+struct TraversalStats
+{
+	int boxIntersections;
+	int triangleIntersections;
+	int pushes;
+	int pops;
+};
+
+struct TraversalState
+{
+	Ray ray;
+	int nodeIndex;
+	int stackIndex;
+	float t;
+};
+
+TraversalState InitializeState(uint2 id, out float4 debug)
+{
+	TraversalState state;
+
+	float depth = LinearEyeDepth(_DepthTexture[id.xy].x);
+	float2 p11_22 = float2(_Projection._11, _Projection._22);
+	float2 uv = (((float2)id.xy + 0.5) / _Size);
+    float3 vpos = float3((uv * 2 - 1) / p11_22, -1) * depth;
+    float3 wpos = mul(_InverseView, float4(vpos, 1)).xyz;
+    float3 direction = normalize(wpos - _Light);
+    float3 normal = normalize(_NormalTexture[id.xy].rgb * 2 - 1);
+
+    state.ray = MakeRay(wpos + normal * 1e-3, -direction);
+    // state.normal = normal;
+    state.nodeIndex = 0;
+    state.stackIndex = 0;
+    state.t = 100000;
+
+    if (depth < 1e-3)
+    	state.t = 0;
+    if (dot(normal, direction) > 0)
+    	state.t = 0;
+
+    debug = float4(normal, 1);
+
+    return state;
+}
+
+void Traverse(inout TraversalState s, inout int traversalStack[_stackSize], inout FakeStatistics stats)
+{
+	while (s.nodeIndex != _entrypointSentinel)
+	{
+		while (s.nodeIndex >= 0 && s.nodeIndex != _entrypointSentinel)
+		{
+			Bvh::Node node = _Nodes[s.nodeIndex];
+
+			FloatMinMax tLeft  = IntersectAabb(node.leftBounds, s.ray);
+			FloatMinMax tRight = IntersectAabb(node.rightBounds, s.ray);
+
+			bool traverseLeft  = tLeft.min  <= tLeft.max  && tLeft.min  < s.t;
+			bool traverseRight = tRight.min <= tRight.max && tRight.min < s.t;
+			stats.BoxIntersection(2);
+
+			s.nodeIndex = node.left;
+
+			if (traverseLeft != traverseRight)
+			{
+				// If only a single child was intersected we simply go to that one
+				if (traverseRight)
+					s.nodeIndex = node.right;
+			}
+			else
+			{
+				if (!traverseLeft)
+				{
+					// If neither child was intersected we pop the stack
+					s.nodeIndex = traversalStack[s.stackIndex];
+					s.stackIndex--;
+					stats.Pop(1);
+				}
+				else
+				{
+					// If both children were intersected we push one onto the stack
+					s.nodeIndex = node.left;
+					int postponeIndex = node.right;
+					if (tRight.min < tLeft.min)
+					{
+						s.nodeIndex = node.right;
+						postponeIndex = node.left;
+					}
+
+					s.stackIndex++;
+					traversalStack[s.stackIndex] = postponeIndex;
+					stats.Push(1);
+				}
+			}
+		}
+
+		if (s.nodeIndex < 0)
+		{
+			s.nodeIndex = Bvh::DecodeLeaf(s.nodeIndex);
+			IndexedTriangle indices = _Triangles[s.nodeIndex];
+			Triangle tri = MakeTriangle(_Vertices[indices.v1].xyz, _Vertices[indices.v2].xyz, _Vertices[indices.v3].xyz);
+
+			// intersect triangle 
+			float3 candidateCoordinates;
+			float candidate_t = IntersectTriangle(tri, s.ray, candidateCoordinates);
+			stats.TriangleIntersection(1);
+
+			if (candidate_t > 0 && candidate_t < s.t)
+			{
+				s.t = candidate_t;
+				s.nodeIndex = _entrypointSentinel;
+			}
+			else
+			{
+				s.nodeIndex = traversalStack[s.stackIndex];
+				s.stackIndex--;
+				stats.Pop(1);
+			}
+		}
+	}
+}
+
+groupshared uint _localClusterId;
+groupshared uint _localClusterCount;
+
+static const uint2 _clusterSize = {4, 8};
+static const uint _batchSize = 1;
+
+[numthreads(_clusterSize.x, _clusterSize.y, 1)]
+void Shadows(uint3 did : SV_DispatchThreadID, uint3 tid : SV_GroupThreadID, uint3 gid : SV_GroupID)
+{
+	uint2 size = (uint2) _Size;
+	uint2 clusterCount = (size+1) / _clusterSize;
+
+	if (did.x == 0 && did.y == 0)
+		_WorkCounter[0] = _ThreadGroupCount;
+
+	int traversalStack[_stackSize] = {_entrypointSentinel, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+	FakeStatistics stats;// = MakeStatistics();
+	
+	if (tid.x == 0 && tid.y == 0)
+	{
+		_localClusterId = gid.x * _batchSize;
+		_localClusterCount = _batchSize;
+	}
+
+	while (true)
+	{
+		if (_localClusterId >= (clusterCount.x * clusterCount.y))
+			break;
+
+		uint2 id;
+		id.x = (_localClusterId % clusterCount.x) * _clusterSize.x + tid.x;
+		id.y = (_localClusterId / clusterCount.x) * _clusterSize.y + tid.y;
+
+		if (id.x >= size.x || id.y >= size.y)
+			continue;
+
+		float visibility = 1.0;
+		float4 debug;
+		TraversalState s = InitializeState(id, debug);
+		Traverse(s, traversalStack, stats);
+
+		if (s.t < 100000)
+			visibility *= 0.0;
+		else
+		    visibility *= 1.0;
+
+		_TargetTex[id.xy] = visibility;
+
+		if (tid.x == 0 && tid.y == 0)
+		{
+			InterlockedAdd(_WorkCounter[0], 1, _localClusterId);
+		}
+	}
+}

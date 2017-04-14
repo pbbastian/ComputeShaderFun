@@ -165,7 +165,7 @@ void Traverse(inout TraversalState s, inout int traversalStack[_stackSize], inou
 			stats.TriangleIntersection(1);
 
 			if (candidate_t > 0 && candidate_t < s.t)
-			{
+			{ 
 				s.t = candidate_t;
 				s.nodeIndex = _entrypointSentinel;
 			}

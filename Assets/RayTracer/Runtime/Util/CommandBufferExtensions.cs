@@ -101,7 +101,12 @@ namespace RayTracer.Runtime.Util
 
         public static void SetValue(this CommandBuffer cb, ComputeKernel kernel, ShaderParamDescriptor<Matrix4x4> descriptor, Matrix4x4 val)
         {
-            cb.SetComputeFloatParams(kernel.shader, descriptor.name, val.m00, val.m10, val.m20, val.m30,
+            cb.SetComputeMatrix4x4Param(kernel.shader, descriptor.name, val);
+        }
+
+        public static void SetComputeMatrix4x4Param(this CommandBuffer cb, ComputeShader shader, string name, Matrix4x4 val)
+        {
+            cb.SetComputeFloatParams(shader, name, val.m00, val.m10, val.m20, val.m30,
                                      val.m01, val.m11, val.m21, val.m31,
                                      val.m02, val.m12, val.m22, val.m32,
                                      val.m03, val.m13, val.m23, val.m33);

@@ -5,8 +5,8 @@ namespace RayTracer.Runtime
 {
     public class BvhRayTracingContext : IRayTracingContext
     {
-        private BvhContext m_BvhContext;
-        private BvhRayTracerProgram m_Shader;
+        BvhContext m_BvhContext;
+        BvhRayTracerProgram m_Shader;
 
         public BvhRayTracingContext()
         {

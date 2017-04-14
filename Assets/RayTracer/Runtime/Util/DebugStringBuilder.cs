@@ -6,7 +6,7 @@ namespace Assets.RayTracer.Runtime.Util
 {
     public class DebugStringBuilder : IEnumerable<string>
     {
-        private List<string> m_Items = new List<string>();
+        List<string> m_Items = new List<string>();
 
         IEnumerator IEnumerable.GetEnumerator()
         {

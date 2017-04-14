@@ -8,15 +8,15 @@ namespace RayTracer.Runtime.ShaderPrograms
 {
     public class BvhConstructProgram
     {
-        private const string kKeys = "_keys";
-        private const string kLeafBounds = "_leafBounds";
-        private const string kNodes = "_nodes";
-        private const string kParentIndices = "_parentIndices";
-        private const string kInternalNodeCount = "_internalNodeCount";
+        const string kKeys = "_keys";
+        const string kLeafBounds = "_leafBounds";
+        const string kNodes = "_nodes";
+        const string kParentIndices = "_parentIndices";
+        const string kInternalNodeCount = "_internalNodeCount";
 
-        private int m_KernelIndex;
-        private ComputeShader m_Shader;
-        private int m_SizeX;
+        int m_KernelIndex;
+        ComputeShader m_Shader;
+        int m_SizeX;
 
         public BvhConstructProgram()
         {

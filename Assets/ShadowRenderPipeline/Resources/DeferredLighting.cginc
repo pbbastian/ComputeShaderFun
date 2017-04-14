@@ -22,6 +22,7 @@ CBUFFER_END
 sampler2D _MainTex;
 sampler2D _CameraGBufferTexture1;
 sampler2D _CameraGBufferTexture2;
+sampler2D _CameraGBufferTexture3;
 sampler2D_float _CameraDepthTexture;
 
 // Surface inputs for evaluating Standard BRDF
@@ -115,10 +116,12 @@ half4 frag (v2f_img i) : SV_Target
     indirect.specular = 0;
     color.rgb += BRDF1_Unity_PBS(s.diffColor, s.specColor, s.oneMinusReflectivity, s.smoothness, data.normalWorld, -eyeVec, light, indirect);
 
+    float visibility = tex2D(_CameraGBufferTexture3, i.uv).r;
+
     // Add illumination from all lights
     for (int il = 0; il < globalLightCount.x; ++il)
     {
-        color.rgb += EvaluateOneLight(il, wpos, data.normalWorld, eyeVec, s);
+        color.rgb += EvaluateOneLight(il, wpos, data.normalWorld, eyeVec, s) * visibility;
     }
 
     return color; 

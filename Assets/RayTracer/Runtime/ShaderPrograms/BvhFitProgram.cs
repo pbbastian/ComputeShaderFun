@@ -7,14 +7,14 @@ namespace RayTracer.Runtime.ShaderPrograms
 {
     public class BvhFitProgram
     {
-        private const string kParentIndices = "_parentIndices";
-        private const string kNodeCounters = "_nodeCounters";
-        private const string kNodes = "_nodes";
-        private const string kInternalNodeCount = "_internalNodeCount";
+        const string kParentIndices = "_parentIndices";
+        const string kNodeCounters = "_nodeCounters";
+        const string kNodes = "_nodes";
+        const string kInternalNodeCount = "_internalNodeCount";
 
-        private int m_KernelIndex;
-        private ComputeShader m_Shader;
-        private int m_SizeX;
+        int m_KernelIndex;
+        ComputeShader m_Shader;
+        int m_SizeX;
 
         public BvhFitProgram()
         {

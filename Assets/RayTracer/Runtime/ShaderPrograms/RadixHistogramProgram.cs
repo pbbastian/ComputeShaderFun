@@ -6,14 +6,14 @@ namespace RayTracer.Runtime.ShaderPrograms
 {
     public class RadixHistogramProgram
     {
-        private const string kKeyBuffer = "g_KeyBuffer";
-        private const string kHistogramBuffer = "g_HistogramBuffer";
-        private const string kItemCount = "g_ItemCount";
-        private const string kKeyShift = "g_KeyShift";
+        const string kKeyBuffer = "g_KeyBuffer";
+        const string kHistogramBuffer = "g_HistogramBuffer";
+        const string kItemCount = "g_ItemCount";
+        const string kKeyShift = "g_KeyShift";
 
-        private int m_KernelIndex;
-        private ComputeShader m_Shader;
-        private int m_SizeX;
+        int m_KernelIndex;
+        ComputeShader m_Shader;
+        int m_SizeX;
 
         public RadixHistogramProgram()
         {

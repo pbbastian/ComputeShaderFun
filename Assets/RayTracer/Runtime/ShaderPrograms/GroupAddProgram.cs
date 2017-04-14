@@ -6,12 +6,12 @@ namespace RayTracer.Runtime.ShaderPrograms
 {
     public class GroupAddProgram
     {
-        private const string kPerThreadBuffer = "g_PerThreadBuffer";
-        private const string kPerGroupBuffer = "g_PerGroupBuffer";
-        private const string kLimit = "g_Limit";
-        private const string kOffset = "g_Offset";
-        private int m_KernelIndex;
-        private ComputeShader m_Shader;
+        const string kPerThreadBuffer = "g_PerThreadBuffer";
+        const string kPerGroupBuffer = "g_PerGroupBuffer";
+        const string kLimit = "g_Limit";
+        const string kOffset = "g_Offset";
+        int m_KernelIndex;
+        ComputeShader m_Shader;
 
         public GroupAddProgram(WarpSize warpSize)
         {

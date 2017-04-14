@@ -7,16 +7,16 @@ namespace RayTracer.Runtime.ShaderPrograms
 {
     public class LeafReorderProgram
     {
-        private const string kIndices = "_indices";
-        private const string kBoundsInput = "_boundsInput";
-        private const string kBoundsOutput = "_boundsOutput";
-        private const string kTrianglesInput = "_trianglesInput";
-        private const string kTrianglesOutput = "_trianglesOutput";
-        private const string kLimit = "_limit";
+        const string kIndices = "_indices";
+        const string kBoundsInput = "_boundsInput";
+        const string kBoundsOutput = "_boundsOutput";
+        const string kTrianglesInput = "_trianglesInput";
+        const string kTrianglesOutput = "_trianglesOutput";
+        const string kLimit = "_limit";
 
-        private int m_KernelIndex;
-        private ComputeShader m_Shader;
-        private int m_SizeX;
+        int m_KernelIndex;
+        ComputeShader m_Shader;
+        int m_SizeX;
 
         public LeafReorderProgram()
         {

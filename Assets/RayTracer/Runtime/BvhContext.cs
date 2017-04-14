@@ -38,7 +38,7 @@ namespace RayTracer.Runtime
             return serializedContext;
         }
 
-        private T[] SerializeBuffer<T>(StructuredBuffer<T> buffer) where T : struct
+        T[] SerializeBuffer<T>(StructuredBuffer<T> buffer) where T : struct
         {
             if (buffer == null)
                 return null;

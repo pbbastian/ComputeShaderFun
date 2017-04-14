@@ -5,13 +5,13 @@ namespace RayTracer.Runtime.ShaderPrograms
 {
     public class RadixSortProgram
     {
-        private RadixCountProgram m_CountProgram;
-        private GlobalScanProgram m_GlobalScanProgram;
-        private RadixHistogramProgram m_HistogramProgram;
-        private RadixReorderProgram m_ReorderProgram;
-        private ScanProgram m_ScanProgram;
-        private SequenceProgram m_SequenceProgram;
-        private ZeroProgram m_ZeroProgram;
+        RadixCountProgram m_CountProgram;
+        GlobalScanProgram m_GlobalScanProgram;
+        RadixHistogramProgram m_HistogramProgram;
+        RadixReorderProgram m_ReorderProgram;
+        ScanProgram m_ScanProgram;
+        SequenceProgram m_SequenceProgram;
+        ZeroProgram m_ZeroProgram;
 
         public RadixSortProgram(WarpSize warpSize)
         {

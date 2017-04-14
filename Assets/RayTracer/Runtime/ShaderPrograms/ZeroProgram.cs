@@ -6,11 +6,11 @@ namespace RayTracer.Runtime.ShaderPrograms
 {
     public class ZeroProgram
     {
-        private const string kBuffer = "g_Buffer";
+        const string kBuffer = "g_Buffer";
 
-        private int m_KernelIndex;
-        private ComputeShader m_Shader;
-        private int m_SizeX;
+        int m_KernelIndex;
+        ComputeShader m_Shader;
+        int m_SizeX;
 
         public ZeroProgram()
         {

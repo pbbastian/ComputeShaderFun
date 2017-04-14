@@ -19,9 +19,9 @@ namespace RayTracer.Editor.Tests
         {
             get
             {
-                var counts = new[] {16, 256, 1024, 1025, 2345, 9123, 50965, 150101};
-                var seeds = new[] {64589, 12309222, 54443333, 20694, 160792, 12345789};
-                var warpSizes = new List<WarpSize> {WarpSize.Warp16, WarpSize.Warp32};
+                var counts = new[] { 16, 256, 1024, 1025, 2345, 9123, 50965, 150101 };
+                var seeds = new[] { 64589, 12309222, 54443333, 20694, 160792, 12345789 };
+                var warpSizes = new List<WarpSize> { WarpSize.Warp16, WarpSize.Warp32 };
                 if (SystemInfo.graphicsDeviceVendorID != 0x10DE)
                     warpSizes.Add(WarpSize.Warp64);
 
@@ -29,8 +29,8 @@ namespace RayTracer.Editor.Tests
                     from count in counts
                     from warpSize in warpSizes
                     from seed in seeds
-                    where count <= Math.Pow((int) warpSize * ((int) warpSize - 1), 2)
-                    select new TestData {count = count, seed = seed, warpSize = warpSize};
+                    where count <= Math.Pow((int)warpSize * ((int)warpSize - 1), 2)
+                    select new TestData { count = count, seed = seed, warpSize = warpSize };
 
                 return tests.AsNamedTestCase();
             }
@@ -88,14 +88,14 @@ namespace RayTracer.Editor.Tests
                     //for (var i = 0; i < scannedInputHistogram.Length; i++)
                     //    scannedInputHistogram[i] = inputHistogram.Take(i).Sum();
 
-
                     //Debug.Log("Input histogram: " + string.Join(", ", inputHistogram.Select((x, i) => string.Format("{0}={1}", i, x)).ToArray()));
                     //Debug.Log("Scanned input histogram: " + string.Join(", ", scannedInputHistogram.Select((x, i) => string.Format("{0}={1}", i, x)).ToArray()));
 
                     var outputHistogram = new int[output.Length];
                     foreach (var x in output)
-                        if (x < 0 || x >= outputHistogram.Length)
-                            outputHistogram = outputHistogram; //Debug.Log("Out of range");
+                        if (x < 0 || x >= outputHistogram.Length) { }
+
+//                            outputHistogram = outputHistogram; //Debug.Log("Out of range");
                         else
                             outputHistogram[x]++;
 
@@ -117,8 +117,10 @@ namespace RayTracer.Editor.Tests
                             sb.Append(string.Format("{0}:{1}={2}:{3}  ", j, index, scannedInputHistogram[index], histogram[index]));
                         }
                         Debug.Log(sb.ToString());
+
                         // Debug.LogFormat("{2} ({0}) = {1}", i.ToString().PadLeft(2, '0'), string.Join(", ", histogram.Skip(i * input.Length).Take(input.Length).Select(x => x.ToString()).ToArray()), Convert.ToString(i, 2).PadLeft(4, '0'));
                     }
+#if false
                     if (false)
                         for (var i = 0; i < 16; i++)
                         for (var j = 0; j < input.Length; j++)
@@ -126,6 +128,7 @@ namespace RayTracer.Editor.Tests
                             if (histogram[i * input.Length + j] == 1 && input[j] != i)
                                 Debug.LogError(string.Format("input[{0}] should be {1} but is {2}", j, i, input[j]));
                         }
+#endif
                     Assert.AreEqual(scannedInputHistogram, histogram);
                 }
 
@@ -143,9 +146,9 @@ namespace RayTracer.Editor.Tests
             {
                 return new DebugStringBuilder
                 {
-                    {"count", count},
-                    {"warpSize", warpSize},
-                    {"seed", seed}
+                    { "count", count },
+                    { "warpSize", warpSize },
+                    { "seed", seed }
                 }.ToString();
             }
         }

@@ -5,14 +5,14 @@ namespace RayTracer.Runtime.ShaderPrograms
 {
     public class TransformProgram
     {
-        private static readonly int s_VerticesId = Shader.PropertyToID("_vertices");
+        static readonly int s_VerticesId = Shader.PropertyToID("_vertices");
         //private static readonly int s_NormalsId = Shader.PropertyToID("_normals");
-        private static readonly int s_ObjectIndicesId = Shader.PropertyToID("_objectIndices");
-        private static readonly int s_TransformsId = Shader.PropertyToID("_transforms");
+        static readonly int s_ObjectIndicesId = Shader.PropertyToID("_objectIndices");
+        static readonly int s_TransformsId = Shader.PropertyToID("_transforms");
 
-        private int m_KernelIndex;
-        private ComputeShader m_Shader;
-        private int m_SizeX;
+        int m_KernelIndex;
+        ComputeShader m_Shader;
+        int m_SizeX;
 
         public TransformProgram()
         {

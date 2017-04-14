@@ -5,10 +5,12 @@ namespace RayTracer.Runtime.Util
 {
     public class ComputeKernel
     {
-        private Int3 m_ThreadGroupSize;
+        Int3 m_ThreadGroupSize;
+        string m_KernelName;
 
         public ComputeKernel(string fileName, string kernelName)
         {
+            m_KernelName = kernelName;
             shader = Resources.Load<ComputeShader>(fileName);
             index = shader.FindKernel(kernelName);
 
@@ -40,6 +42,11 @@ namespace RayTracer.Runtime.Util
         public void Dispatch(ComputeBuffer argsBuffer, uint argsOffset = 0)
         {
             shader.DispatchIndirect(index, argsBuffer, argsOffset);
+        }
+
+        public bool isValid
+        {
+            get { return shader.HasKernel(m_KernelName); }
         }
 
 

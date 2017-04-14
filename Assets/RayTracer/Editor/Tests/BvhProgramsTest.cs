@@ -30,7 +30,7 @@ namespace RayTracer.Editor.Tests
             }
         }
 
-        private void GenerateKeysAndBounds(TestData data, out int[] keys, out AlignedAabb[] leafBounds)
+        void GenerateKeysAndBounds(TestData data, out int[] keys, out AlignedAabb[] leafBounds)
         {
             var random = new Random(data.seed);
             keys = new int[data.keyCount];
@@ -82,7 +82,7 @@ namespace RayTracer.Editor.Tests
         {
             var constructProgram = new BvhConstructProgram();
             var fitProgram = new BvhFitProgram();
-            var zeroProgram = new ZeroProgram();
+//            var zeroProgram = new ZeroProgram();
 
             int[] keys;
             AlignedAabb[] leafBounds;
@@ -114,7 +114,7 @@ namespace RayTracer.Editor.Tests
             AssertLeafBounds(nodes, leafBounds);
         }
 
-        private void AssertVisitedOnce(AlignedBvhNode[] nodes, int[] keys, int[] parentIndices)
+        void AssertVisitedOnce(AlignedBvhNode[] nodes, int[] keys, int[] parentIndices)
         {
             var nodeVisits = new int[nodes.Length];
             var leafVisits = new int[keys.Length];
@@ -142,7 +142,7 @@ namespace RayTracer.Editor.Tests
             }
         }
 
-        private void AssertLeafBounds(AlignedBvhNode[] nodes, AlignedAabb[] leafBounds)
+        void AssertLeafBounds(AlignedBvhNode[] nodes, AlignedAabb[] leafBounds)
         {
             TraverseTreeDepthFirst(nodes, 0, (index, isLeaf) =>
             {
@@ -157,7 +157,7 @@ namespace RayTracer.Editor.Tests
             });
         }
 
-        private void AssertUpTraversalPossible(AlignedBvhNode[] nodes, int[] keys, int[] parentIndices)
+        void AssertUpTraversalPossible(AlignedBvhNode[] nodes, int[] keys, int[] parentIndices)
         {
             var maxLevels = nodes.Length;
             var levelMaxCount = 0;
@@ -176,7 +176,7 @@ namespace RayTracer.Editor.Tests
             }
         }
 
-        private void AssertBounds(AlignedBvhNode[] nodes, AlignedAabb[] leafBounds)
+        void AssertBounds(AlignedBvhNode[] nodes, AlignedAabb[] leafBounds)
         {
             TraverseTreeDepthFirst(nodes, 0, (index, isLeaf) =>
             {

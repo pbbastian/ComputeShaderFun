@@ -13,11 +13,11 @@ namespace RayTracer.Runtime.ShaderPrograms
         public static readonly int TrianglesId = Shader.PropertyToID("_triangles");
         public static readonly int VerticesId = Shader.PropertyToID("_vertices");
         public static readonly int ResultId = Shader.PropertyToID("_result");
-        private int m_KernelIndex;
+        int m_KernelIndex;
 
-        private ComputeShader m_Shader;
-        private int m_SizeX;
-        private int m_SizeY;
+        ComputeShader m_Shader;
+        int m_SizeX;
+        int m_SizeY;
 
         public BvhRayTracerProgram()
         {

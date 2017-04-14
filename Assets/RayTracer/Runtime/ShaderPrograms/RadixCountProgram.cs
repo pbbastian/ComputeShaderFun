@@ -6,16 +6,16 @@ namespace RayTracer.Runtime.ShaderPrograms
 {
     public class RadixCountProgram
     {
-        private const string kKeyBuffer = "g_KeyBuffer";
-        private const string kCountBuffer = "g_CountBuffer";
-        private const string kSectionSize = "g_SectionSize";
-        private const string kKeyShift = "g_KeyShift";
-        private const string kItemCount = "g_ItemCount";
+        const string kKeyBuffer = "g_KeyBuffer";
+        const string kCountBuffer = "g_CountBuffer";
+        const string kSectionSize = "g_SectionSize";
+        const string kKeyShift = "g_KeyShift";
+        const string kItemCount = "g_ItemCount";
 
-        private static readonly int s_GroupCou = 1024;
-        private int m_KernelIndex;
-        private ComputeShader m_Shader;
-        private int m_SizeX;
+        static readonly int s_GroupCou = 1024;
+        int m_KernelIndex;
+        ComputeShader m_Shader;
+        int m_SizeX;
 
         public RadixCountProgram()
         {

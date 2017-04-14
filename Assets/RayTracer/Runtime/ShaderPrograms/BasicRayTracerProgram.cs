@@ -5,16 +5,16 @@ namespace RayTracer.Runtime.ShaderPrograms
 {
     public sealed class BasicRayTracerProgram
     {
-        private static readonly int s_OriginId = Shader.PropertyToID("_origin");
-        private static readonly int s_InverseCameraMatrixId = Shader.PropertyToID("_inverseCameraMatrix");
-        private static readonly int s_LightId = Shader.PropertyToID("_light");
-        private static readonly int s_TrianglesId = Shader.PropertyToID("_triangles");
-        private static readonly int s_ResultId = Shader.PropertyToID("_result");
-        private int m_KernelIndex;
+        static readonly int s_OriginId = Shader.PropertyToID("_origin");
+        static readonly int s_InverseCameraMatrixId = Shader.PropertyToID("_inverseCameraMatrix");
+        static readonly int s_LightId = Shader.PropertyToID("_light");
+        static readonly int s_TrianglesId = Shader.PropertyToID("_triangles");
+        static readonly int s_ResultId = Shader.PropertyToID("_result");
+        int m_KernelIndex;
 
-        private ComputeShader m_Shader;
-        private int m_SizeX;
-        private int m_SizeY;
+        ComputeShader m_Shader;
+        int m_SizeX;
+        int m_SizeY;
 
         public BasicRayTracerProgram()
         {

@@ -7,15 +7,15 @@ namespace RayTracer.Runtime.ShaderPrograms
 {
     public class LeafInitProgram
     {
-        private const string kTriangles = "_triangles";
-        private const string kVertices = "_vertices";
-        private const string kLeafBounds = "_leafBounds";
-        private const string kLeafKeys = "_leafKeys";
-        private const string kSceneBounds = "_sceneBounds";
+        const string kTriangles = "_triangles";
+        const string kVertices = "_vertices";
+        const string kLeafBounds = "_leafBounds";
+        const string kLeafKeys = "_leafKeys";
+        const string kSceneBounds = "_sceneBounds";
 
-        private int m_KernelIndex;
-        private ComputeShader m_Shader;
-        private int m_SizeX;
+        int m_KernelIndex;
+        ComputeShader m_Shader;
+        int m_SizeX;
 
         public LeafInitProgram()
         {

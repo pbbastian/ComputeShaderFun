@@ -2,7 +2,7 @@
 
 public class MyComputeScript : MonoBehaviour
 {
-    private int m_Kernel;
+    int m_Kernel;
     public ComputeShader shader;
     public RenderTexture texture;
 

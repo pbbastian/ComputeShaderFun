@@ -6,7 +6,8 @@ namespace RayTracer.Runtime
     [Serializable]
     public class RayTracingProfileAsset : ScriptableObject
     {
-        [SerializeField] private RayTracingProfile m_Profile = new RayTracingProfile();
+        [SerializeField]
+        RayTracingProfile m_Profile = new RayTracingProfile();
 
         public RayTracingProfile profile
         {

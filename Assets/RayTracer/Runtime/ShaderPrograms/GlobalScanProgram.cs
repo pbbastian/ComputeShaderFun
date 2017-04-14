@@ -5,8 +5,8 @@ namespace RayTracer.Runtime.ShaderPrograms
 {
     public class GlobalScanProgram
     {
-        private GroupAddProgram m_GroupAddProgram;
-        private ScanProgram m_ScanProgram;
+        GroupAddProgram m_GroupAddProgram;
+        ScanProgram m_ScanProgram;
 
         public GlobalScanProgram(WarpSize warpSize)
         {

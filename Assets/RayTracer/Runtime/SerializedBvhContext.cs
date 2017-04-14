@@ -29,14 +29,14 @@ namespace RayTracer.Runtime
             };
         }
 
-        private static StructuredBuffer<T> DeserializeBuffer<T>(T[] array, int stride) where T : struct
+        static StructuredBuffer<T> DeserializeBuffer<T>(T[] array, int stride) where T : struct
         {
             if (array == null)
                 return null;
             return new StructuredBuffer<T>(array.Length, stride) { data = array };
         }
 
-        private static bool IsBufferValid<T>(T[] buffer)
+        static bool IsBufferValid<T>(T[] buffer)
         {
             return buffer != null && buffer.Length > 0;
         }

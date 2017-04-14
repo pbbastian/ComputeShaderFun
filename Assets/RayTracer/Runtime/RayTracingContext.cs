@@ -7,10 +7,10 @@ namespace RayTracer.Runtime
 {
     public sealed class RayTracingContext : IRayTracingContext
     {
-        private RenderTexture m_RenderTexture;
-        private SceneBuilder m_SceneBuilder = new SceneBuilder();
-        private BasicRayTracerProgram m_Shader;
-        private ComputeBuffer m_TriangleBuffer;
+        RenderTexture m_RenderTexture;
+        SceneBuilder m_SceneBuilder = new SceneBuilder();
+        BasicRayTracerProgram m_Shader;
+        ComputeBuffer m_TriangleBuffer;
 
         public RenderTexture renderTexture
         {

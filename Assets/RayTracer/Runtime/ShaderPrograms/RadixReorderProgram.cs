@@ -6,18 +6,18 @@ namespace RayTracer.Runtime.ShaderPrograms
 {
     public class RadixReorderProgram
     {
-        private const string kInputKeyBuffer = "g_InputKeyBuffer";
-        private const string kInputIndexBuffer = "g_InputIndexBuffer";
-        private const string kOutputKeyBuffer = "g_OutputKeyBuffer";
-        private const string kOutputIndexBuffer = "g_OutputIndexBuffer";
-        private const string kHistogramBuffer = "g_HistogramBuffer";
-        private const string kCountBuffer = "g_CountBuffer";
-        private const string kLimit = "g_Limit";
-        private const string kKeyShift = "g_KeyShift";
+        const string kInputKeyBuffer = "g_InputKeyBuffer";
+        const string kInputIndexBuffer = "g_InputIndexBuffer";
+        const string kOutputKeyBuffer = "g_OutputKeyBuffer";
+        const string kOutputIndexBuffer = "g_OutputIndexBuffer";
+        const string kHistogramBuffer = "g_HistogramBuffer";
+        const string kCountBuffer = "g_CountBuffer";
+        const string kLimit = "g_Limit";
+        const string kKeyShift = "g_KeyShift";
 
-        private int m_KernelIndex;
-        private ComputeShader m_Shader;
-        private int m_SizeX;
+        int m_KernelIndex;
+        ComputeShader m_Shader;
+        int m_SizeX;
 
         public RadixReorderProgram()
         {

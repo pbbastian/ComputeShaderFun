@@ -4,7 +4,7 @@ namespace RayTracer.Editor.UI
 {
     public class RayTracerEditorWindow : AbstractRayTracerEditorWindow
     {
-        private static RayTracerEditorWindow s_Window;
+        static RayTracerEditorWindow s_Window;
 
         public static RayTracerEditorWindow window
         {
@@ -24,7 +24,7 @@ namespace RayTracer.Editor.UI
         }
 
         [MenuItem("Window/Ray tracer")]
-        private static void Init()
+        static void Init()
         {
             s_Window = GetWindow<RayTracerEditorWindow>(typeof(SceneView));
             s_Window.Show();

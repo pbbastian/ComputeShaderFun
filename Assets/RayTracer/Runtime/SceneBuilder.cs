@@ -8,8 +8,8 @@ namespace RayTracer.Runtime
 {
     public class SceneBuilder
     {
-        private List<Vector3> m_Albedos = new List<Vector3>();
-        private List<Triangle> m_Vertices = new List<Triangle>();
+        List<Vector3> m_Albedos = new List<Vector3>();
+        List<Triangle> m_Vertices = new List<Triangle>();
 
         public void AddWithChildren(IEnumerable<GameObject> gameObjects)
         {
@@ -38,7 +38,7 @@ namespace RayTracer.Runtime
             Add(meshFilter.sharedMesh, meshFilter.transform, rto.albedo);
         }
 
-        private void Add(Mesh mesh, Transform transform, Color albedo)
+        void Add(Mesh mesh, Transform transform, Color albedo)
         {
             var albedoVector = new Vector3(albedo.r, albedo.g, albedo.b);
             for (var i = 0; i < mesh.triangles.Length; i += 3)

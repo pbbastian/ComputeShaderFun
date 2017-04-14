@@ -24,16 +24,35 @@ namespace ShadowRenderPipeline
         }
 
         [SerializeField]
-        private SerializedBvhContext m_BvhContext;
+        SerializedBvhContext m_BvhContext;
 
         [SerializeField]
-        private string m_SerializedBvhBuildDateTime;
+        string m_SerializedBvhBuildDateTime;
 
-        private DateTime m_BvhBuildDateTime;
+        [SerializeField]
+        DateTime m_BvhBuildDateTime;
+
+        [SerializeField]
+        bool m_ShadowsEnabled;
+
+        [SerializeField]
+        DebugSettings m_DebugSettings;
 
         public SerializedBvhContext bvhContext { get { return m_BvhContext; } }
 
         public DateTime bvhBuildDateTime { get { return m_BvhBuildDateTime; } }
+
+        public bool shadowsEnabled
+        {
+            get { return m_ShadowsEnabled; }
+            set { m_ShadowsEnabled = value; }
+        }
+
+        public DebugSettings debugSettings
+        {
+            get { return m_DebugSettings ?? (m_DebugSettings = CreateInstance<DebugSettings>()); }
+            set { m_DebugSettings = value; }
+        }
 
         public void BuildBvh()
         {

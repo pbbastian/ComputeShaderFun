@@ -9,7 +9,7 @@ namespace ShadowRenderPipeline.Editor
     [CustomEditor(typeof(ShadowRenderPipelineAsset))]
     public class ShadowRenderPipelineInspector : UnityEditor.Editor
     {
-        private class Styles
+        class Styles
         {
             public readonly string notActiveLabel = "Shadow Render Pipeline is not active.";
             public readonly GUIContent makeActiveLabel = new GUIContent("Make active");
@@ -22,13 +22,15 @@ namespace ShadowRenderPipeline.Editor
             public readonly GUIContent trianglesLabel = new GUIContent("Triangles");
             public readonly GUIContent verticesLabel = new GUIContent("Vertices");
             public readonly GUIContent shadowsLabel = new GUIContent("Shadows");
+            public readonly GUIContent debugLabel = new GUIContent("Debug");
+            public readonly GUIContent outputBufferLabel = new GUIContent("Output buffer");
             public readonly GUILayoutOption buttonWidth = GUILayout.MaxWidth(100f);
             public readonly GUIStyle groupHeaderStyle = EditorStyles.boldLabel;
         }
 
-        private static Styles s_Styles;
+        static Styles s_Styles;
 
-        private static Styles styles
+        static Styles styles
         {
             get
             {
@@ -38,14 +40,14 @@ namespace ShadowRenderPipeline.Editor
             }
         }
 
-        private static void InactiveGUI(ShadowRenderPipelineAsset asset)
+        static void InactiveGUI(ShadowRenderPipelineAsset asset)
         {
             EditorGUILayout.HelpBox(styles.notActiveLabel, MessageType.Warning);
             if (GUILayout.Button(styles.makeActiveLabel, GUILayout.ExpandWidth(false)))
                 GraphicsSettings.renderPipelineAsset = asset;
         }
 
-        private static void ActiveGUI(ShadowRenderPipelineAsset asset)
+        static void ActiveGUI(ShadowRenderPipelineAsset asset)
         {
             GUILayout.Label(styles.bvhLabel, styles.groupHeaderStyle);
             using (new IndentScope())
@@ -63,11 +65,20 @@ namespace ShadowRenderPipeline.Editor
                         asset.BuildBvh();
                 }
             }
+            EditorGUILayout.Separator();
 
-            GUILayout.Label("Shadows", styles.groupHeaderStyle);
+            using (var toggle = new EditorGUILayout.ToggleGroupScope(styles.shadowsLabel, asset.shadowsEnabled))
             using (new IndentScope())
             {
-                //new EditorGUILayout.ToggleGroupScope()
+                asset.shadowsEnabled = toggle.enabled;
+            }
+            EditorGUILayout.Separator();
+
+            using (var toggle = new EditorGUILayout.ToggleGroupScope(styles.debugLabel, asset.debugSettings.enabled))
+            using (new IndentScope())
+            {
+                asset.debugSettings.enabled = toggle.enabled;
+                asset.debugSettings.outputBuffer = (OutputBuffer) EditorGUILayout.EnumPopup(styles.outputBufferLabel, asset.debugSettings.outputBuffer);
             }
         }
 

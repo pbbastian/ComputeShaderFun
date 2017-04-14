@@ -6,13 +6,13 @@ namespace RayTracer.Runtime.ShaderPrograms
 {
     public class ScanProgram
     {
-        private const string kBuffer = "g_Buffer";
-        private const string kGroupResultsBuffer = "g_GroupResultsBuffer";
-        private const string kLimit = "g_Limit";
-        private const string kOffset = "g_Offset";
+        const string kBuffer = "g_Buffer";
+        const string kGroupResultsBuffer = "g_GroupResultsBuffer";
+        const string kLimit = "g_Limit";
+        const string kOffset = "g_Offset";
 
-        private int m_KernelIndex;
-        private ComputeShader m_Shader;
+        int m_KernelIndex;
+        ComputeShader m_Shader;
 
         public ScanProgram(WarpSize warpSize)
         {

@@ -1,10 +1,12 @@
-﻿using System.Runtime.InteropServices;
+﻿using System;
+using System.Runtime.InteropServices;
 using Assets.RayTracer.Runtime.Util;
 using RayTracer.Runtime.Util;
 using UnityEngine;
 
 namespace RayTracer.Runtime.ShaderPrograms.Types
 {
+    [Serializable]
     public struct Aabb
     {
         public Vector3 min;
@@ -69,7 +71,8 @@ namespace RayTracer.Runtime.ShaderPrograms.Types
     {
         [FieldOffset(0)] public Aabb aabb;
 
-        [FieldOffset(28)] private int padding;
+        [FieldOffset(28)]
+        int padding;
 
         public override bool Equals(object obj)
         {

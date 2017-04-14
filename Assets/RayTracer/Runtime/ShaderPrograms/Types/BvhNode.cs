@@ -31,8 +31,10 @@ namespace RayTracer.Runtime.ShaderPrograms.Types
         [FieldOffset(24)] public Aabb rightBounds;
         [FieldOffset(48)] public int left;
         [FieldOffset(52)] public int right;
-        [FieldOffset(56)] private int m_IsLeftLeaf;
-        [FieldOffset(60)] private int m_IsRightLeaf;
+        [FieldOffset(56)]
+        int m_IsLeftLeaf;
+        [FieldOffset(60)]
+        int m_IsRightLeaf;
 
         public bool isLeftLeaf
         {
