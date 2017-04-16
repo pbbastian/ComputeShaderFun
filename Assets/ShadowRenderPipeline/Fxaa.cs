@@ -179,5 +179,10 @@ namespace ShadowRenderPipeline
             Preset.extremeQualityPreset
         };
 
+        public static class Uniforms
+        {
+            public static readonly int qualitySettings = Shader.PropertyToID("_QualitySettings");
+            public static readonly int consoleSettings = Shader.PropertyToID("_ConsoleSettings");
+        }
     }
 }
