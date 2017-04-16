@@ -1,6 +1,5 @@
 ﻿using System;
 using UnityEngine;
-using UnityEngine.PostProcessing;
 
 namespace ShadowRenderPipeline
 {
@@ -9,8 +8,8 @@ namespace ShadowRenderPipeline
         [SerializeField]
         bool m_Enabled;
 
-//        [SerializeField]
-//        AntialiasingModel.FxaaPreset m_Preset = AntialiasingModel.FxaaPreset.Default;
+        [SerializeField]
+        Fxaa.Preset m_Preset = Fxaa.Preset.defaultPreset;
 
         public bool enabled
         {
@@ -18,10 +17,10 @@ namespace ShadowRenderPipeline
             set { m_Enabled = value; }
         }
 
-//        public AntialiasingModel.FxaaPreset preset
-//        {
-//            get { return m_Preset; }
-//            set { m_Preset = value; }
-//        }
+        public Fxaa.Preset preset
+        {
+            get { return m_Preset; }
+            set { m_Preset = value; }
+        }
     }
 }

@@ -4,7 +4,6 @@ using RayTracer.Runtime.ShaderPrograms;
 using RayTracer.Runtime.Util;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
-using UnityEngine.PostProcessing;
 using UnityEngine.Rendering;
 
 namespace ShadowRenderPipeline
@@ -49,14 +48,24 @@ namespace ShadowRenderPipeline
                 m_GBufferRT[i] = new RenderTargetIdentifier(m_GBuffer[i]);
             }
 
-            m_DeferredLightingMat = new Material(Shader.Find("Hidden/DeferredLighting"));
-            m_FxaaMaterial = new Material(Shader.Find("Hidden/Post FX/FXAA"));
+            m_DeferredLightingMat = CheckShaderAndCreateMaterial(Shader.Find("Hidden/DeferredLighting"));
+            m_FxaaMaterial = CheckShaderAndCreateMaterial(Shader.Find("Hidden/Fast Approximate Anti-aliasing"));
             m_ShadowsCompute = Resources.Load<ComputeShader>(ShadowsCompute.Path);
             m_WorkCounterBuffer = new StructuredBuffer<int>(1, ShaderSizes.s_Int);
 
             m_BvhBuildDateTime = DateTime.MinValue;
 
 //            UpdateBvhContext(true);
+        }
+
+        public static Material CheckShaderAndCreateMaterial(Shader s)
+        {
+            if (s == null || !s.isSupported)
+                return null;
+
+            var material = new Material(s);
+            material.hideFlags = HideFlags.DontSave;
+            return material;
         }
 
         public void Render(ScriptableRenderContext context, Camera[] cameras)
@@ -82,7 +91,7 @@ namespace ShadowRenderPipeline
                 using (var cmd = new CommandBuffer { name = "Init G-Buffer" })
                 {
                     cmd.SetGlobalMatrix("_InverseView", camera.cameraToWorldMatrix);
-                    cmd.GetTemporaryRT(m_CameraColorBuffer, camera.pixelWidth, camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.ARGBHalf, RenderTextureReadWrite.Linear, 1, true);
+                    cmd.GetTemporaryRT(m_CameraColorBuffer, camera.pixelWidth, camera.pixelHeight, 0, FilterMode.Bilinear, RenderTextureFormat.ARGBHalf, RenderTextureReadWrite.Linear, 1, true);
                     cmd.GetTemporaryRT(m_CameraDepthStencilBuffer, camera.pixelWidth, camera.pixelHeight, 24, FilterMode.Point, RenderTextureFormat.Depth);
                     cmd.GetTemporaryRT(m_GBuffer[0], camera.pixelWidth, camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear, 1, true);
                     cmd.GetTemporaryRT(m_GBuffer[1], camera.pixelWidth, camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear, 1, true);
@@ -164,32 +173,20 @@ namespace ShadowRenderPipeline
                             source = m_GBufferRT[3];
                     }
 
-//                    if (m_Asset.antiAliasingSettings.enabled)
-//                    {
-//                        var qualitySettings = AntialiasingModel.FxaaQualitySettings.presets[(int)m_Asset.antiAliasingSettings.preset];
-//                        var consoleSettings = AntialiasingModel.FxaaConsoleSettings.presets[(int)m_Asset.antiAliasingSettings.preset];
-//
-//                        cmd.SetGlobalVector(FxaaUniforms._QualitySettings, new Vector3(
-//                            qualitySettings.subpixelAliasingRemovalAmount,
-//                            qualitySettings.edgeDetectionThreshold,
-//                            qualitySettings.minimumRequiredLuminance
-//                        ));
-//
-//                        cmd.SetGlobalVector(FxaaUniforms._ConsoleSettings, new Vector4(
-//                            consoleSettings.subpixelSpreadAmount,
-//                            consoleSettings.edgeSharpnessAmount,
-//                            consoleSettings.edgeDetectionThreshold,
-//                            consoleSettings.minimumRequiredLuminance
-//                        ));
-//
-//                        var mainTexST = new Vector4(camera.pixelWidth, camera.pixelHeight, 0.5f, 0.5f);
-//                        cmd.SetGlobalVector("_MainTex_ST", mainTexST);
-//                        var mainTexTexelSize = new Vector2(1.0f / camera.pixelWidth, 1.0f / camera.pixelHeight);
-//                        cmd.SetGlobalVector("_MainTex_TexelSize", mainTexTexelSize);
-//
-//                        cmd.Blit(source, BuiltinRenderTextureType.CameraTarget, m_FxaaMaterial, 0);
-//                    }
-//                    else
+                    if (m_Asset.antiAliasingSettings.enabled)
+                    {
+                        var preset = m_Asset.antiAliasingSettings.preset;
+
+                        cmd.SetGlobalVector("_QualitySettings", new Vector3(preset.qualitySettings.subpixelAliasingRemovalAmount,
+                            preset.qualitySettings.edgeDetectionThreshold, preset.qualitySettings.minimumRequiredLuminance));
+
+                        cmd.SetGlobalVector("_ConsoleSettings", new Vector4(preset.consoleSettings.subpixelSpreadAmount,
+                            preset.consoleSettings.edgeSharpnessAmount, preset.consoleSettings.edgeDetectionThreshold,
+                            preset.consoleSettings.minimumRequiredLuminance));
+
+                        cmd.Blit(source, BuiltinRenderTextureType.CameraTarget, m_FxaaMaterial, 0);
+                    }
+                    else
                     {
                         cmd.Blit(source, BuiltinRenderTextureType.CameraTarget);
                     }

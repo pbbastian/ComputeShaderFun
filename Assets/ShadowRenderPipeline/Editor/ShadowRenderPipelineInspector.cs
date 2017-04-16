@@ -1,8 +1,10 @@
-﻿using System.Globalization;
+﻿using System;
+using System.Globalization;
+using System.Linq;
 using ShadowRenderPipeline.Editor.Util;
 using UnityEditor;
 using UnityEngine;
-using UnityEngine.PostProcessing;
+using UnityEngine.EventSystems;
 using UnityEngine.Rendering;
 
 namespace ShadowRenderPipeline.Editor
@@ -29,6 +31,7 @@ namespace ShadowRenderPipeline.Editor
             public readonly GUIContent methodLabel = new GUIContent("Method");
             public readonly GUIContent presetLabel = new GUIContent("Preset");
             public readonly GUIContent fxaaLabel = new GUIContent("FXAA");
+            public readonly GUIContent[] fxaaPresets = new[] { "Extreme Performance", "Performance", "Default", "Quality", "Extreme Quality" }.Select(x => new GUIContent(x)).ToArray();
             public readonly GUILayoutOption buttonWidth = GUILayout.MaxWidth(100f);
             public readonly GUIStyle groupHeaderStyle = EditorStyles.boldLabel;
         }
@@ -84,7 +87,9 @@ namespace ShadowRenderPipeline.Editor
             {
                 asset.antiAliasingSettings.enabled = toggle.enabled;
                 EditorGUILayout.Popup(styles.methodLabel, 0, new[] { styles.fxaaLabel });
-//                asset.antiAliasingSettings.preset = (AntialiasingModel.FxaaPreset)EditorGUILayout.EnumPopup(styles.presetLabel, asset.antiAliasingSettings.preset);
+                var preset = Array.IndexOf(Fxaa.availablePresets, asset.antiAliasingSettings.preset);
+                preset = EditorGUILayout.Popup(styles.presetLabel, preset, styles.fxaaPresets);
+                asset.antiAliasingSettings.preset = Fxaa.availablePresets[preset];
             }
             EditorGUILayout.Separator();
 
