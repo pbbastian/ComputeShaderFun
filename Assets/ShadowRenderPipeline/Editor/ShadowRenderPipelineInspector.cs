@@ -2,6 +2,7 @@
 using ShadowRenderPipeline.Editor.Util;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.PostProcessing;
 using UnityEngine.Rendering;
 
 namespace ShadowRenderPipeline.Editor
@@ -24,6 +25,10 @@ namespace ShadowRenderPipeline.Editor
             public readonly GUIContent shadowsLabel = new GUIContent("Shadows");
             public readonly GUIContent debugLabel = new GUIContent("Debug");
             public readonly GUIContent outputBufferLabel = new GUIContent("Output buffer");
+            public readonly GUIContent antiAliasingLabel = new GUIContent("Anti-aliasing");
+            public readonly GUIContent methodLabel = new GUIContent("Method");
+            public readonly GUIContent presetLabel = new GUIContent("Preset");
+            public readonly GUIContent fxaaLabel = new GUIContent("FXAA");
             public readonly GUILayoutOption buttonWidth = GUILayout.MaxWidth(100f);
             public readonly GUIStyle groupHeaderStyle = EditorStyles.boldLabel;
         }
@@ -74,12 +79,22 @@ namespace ShadowRenderPipeline.Editor
             }
             EditorGUILayout.Separator();
 
+            using (var toggle = new EditorGUILayout.ToggleGroupScope(styles.antiAliasingLabel, asset.antiAliasingSettings.enabled))
+            using (new IndentScope())
+            {
+                asset.antiAliasingSettings.enabled = toggle.enabled;
+                EditorGUILayout.Popup(styles.methodLabel, 0, new[] { styles.fxaaLabel });
+//                asset.antiAliasingSettings.preset = (AntialiasingModel.FxaaPreset)EditorGUILayout.EnumPopup(styles.presetLabel, asset.antiAliasingSettings.preset);
+            }
+            EditorGUILayout.Separator();
+
             using (var toggle = new EditorGUILayout.ToggleGroupScope(styles.debugLabel, asset.debugSettings.enabled))
             using (new IndentScope())
             {
                 asset.debugSettings.enabled = toggle.enabled;
-                asset.debugSettings.outputBuffer = (OutputBuffer) EditorGUILayout.EnumPopup(styles.outputBufferLabel, asset.debugSettings.outputBuffer);
+                asset.debugSettings.outputBuffer = (OutputBuffer)EditorGUILayout.EnumPopup(styles.outputBufferLabel, asset.debugSettings.outputBuffer);
             }
+            EditorGUILayout.Separator();
         }
 
         public override void OnInspectorGUI()

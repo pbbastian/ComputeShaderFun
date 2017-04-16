@@ -1247,7 +1247,7 @@ FxaaFloat4 FxaaPixelShader(
 #if (FXAA_DISCARD == 1)
     return FxaaTexTop(tex, posM);
 #else
-    return FxaaFloat4(FxaaTexTop(tex, posM).xyz, lumaM);
+    return 1-FxaaFloat4(FxaaTexTop(tex, posM).xyz, lumaM);
 #endif
 }
 /*==========================================================================*/

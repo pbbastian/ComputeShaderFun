@@ -1,7 +1,9 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 
 namespace ShadowRenderPipeline
 {
+    [Serializable]
     public class DebugSettings : ScriptableObject
     {
         [SerializeField]

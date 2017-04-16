@@ -4,6 +4,7 @@ using RayTracer.Runtime.ShaderPrograms;
 using RayTracer.Runtime.Util;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
+using UnityEngine.PostProcessing;
 using UnityEngine.Rendering;
 
 namespace ShadowRenderPipeline
@@ -23,8 +24,15 @@ namespace ShadowRenderPipeline
         RenderTargetIdentifier[] m_GBufferRT = new RenderTargetIdentifier[4];
 
         Material m_DeferredLightingMat;
+        Material m_FxaaMaterial;
         ComputeShader m_ShadowsCompute;
         StructuredBuffer<int> m_WorkCounterBuffer;
+
+        static class FxaaUniforms
+        {
+            internal static readonly int _QualitySettings = Shader.PropertyToID("_QualitySettings");
+            internal static readonly int _ConsoleSettings = Shader.PropertyToID("_ConsoleSettings");
+        }
 
         public ShadowRenderPipeline(ShadowRenderPipelineAsset asset)
         {
@@ -42,10 +50,12 @@ namespace ShadowRenderPipeline
             }
 
             m_DeferredLightingMat = new Material(Shader.Find("Hidden/DeferredLighting"));
+            m_FxaaMaterial = new Material(Shader.Find("Hidden/Post FX/FXAA"));
             m_ShadowsCompute = Resources.Load<ComputeShader>(ShadowsCompute.Path);
             m_WorkCounterBuffer = new StructuredBuffer<int>(1, ShaderSizes.s_Int);
 
             m_BvhBuildDateTime = DateTime.MinValue;
+
 //            UpdateBvhContext(true);
         }
 
@@ -136,7 +146,7 @@ namespace ShadowRenderPipeline
                 settings.inputFilter.SetQueuesTransparent();
                 context.DrawRenderers(ref settings);
 
-                using (var cmd = new CommandBuffer { name = "Release buffers" })
+                using (var cmd = new CommandBuffer { name = "Post-processing" +  (m_Asset.antiAliasingSettings.enabled ? " (FXAA)" : "")})
                 {
                     var source = m_CameraColorBufferRT;
                     if (m_Asset.debugSettings.enabled)
@@ -153,7 +163,41 @@ namespace ShadowRenderPipeline
                         if (outputBuffer == OutputBuffer.GBuffer3)
                             source = m_GBufferRT[3];
                     }
-                    cmd.Blit(source, BuiltinRenderTextureType.CameraTarget);
+
+//                    if (m_Asset.antiAliasingSettings.enabled)
+//                    {
+//                        var qualitySettings = AntialiasingModel.FxaaQualitySettings.presets[(int)m_Asset.antiAliasingSettings.preset];
+//                        var consoleSettings = AntialiasingModel.FxaaConsoleSettings.presets[(int)m_Asset.antiAliasingSettings.preset];
+//
+//                        cmd.SetGlobalVector(FxaaUniforms._QualitySettings, new Vector3(
+//                            qualitySettings.subpixelAliasingRemovalAmount,
+//                            qualitySettings.edgeDetectionThreshold,
+//                            qualitySettings.minimumRequiredLuminance
+//                        ));
+//
+//                        cmd.SetGlobalVector(FxaaUniforms._ConsoleSettings, new Vector4(
+//                            consoleSettings.subpixelSpreadAmount,
+//                            consoleSettings.edgeSharpnessAmount,
+//                            consoleSettings.edgeDetectionThreshold,
+//                            consoleSettings.minimumRequiredLuminance
+//                        ));
+//
+//                        var mainTexST = new Vector4(camera.pixelWidth, camera.pixelHeight, 0.5f, 0.5f);
+//                        cmd.SetGlobalVector("_MainTex_ST", mainTexST);
+//                        var mainTexTexelSize = new Vector2(1.0f / camera.pixelWidth, 1.0f / camera.pixelHeight);
+//                        cmd.SetGlobalVector("_MainTex_TexelSize", mainTexTexelSize);
+//
+//                        cmd.Blit(source, BuiltinRenderTextureType.CameraTarget, m_FxaaMaterial, 0);
+//                    }
+//                    else
+                    {
+                        cmd.Blit(source, BuiltinRenderTextureType.CameraTarget);
+                    }
+                    context.ExecuteCommandBuffer(cmd);
+                }
+
+                using (var cmd = new CommandBuffer { name = "Release buffers" })
+                {
                     cmd.ReleaseTemporaryRT(m_GBuffer[0]);
                     cmd.ReleaseTemporaryRT(m_GBuffer[1]);
                     cmd.ReleaseTemporaryRT(m_GBuffer[2]);

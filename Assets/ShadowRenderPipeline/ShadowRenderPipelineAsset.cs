@@ -38,6 +38,9 @@ namespace ShadowRenderPipeline
         [SerializeField]
         DebugSettings m_DebugSettings;
 
+        [SerializeField]
+        AntiAliasingSettings m_AntiAliasingSettings;
+
         public SerializedBvhContext bvhContext { get { return m_BvhContext; } }
 
         public DateTime bvhBuildDateTime { get { return m_BvhBuildDateTime; } }
@@ -52,6 +55,12 @@ namespace ShadowRenderPipeline
         {
             get { return m_DebugSettings ?? (m_DebugSettings = CreateInstance<DebugSettings>()); }
             set { m_DebugSettings = value; }
+        }
+
+        public AntiAliasingSettings antiAliasingSettings
+        {
+            get { return m_AntiAliasingSettings ?? (m_AntiAliasingSettings = CreateInstance<AntiAliasingSettings>()); }
+            set { m_AntiAliasingSettings = value; }
         }
 
         public void BuildBvh()
