@@ -59,7 +59,12 @@ namespace ShadowRenderPipeline
 
         public AntiAliasingSettings antiAliasingSettings
         {
-            get { return m_AntiAliasingSettings ?? (m_AntiAliasingSettings = CreateInstance<AntiAliasingSettings>()); }
+            get
+            {
+                var settings = m_AntiAliasingSettings = CreateInstance<AntiAliasingSettings>();
+                settings.Init();
+                return m_AntiAliasingSettings ?? settings;
+            }
             set { m_AntiAliasingSettings = value; }
         }
 

@@ -116,12 +116,17 @@ half4 frag (v2f_img i) : SV_Target
     indirect.specular = 0;
     color.rgb += BRDF1_Unity_PBS(s.diffColor, s.specColor, s.oneMinusReflectivity, s.smoothness, data.normalWorld, -eyeVec, light, indirect);
 
+    if (globalLightCount.x == 0)
+        return color;
+
+    // Only the first light can have shadows
     float visibility = tex2D(_CameraGBufferTexture3, i.uv).r;
+    color.rgb += EvaluateOneLight(0, wpos, data.normalWorld, eyeVec, s) * visibility;
 
     // Add illumination from all lights
-    for (int il = 0; il < globalLightCount.x; ++il)
+    for (int il = 1; il < globalLightCount.x; ++il)
     {
-        color.rgb += EvaluateOneLight(il, wpos, data.normalWorld, eyeVec, s) * visibility;
+        color.rgb += EvaluateOneLight(il, wpos, data.normalWorld, eyeVec, s);
     }
 
     return color; 

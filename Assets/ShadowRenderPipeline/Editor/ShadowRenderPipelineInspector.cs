@@ -100,6 +100,7 @@ namespace ShadowRenderPipeline.Editor
                 asset.debugSettings.outputBuffer = (OutputBuffer)EditorGUILayout.EnumPopup(styles.outputBufferLabel, asset.debugSettings.outputBuffer);
             }
             EditorGUILayout.Separator();
+
         }
 
         public override void OnInspectorGUI()
@@ -110,7 +111,12 @@ namespace ShadowRenderPipeline.Editor
                 InactiveGUI(asset);
                 return;
             }
-            ActiveGUI(asset);
+            using (var check = new EditorGUI.ChangeCheckScope())
+            {
+                ActiveGUI(asset);
+                if (check.changed)
+                    UnityEditorInternal.InternalEditorUtility.RepaintAllViews();
+            }
         }
     }
 }

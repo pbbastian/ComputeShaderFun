@@ -3,13 +3,14 @@ using UnityEngine;
 
 namespace ShadowRenderPipeline
 {
+    [Serializable]
     public class AntiAliasingSettings : ScriptableObject
     {
         [SerializeField]
         bool m_Enabled;
 
         [SerializeField]
-        Fxaa.Preset m_Preset = Fxaa.Preset.defaultPreset;
+        Fxaa.Preset m_Preset;
 
         public bool enabled
         {
@@ -21,6 +22,11 @@ namespace ShadowRenderPipeline
         {
             get { return m_Preset; }
             set { m_Preset = value; }
+        }
+
+        public void Init()
+        {
+            m_Preset = Fxaa.Preset.defaultPreset;
         }
     }
 }
