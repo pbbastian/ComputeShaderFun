@@ -161,7 +161,7 @@ namespace ShadowRenderPipeline
                 using (var cmd = new CommandBuffer { name = "Post-processing" +  (m_Asset.antiAliasingSettings.enabled ? " (FXAA)" : "")})
                 {
                     var source = m_CameraColorRT;
-                    if (m_Asset.debugSettings.enabled)
+                    if (m_Asset.debugSettings.enabled && camera.cameraType == CameraType.Game)
                     {
                         var outputBuffer = m_Asset.debugSettings.outputBuffer;
                         if (outputBuffer == OutputBuffer.Depth)
