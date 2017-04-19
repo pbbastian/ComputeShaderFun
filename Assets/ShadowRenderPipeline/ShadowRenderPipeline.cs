@@ -1,4 +1,5 @@
 ﻿using System;
+using Assets.ShadowRenderPipeline;
 using RayTracer.Runtime;
 using RayTracer.Runtime.ShaderPrograms;
 using RayTracer.Runtime.Util;
@@ -114,7 +115,16 @@ namespace ShadowRenderPipeline
                 settings.inputFilter.SetQueuesOpaque();
                 context.DrawRenderers(ref settings);
 
-                if (m_Asset.shadowsEnabled && shadowsRendered)
+                if (camera.cameraType == CameraType.SceneView || (m_Asset.debugSettings.effectiveOutputBuffer != OutputBuffer.Color && m_Asset.debugSettings.effectiveOutputBuffer != OutputBuffer.GBuffer3))
+                {
+                    using (var cmd = new CommandBuffer { name = "Clear shadow buffer" })
+                    {
+                        cmd.SetRenderTarget(m_GBufferRT[3]);
+                        cmd.ClearRenderTarget(false, true, Color.white);
+                        context.ExecuteCommandBuffer(cmd);
+                    }
+                }
+                else if (m_Asset.shadowSettings.enabled && shadowsRendered)
                 {
                     var shadowsKernel = m_ShadowsCompute.FindKernel(ShadowsCompute.Kernels.Shadows);
                     using (var cmd = new CommandBuffer { name = "Compute BVH shadows" })
@@ -140,7 +150,7 @@ namespace ShadowRenderPipeline
 
                 using (var cmd = new CommandBuffer { name = "Deferred Lighting" })
                 {
-                    if (!m_Asset.shadowsEnabled)
+                    if (!m_Asset.shadowSettings.enabled)
                     {
                         cmd.SetRenderTarget(m_GBufferRT[3]);
                         cmd.ClearRenderTarget(false, true, Color.white);
@@ -178,7 +188,7 @@ namespace ShadowRenderPipeline
                             source = m_ShadowmapRT;
                     }
 
-                    if (m_Asset.antiAliasingSettings.enabled && (!m_Asset.debugSettings.enabled || m_Asset.debugSettings.outputBuffer != OutputBuffer.Shadowmap))
+                    if (m_Asset.antiAliasingSettings.enabled && (camera.cameraType == CameraType.SceneView || !m_Asset.debugSettings.enabled || m_Asset.debugSettings.outputBuffer != OutputBuffer.Color))
                     {
                         var preset = m_Asset.antiAliasingSettings.preset;
 
@@ -242,7 +252,11 @@ namespace ShadowRenderPipeline
 
             using (var cmd = new CommandBuffer { name = "Prepare shadowmap" })
             {
-                cmd.GetTemporaryRT(m_ShadowmapID, 512, 512, 24, FilterMode.Bilinear, RenderTextureFormat.Depth, RenderTextureReadWrite.Linear);
+                if (m_Asset.shadowSettings.shadowmapVariant == ShadowmapVariant.Paraboloid)
+                    cmd.EnableShaderKeyword("_PARABOLOID_MAPPING");
+                else
+                    cmd.DisableShaderKeyword("_PARABOLOID_MAPPING");
+                cmd.GetTemporaryRT(m_ShadowmapID, 512, 512, 24, FilterMode.Bilinear, RenderTextureFormat.Shadowmap, RenderTextureReadWrite.Linear);
                 cmd.SetRenderTarget(m_ShadowmapRT);
                 cmd.ClearRenderTarget(true, true, Color.black);
                 cmd.SetViewProjectionMatrices(view, proj);

@@ -1,4 +1,6 @@
-﻿namespace ShadowRenderPipeline
+﻿using System;
+
+namespace ShadowRenderPipeline
 {
     public enum OutputBuffer
     {

@@ -48869,7 +48869,7 @@ MonoBehaviour:
     - {x: 1.4934564, y: -1.5, z: 1.427, w: 0}
     - {x: 1.4934564, y: -1.5, z: 2.427, w: 0}
     - {x: 1.4934564, y: -2.5, z: 2.427, w: 0}
-  m_SerializedBvhBuildDateTime: 2017-04-18T14:37:29
+  m_SerializedBvhBuildDateTime: 2017-04-18T16:00:14
   m_ShadowsEnabled: 1
   m_DebugSettings: {fileID: 0}
   m_AntiAliasingSettings: {fileID: 0}

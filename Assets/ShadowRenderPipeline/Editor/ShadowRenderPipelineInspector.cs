@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Globalization;
 using System.Linq;
-using ShadowRenderPipeline.Editor.Util;
+using Assets.ShadowRenderPipeline;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -32,6 +32,7 @@ namespace ShadowRenderPipeline.Editor
             public readonly GUIContent presetLabel = new GUIContent("Preset");
             public readonly GUIContent fxaaLabel = new GUIContent("FXAA");
             public readonly GUIContent[] fxaaPresets = new[] { "Extreme Performance", "Performance", "Default", "Quality", "Extreme Quality" }.Select(x => new GUIContent(x)).ToArray();
+            public readonly GUIContent shadowmapVariantLabel = new GUIContent("Shadowmap Variant");
             public readonly GUILayoutOption buttonWidth = GUILayout.MaxWidth(100f);
             public readonly GUIStyle groupHeaderStyle = EditorStyles.boldLabel;
         }
@@ -58,7 +59,6 @@ namespace ShadowRenderPipeline.Editor
         static void ActiveGUI(ShadowRenderPipelineAsset asset)
         {
             GUILayout.Label(styles.bvhLabel, styles.groupHeaderStyle);
-            using (new IndentScope())
             {
                 EditorGUILayout.LabelField(styles.lastBuiltLabel, asset.bvhContext.isValid ? new GUIContent(asset.bvhBuildDateTime.ToString(CultureInfo.CurrentCulture)) : styles.notAvailableLabel);
                 EditorGUILayout.LabelField(styles.nodesLabel, asset.bvhContext.isValid ? new GUIContent(asset.bvhContext.nodesBuffer.Length.ToString()) : styles.notAvailableLabel);
@@ -73,17 +73,16 @@ namespace ShadowRenderPipeline.Editor
                         asset.BuildBvh();
                 }
             }
-            EditorGUILayout.Separator();
+            EditorGUILayout.Space();
 
-            using (var toggle = new EditorGUILayout.ToggleGroupScope(styles.shadowsLabel, asset.shadowsEnabled))
-            using (new IndentScope())
+            using (var toggle = new EditorGUILayout.ToggleGroupScope(styles.shadowsLabel, asset.shadowSettings.enabled))
             {
-                asset.shadowsEnabled = toggle.enabled;
+                asset.shadowSettings.enabled = toggle.enabled;
+                asset.shadowSettings.shadowmapVariant = (ShadowmapVariant)EditorGUILayout.EnumPopup(styles.shadowmapVariantLabel, asset.shadowSettings.shadowmapVariant);
             }
-            EditorGUILayout.Separator();
+            EditorGUILayout.Space();
 
             using (var toggle = new EditorGUILayout.ToggleGroupScope(styles.antiAliasingLabel, asset.antiAliasingSettings.enabled))
-            using (new IndentScope())
             {
                 asset.antiAliasingSettings.enabled = toggle.enabled;
                 EditorGUILayout.Popup(styles.methodLabel, 0, new[] { styles.fxaaLabel });
@@ -91,15 +90,14 @@ namespace ShadowRenderPipeline.Editor
                 preset = EditorGUILayout.Popup(styles.presetLabel, preset, styles.fxaaPresets);
                 asset.antiAliasingSettings.preset = Fxaa.availablePresets[preset];
             }
-            EditorGUILayout.Separator();
+            EditorGUILayout.Space();
 
             using (var toggle = new EditorGUILayout.ToggleGroupScope(styles.debugLabel, asset.debugSettings.enabled))
-            using (new IndentScope())
             {
                 asset.debugSettings.enabled = toggle.enabled;
                 asset.debugSettings.outputBuffer = (OutputBuffer)EditorGUILayout.EnumPopup(styles.outputBufferLabel, asset.debugSettings.outputBuffer);
             }
-            EditorGUILayout.Separator();
+            EditorGUILayout.Space();
 
         }
 

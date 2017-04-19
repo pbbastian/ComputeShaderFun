@@ -1,4 +1,5 @@
 ﻿using System;
+using Assets.ShadowRenderPipeline;
 using RayTracer.Runtime;
 using UnityEditor;
 using UnityEngine;
@@ -33,7 +34,7 @@ namespace ShadowRenderPipeline
         DateTime m_BvhBuildDateTime;
 
         [SerializeField]
-        bool m_ShadowsEnabled;
+        ShadowSettings m_ShadowSettings;
 
         [SerializeField]
         DebugSettings m_DebugSettings;
@@ -41,30 +42,31 @@ namespace ShadowRenderPipeline
         [SerializeField]
         AntiAliasingSettings m_AntiAliasingSettings;
 
-        public SerializedBvhContext bvhContext { get { return m_BvhContext; } }
-
-        public DateTime bvhBuildDateTime { get { return m_BvhBuildDateTime; } }
-
-        public bool shadowsEnabled
+        public SerializedBvhContext bvhContext
         {
-            get { return m_ShadowsEnabled; }
-            set { m_ShadowsEnabled = value; }
+            get { return m_BvhContext; }
+        }
+
+        public DateTime bvhBuildDateTime
+        {
+            get { return m_BvhBuildDateTime; }
+        }
+
+        public ShadowSettings shadowSettings
+        {
+            get { return Initializable.GetOrCreate(ref m_ShadowSettings); }
+            set { m_ShadowSettings = value; }
         }
 
         public DebugSettings debugSettings
         {
-            get { return m_DebugSettings ?? (m_DebugSettings = CreateInstance<DebugSettings>()); }
+            get { return Initializable.GetOrCreate(ref m_DebugSettings); }
             set { m_DebugSettings = value; }
         }
 
         public AntiAliasingSettings antiAliasingSettings
         {
-            get
-            {
-                var settings = m_AntiAliasingSettings = CreateInstance<AntiAliasingSettings>();
-                settings.Init();
-                return m_AntiAliasingSettings ?? settings;
-            }
+            get { return Initializable.GetOrCreate(ref m_AntiAliasingSettings); }
             set { m_AntiAliasingSettings = value; }
         }
 

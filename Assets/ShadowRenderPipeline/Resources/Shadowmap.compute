@@ -1,0 +1,7 @@
+#pragma kernel Shadowmap
+
+[numthreads(64, 1, 1)]
+void Shadowmap()
+{
+
+}

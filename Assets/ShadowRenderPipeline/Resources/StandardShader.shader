@@ -78,7 +78,7 @@ Shader "ShadowRenderPipeline/Standard"
 
 			ZWrite On
 			ZTest LEqual
-			Cull Back
+			// Cull Back
 
 			CGPROGRAM
 
@@ -130,103 +130,47 @@ Shader "ShadowRenderPipeline/Standard"
                 return clipPos;
             }
 
-
-			#ifndef _PARABOLOID_MAPPING
-
- float4x4 inverse(float4x4 input)
- {
-     #define minor(a,b,c) determinant(float3x3(input.a, input.b, input.c))
-     //determinant(float3x3(input._22_23_23, input._32_33_34, input._42_43_44))
-
-     float4x4 cofactors = float4x4(
-          minor(_22_23_24, _32_33_34, _42_43_44),
-         -minor(_21_23_24, _31_33_34, _41_43_44),
-          minor(_21_22_24, _31_32_34, _41_42_44),
-         -minor(_21_22_23, _31_32_33, _41_42_43),
-
-         -minor(_12_13_14, _32_33_34, _42_43_44),
-          minor(_11_13_14, _31_33_34, _41_43_44),
-         -minor(_11_12_14, _31_32_34, _41_42_44),
-          minor(_11_12_13, _31_32_33, _41_42_43),
-
-          minor(_12_13_14, _22_23_24, _42_43_44),
-         -minor(_11_13_14, _21_23_24, _41_43_44),
-          minor(_11_12_14, _21_22_24, _41_42_44),
-         -minor(_11_12_13, _21_22_23, _41_42_43),
-
-         -minor(_12_13_14, _22_23_24, _32_33_34),
-          minor(_11_13_14, _21_23_24, _31_33_34),
-         -minor(_11_12_14, _21_22_24, _31_32_34),
-          minor(_11_12_13, _21_22_23, _31_32_33)
-     );
-     #undef minor
-     return transpose(cofactors) / determinant(input);
- }
-
-            v2f vert(appdata_base i)
+            float4 ParaboloidProjection(float4 vertex)
             {
-            	v2f o;
+                float3 pos = mul(UNITY_MATRIX_V, mul(unity_ObjectToWorld, vertex)).xyz;
+                pos.z = -pos.z;
+                pos.y = -pos.y;
 
-        		// float3 pos = UnityObjectToViewPos(i.vertex);
-            	// float3 pos = mul(UNITY_MATRIX_V, mul(unity_ObjectToWorld, float4(i.vertex.xyz, 1.0))).xyz;
-            	// float4x4 scale = {
-            	// 	1, 0, 0, 0,
-            	// 	0, 1, 0, 0,
-            	// 	0, 0, -1, 0,
-            	// 	0, 0, 0, 1
-            	// };
-            	// float4x4 view = mul(inverse(scale), UNITY_MATRIX_V);
-            	float3 pos = mul(UNITY_MATRIX_V, mul(unity_ObjectToWorld, i.vertex)).xyz;
-            	pos.z = -pos.z;
-            	pos.y = -pos.y;
-            	// pos.x = -pos.x;
-            	// pos = pos / pos.w;
+                float L = length(pos.xyz);
+                pos = pos / L;
+                // o.clipDepth = pos.z;
 
-            	float L = length(pos.xyz);
-            	pos = pos / L;
-            	o.clipDepth = pos.z;
+                pos.z = pos.z + 1;
+                pos.x = pos.x / (pos.z);
+                pos.y = pos.y / (pos.z);
 
-            	pos.z = pos.z + 1;
-            	pos.x = pos.x / (pos.z);
-            	pos.y = pos.y / (pos.z);
+                float near = 0.2;
+                float far = 20;
 
-            	float near = 0.2; // _ProjectionParams.y;
-            	float far = 20; //_ProjectionParams.z;
-       //      	half near = _ProjectionParams.y;
-    			// half far = _ProjectionParams.z;
-            	pos.z = 1 - (L - near) / (far - near);
+                pos.z = (L - near) / (far - near);
 
-// #if defined(UNITY_REVERSED_Z)
-//                 pos.z = min(pos.z, UNITY_NEAR_CLIP_VALUE);
-// #else
-//                 pos.z = max(pos.z, UNITY_NEAR_CLIP_VALUE);
-// #endif
+#if defined(UNITY_REVERSED_Z)
+                pos.z = min(1 - pos.z, UNITY_NEAR_CLIP_VALUE);
+#else
+                pos.z = max(pos.z, UNITY_NEAR_CLIP_VALUE);
+#endif
 
-            	// pos.z = - pos.z;
-                o.vertex = float4(pos, 1.0);
-
-                return o;
+                return float4(pos, 1.0);
             }
-
-            half4 frag(v2f i) : SV_TARGET
-            {
-            	// clip(i.clipDepth);
-                return 0;
-            }
-
-            #else
 
             float4 vert(appdata_base i) : SV_POSITION
             {
-            	return ClipSpaceShadowCasterPos(i.vertex, i.normal);
+                #ifdef _PARABOLOID_MAPPING
+                    return ParaboloidProjection(i.vertex);
+                #else
+            	   return ClipSpaceShadowCasterPos(i.vertex, i.normal);
+                #endif
             }
 
             half4 frag() : SV_TARGET
             {
                 return 0;
             }
-
-            #endif
 
 			ENDCG
 		}

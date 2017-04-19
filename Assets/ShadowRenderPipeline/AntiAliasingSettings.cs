@@ -4,7 +4,7 @@ using UnityEngine;
 namespace ShadowRenderPipeline
 {
     [Serializable]
-    public class AntiAliasingSettings : ScriptableObject
+    public class AntiAliasingSettings : ScriptableObject, IInitializable
     {
         [SerializeField]
         bool m_Enabled;

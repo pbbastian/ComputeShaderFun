@@ -4,7 +4,7 @@ using UnityEngine;
 namespace ShadowRenderPipeline
 {
     [Serializable]
-    public class DebugSettings : ScriptableObject
+    public class DebugSettings : ScriptableObject, IInitializable
     {
         [SerializeField]
         bool m_Enabled;
@@ -22,6 +22,16 @@ namespace ShadowRenderPipeline
         {
             get { return m_OutputBuffer; }
             set { m_OutputBuffer = value; }
+        }
+
+        public OutputBuffer effectiveOutputBuffer
+        {
+            get { return enabled ? m_OutputBuffer : OutputBuffer.Color; }
+        }
+
+        public void Init()
+        {
+
         }
     }
 }
