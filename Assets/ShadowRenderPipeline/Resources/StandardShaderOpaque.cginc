@@ -1,7 +1,3 @@
-﻿#pragma target 3.0
-#pragma vertex vert
-#pragma fragment frag
-#pragma shader_feature _METALLICGLOSSMAP
 #include "UnityCG.cginc"
 #include "UnityStandardBRDF.cginc"
 #include "UnityStandardUtils.cginc"

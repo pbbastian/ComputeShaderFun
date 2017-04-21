@@ -62,11 +62,11 @@ Shader "ShadowRenderPipeline/Standard"
 			ZWrite[_ZWrite]
 
 			CGPROGRAM
-#pragma target 3.0
-#pragma vertex vert
-#pragma fragment frag
-#pragma shader_feature _METALLICGLOSSMAP
-#include "StandardShader.cginc"
+            #pragma vertex vert
+            #pragma fragment frag
+            #pragma target 3.0
+            #pragma shader_feature _METALLICGLOSSMAP
+            #include "StandardShaderOpaque.cginc"
 
 			ENDCG
 		}

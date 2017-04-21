@@ -33,6 +33,7 @@ namespace ShadowRenderPipeline.Editor
             public readonly GUIContent fxaaLabel = new GUIContent("FXAA");
             public readonly GUIContent[] fxaaPresets = new[] { "Extreme Performance", "Performance", "Default", "Quality", "Extreme Quality" }.Select(x => new GUIContent(x)).ToArray();
             public readonly GUIContent shadowmapVariantLabel = new GUIContent("Shadowmap Variant");
+            public readonly GUIContent shadowmapResolutionLabel = new GUIContent("Shadowmap Resolution");
             public readonly GUILayoutOption buttonWidth = GUILayout.MaxWidth(100f);
             public readonly GUIStyle groupHeaderStyle = EditorStyles.boldLabel;
         }
@@ -78,7 +79,9 @@ namespace ShadowRenderPipeline.Editor
             using (var toggle = new EditorGUILayout.ToggleGroupScope(styles.shadowsLabel, asset.shadowSettings.enabled))
             {
                 asset.shadowSettings.enabled = toggle.enabled;
+                asset.shadowSettings.method = (ShadowingMethod)EditorGUILayout.EnumPopup(styles.methodLabel, asset.shadowSettings.method);
                 asset.shadowSettings.shadowmapVariant = (ShadowmapVariant)EditorGUILayout.EnumPopup(styles.shadowmapVariantLabel, asset.shadowSettings.shadowmapVariant);
+                asset.shadowSettings.shadowmapResolution = EditorGUILayout.IntSlider(styles.shadowmapResolutionLabel, asset.shadowSettings.shadowmapResolution, 8, 1024);
             }
             EditorGUILayout.Space();
 

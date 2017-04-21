@@ -28,6 +28,7 @@ namespace ShadowRenderPipeline
 
         Material m_DeferredLightingMat;
         Material m_FxaaMaterial;
+        Material m_ShadowMappingMaterial;
         ComputeShader m_ShadowsCompute;
         StructuredBuffer<int> m_WorkCounterBuffer;
 
@@ -51,6 +52,8 @@ namespace ShadowRenderPipeline
 
             m_DeferredLightingMat = CheckShaderAndCreateMaterial(Shader.Find("Hidden/DeferredLighting"));
             m_FxaaMaterial = CheckShaderAndCreateMaterial(Shader.Find("Hidden/Fast Approximate Anti-aliasing"));
+            m_ShadowMappingMaterial = CheckShaderAndCreateMaterial(Shader.Find("Hidden/ShadowMapping"));
+
             m_ShadowsCompute = Resources.Load<ComputeShader>(ShadowsCompute.Path);
             m_WorkCounterBuffer = new StructuredBuffer<int>(1, ShaderSizes.s_Int);
 
@@ -69,6 +72,26 @@ namespace ShadowRenderPipeline
             return material;
         }
 
+        struct Filters
+        {
+            public int renderQueueMin;
+            /// <summary>
+            ///   <para>Render objects that have material render queue smaller or equal to this.</para>
+            /// </summary>
+            public int renderQueueMax;
+            /// <summary>
+            ///   <para>Only render objects in the given layer mask.</para>
+            /// </summary>
+            public int layerMask;
+
+            public string passName;
+
+            public float minDistance;
+
+            public float maxDistance;
+
+        }
+
         public void Render(ScriptableRenderContext context, Camera[] cameras)
         {
             if (disposed)
@@ -85,7 +108,32 @@ namespace ShadowRenderPipeline
                 cullingParams.shadowDistance = 100f;
                 CullResults cullResults = CullResults.Cull(ref cullingParams, context);
 
-                var shadowsRendered = DrawShadows(ref context, ref cullResults);
+
+                ////render g-Buffer
+                //var cr2 = cullResults.Filter(gbuffer);
+                //context.DrawRenderers(cr2);
+
+                ////do lighing
+                //DrawQuadsForLights();
+
+
+                ////Find remaining objects
+                //var remaining = cullResults - cr2;
+                //remaining = remaining.filter(hasForwardOpaquePass);
+
+                //var transparencies = cullResults - cr2 - remaining;
+                //transparencies = remaining.filter(hasForwardTransparentPass);
+
+                ////leftovers!
+                //var leftovers = cullResults - cr2 - remaining - transparencies;
+
+                ////render leftovers with error shader
+                //Draw
+
+
+
+                Matrix4x4 lightView;
+                var shadowsRendered = DrawShadows(ref context, ref cullResults, m_Asset.shadowSettings.shadowmapResolution, out lightView);
 
                 // Setup camera for rendering (sets render target, view/projection matrices and other
                 // per-camera built-in shader variables).
@@ -95,6 +143,7 @@ namespace ShadowRenderPipeline
                 using (var cmd = new CommandBuffer { name = "Init G-Buffer" })
                 {
                     cmd.SetGlobalMatrix("_InverseView", camera.cameraToWorldMatrix);
+                    cmd.SetGlobalMatrix("_LightView", lightView);
                     cmd.GetTemporaryRT(m_CameraColorID, camera.pixelWidth, camera.pixelHeight, 0, FilterMode.Bilinear, RenderTextureFormat.ARGBHalf, RenderTextureReadWrite.Linear, 1, true);
                     cmd.GetTemporaryRT(m_CameraDepthStencilID, camera.pixelWidth, camera.pixelHeight, 24, FilterMode.Point, RenderTextureFormat.Depth);
                     cmd.GetTemporaryRT(m_GBufferID[0], camera.pixelWidth, camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear, 1, true);
@@ -126,25 +175,36 @@ namespace ShadowRenderPipeline
                 }
                 else if (m_Asset.shadowSettings.enabled && shadowsRendered)
                 {
-                    var shadowsKernel = m_ShadowsCompute.FindKernel(ShadowsCompute.Kernels.Shadows);
-                    using (var cmd = new CommandBuffer { name = "Compute BVH shadows" })
+                    if (m_Asset.shadowSettings.method == ShadowingMethod.ShadowMapping)
                     {
-                        cmd.SetRenderTarget(m_CameraColorRT, m_CameraDepthStencilRT);
-                        cmd.SetComputeBufferParam(m_ShadowsCompute, shadowsKernel, ShadowsCompute.WorkCounter, m_WorkCounterBuffer);
-                        cmd.SetComputeIntParam(m_ShadowsCompute, ShadowsCompute.ThreadGroupCount, 512);
-                        cmd.SetComputeVectorParam(m_ShadowsCompute, ShadowsCompute.ZBufferParams, camera.GetZBufferParams(true));
-                        cmd.SetComputeVectorParam(m_ShadowsCompute, ShadowsCompute.Light, cullResults.visibleLights[0].localToWorld.GetColumn(3));
-                        cmd.SetComputeMatrix4x4Param(m_ShadowsCompute, ShadowsCompute.InverseView, camera.cameraToWorldMatrix);
-                        cmd.SetComputeMatrix4x4Param(m_ShadowsCompute, ShadowsCompute.Projection, camera.projectionMatrix);
-                        cmd.SetComputeVectorParam(m_ShadowsCompute, ShadowsCompute.Size, new Vector2(camera.pixelWidth, camera.pixelHeight));
-                        cmd.SetComputeBufferParam(m_ShadowsCompute, shadowsKernel, ShadowsCompute.NodeBuffer, m_BvhContext.nodesBuffer);
-                        cmd.SetComputeBufferParam(m_ShadowsCompute, shadowsKernel, ShadowsCompute.TriangleBuffer, m_BvhContext.trianglesBuffer);
-                        cmd.SetComputeBufferParam(m_ShadowsCompute, shadowsKernel, ShadowsCompute.VertexBuffer, m_BvhContext.verticesBuffer);
-                        cmd.SetComputeTextureParam(m_ShadowsCompute, shadowsKernel, ShadowsCompute.DepthTexture, m_CameraDepthStencilRT);
-                        cmd.SetComputeTextureParam(m_ShadowsCompute, shadowsKernel, ShadowsCompute.NormalTexture, m_GBufferRT[2]);
-                        cmd.SetComputeTextureParam(m_ShadowsCompute, shadowsKernel, ShadowsCompute.TargetTexture, m_GBufferRT[3]);
-                        cmd.DispatchCompute(m_ShadowsCompute, shadowsKernel, 512, 1, 1);
-                        context.ExecuteCommandBuffer(cmd);
+                        using (var cmd = new CommandBuffer { name = "Shadow mapping" })
+                        {
+                            cmd.Blit(BuiltinRenderTextureType.CurrentActive, m_GBufferRT[3], m_ShadowMappingMaterial);
+                            context.ExecuteCommandBuffer(cmd);
+                        }
+                    }
+                    else if (m_Asset.shadowSettings.method == ShadowingMethod.RayTracing)
+                    {
+                        var shadowsKernel = m_ShadowsCompute.FindKernel(ShadowsCompute.Kernels.Shadows);
+                        using (var cmd = new CommandBuffer { name = "Compute BVH shadows" })
+                        {
+                            cmd.SetRenderTarget(m_CameraColorRT, m_CameraDepthStencilRT);
+                            cmd.SetComputeBufferParam(m_ShadowsCompute, shadowsKernel, ShadowsCompute.WorkCounter, m_WorkCounterBuffer);
+                            cmd.SetComputeIntParam(m_ShadowsCompute, ShadowsCompute.ThreadGroupCount, 512);
+                            cmd.SetComputeVectorParam(m_ShadowsCompute, ShadowsCompute.ZBufferParams, camera.GetZBufferParams(true));
+                            cmd.SetComputeVectorParam(m_ShadowsCompute, ShadowsCompute.Light, cullResults.visibleLights[0].localToWorld.GetColumn(3));
+                            cmd.SetComputeMatrix4x4Param(m_ShadowsCompute, ShadowsCompute.InverseView, camera.cameraToWorldMatrix);
+                            cmd.SetComputeMatrix4x4Param(m_ShadowsCompute, ShadowsCompute.Projection, camera.projectionMatrix);
+                            cmd.SetComputeVectorParam(m_ShadowsCompute, ShadowsCompute.Size, new Vector2(camera.pixelWidth, camera.pixelHeight));
+                            cmd.SetComputeBufferParam(m_ShadowsCompute, shadowsKernel, ShadowsCompute.NodeBuffer, m_BvhContext.nodesBuffer);
+                            cmd.SetComputeBufferParam(m_ShadowsCompute, shadowsKernel, ShadowsCompute.TriangleBuffer, m_BvhContext.trianglesBuffer);
+                            cmd.SetComputeBufferParam(m_ShadowsCompute, shadowsKernel, ShadowsCompute.VertexBuffer, m_BvhContext.verticesBuffer);
+                            cmd.SetComputeTextureParam(m_ShadowsCompute, shadowsKernel, ShadowsCompute.DepthTexture, m_CameraDepthStencilRT);
+                            cmd.SetComputeTextureParam(m_ShadowsCompute, shadowsKernel, ShadowsCompute.NormalTexture, m_GBufferRT[2]);
+                            cmd.SetComputeTextureParam(m_ShadowsCompute, shadowsKernel, ShadowsCompute.TargetTexture, m_GBufferRT[3]);
+                            cmd.DispatchCompute(m_ShadowsCompute, shadowsKernel, 512, 1, 1);
+                            context.ExecuteCommandBuffer(cmd);
+                        }
                     }
                 }
 
@@ -239,8 +299,9 @@ namespace ShadowRenderPipeline
             }
         }
 
-        bool DrawShadows(ref ScriptableRenderContext context, ref CullResults cullResults)
+        bool DrawShadows(ref ScriptableRenderContext context, ref CullResults cullResults, int resolution, out Matrix4x4 lightViewMatrix)
         {
+            lightViewMatrix = Matrix4x4.identity;
             if (cullResults.visibleLights.Length == 0)
                 return false;
             Matrix4x4 view, proj;
@@ -256,7 +317,7 @@ namespace ShadowRenderPipeline
                     cmd.EnableShaderKeyword("_PARABOLOID_MAPPING");
                 else
                     cmd.DisableShaderKeyword("_PARABOLOID_MAPPING");
-                cmd.GetTemporaryRT(m_ShadowmapID, 512, 512, 24, FilterMode.Bilinear, RenderTextureFormat.Shadowmap, RenderTextureReadWrite.Linear);
+                cmd.GetTemporaryRT(m_ShadowmapID, resolution, resolution, 24, FilterMode.Bilinear, RenderTextureFormat.Shadowmap, RenderTextureReadWrite.Linear);
                 cmd.SetRenderTarget(m_ShadowmapRT);
                 cmd.ClearRenderTarget(true, true, Color.black);
                 cmd.SetViewProjectionMatrices(view, proj);
@@ -265,6 +326,7 @@ namespace ShadowRenderPipeline
 
             context.DrawShadows(ref settings);
 
+            lightViewMatrix = view;
             return true;
         }
 

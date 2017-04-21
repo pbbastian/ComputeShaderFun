@@ -2,8 +2,7 @@
 #include "UnityStandardBRDF.cginc"
 #include "UnityStandardUtils.cginc"
 #include "UnityGBuffer.cginc"
-
-float4x4 _InverseView;
+#include "GBuffer.cginc"
 
 // Global lighting data (setup from C# code once per frame).
 CBUFFER_START(GlobalLightData)
@@ -20,10 +19,6 @@ float4 globalSH[7];
 CBUFFER_END
 
 sampler2D _MainTex;
-sampler2D _CameraGBufferTexture1;
-sampler2D _CameraGBufferTexture2;
-sampler2D _CameraGBufferTexture3;
-sampler2D_float _CameraDepthTexture;
 
 // Surface inputs for evaluating Standard BRDF
 struct SurfaceInputData
@@ -90,15 +85,12 @@ half3 EvaluateSH(half3 n)
 
 half4 frag (v2f_img i) : SV_Target
 {
-    float depth = LinearEyeDepth(tex2D(_CameraDepthTexture, i.uv).x);
-    float2 p11_22 = float2(unity_CameraProjection._11, unity_CameraProjection._22);
-    float2 uv = i.uv;
-    float3 vpos = float3((uv * 2 - 1) / p11_22, -1) * depth;
-    float4 wpos = mul(_InverseView, float4(vpos, 1));
+    float depth = SampleLinearDepth(i.uv);
+    float3 wpos = CalculateWorldPosition(i.uv, depth);
 
     float3 eyeVec = normalize(wpos - _WorldSpaceCameraPos);
 
-    UnityStandardData data = UnityStandardDataFromGbuffer(tex2D(_MainTex, i.uv), tex2D(_CameraGBufferTexture1, i.uv), tex2D(_CameraGBufferTexture2, i.uv));
+    UnityStandardData data = UnityStandardDataFromGbuffer(SampleGBuffer0(i.uv), SampleGBuffer1(i.uv), SampleGBuffer2(i.uv));
     SurfaceInputData s;
     s.diffColor = data.diffuseColor;
     s.specColor = data.specularColor;
@@ -120,7 +112,7 @@ half4 frag (v2f_img i) : SV_Target
         return color;
 
     // Only the first light can have shadows
-    float visibility = tex2D(_CameraGBufferTexture3, i.uv).r;
+    float visibility = Visibility(SampleGBuffer3(i.uv));
     color.rgb += EvaluateOneLight(0, wpos, data.normalWorld, eyeVec, s) * visibility;
 
     // Add illumination from all lights
@@ -129,5 +121,5 @@ half4 frag (v2f_img i) : SV_Target
         color.rgb += EvaluateOneLight(il, wpos, data.normalWorld, eyeVec, s);
     }
 
-    return color; 
+    return color;
 }
