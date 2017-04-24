@@ -10,6 +10,7 @@ namespace ShadowRenderPipeline
         GBuffer1,
         GBuffer2,
         GBuffer3,
-        Shadowmap
+        Shadowmap,
+        HybridShadows
     }
 }

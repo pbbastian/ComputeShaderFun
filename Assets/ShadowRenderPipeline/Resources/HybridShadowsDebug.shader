@@ -1,4 +1,4 @@
-Shader "Hidden/ShadowMapping"
+Shader "Hidden/HybridShadowsDebug"
 {
 	Properties
 	{
@@ -12,10 +12,10 @@ Shader "Hidden/ShadowMapping"
 		Pass
 		{
 			CGPROGRAM
-            #pragma target 5.0
-            #pragma vertex vert
-            #pragma fragment frag
-            #include "ShadowMapping.cginc"
+			#pragma vertex vert_img
+			#pragma fragment frag
+
+			#include "HybridShadowsDebug.cginc"
 			ENDCG
 		}
 	}

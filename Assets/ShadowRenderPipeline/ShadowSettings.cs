@@ -20,6 +20,9 @@ namespace Assets.ShadowRenderPipeline
         [SerializeField]
         ShadowingMethod m_Method;
 
+        [SerializeField]
+        float m_Bias;
+
         public bool enabled
         {
             get { return m_Enabled; }
@@ -44,9 +47,17 @@ namespace Assets.ShadowRenderPipeline
             set { m_Method = value; }
         }
 
+        public float bias
+        {
+            get { return m_Bias; }
+            set { m_Bias = value; }
+        }
+
         public void Init()
         {
-
+            m_Enabled = true;
+            m_ShadowmapResolution = 256;
+            m_Bias = 0f;
         }
     }
 

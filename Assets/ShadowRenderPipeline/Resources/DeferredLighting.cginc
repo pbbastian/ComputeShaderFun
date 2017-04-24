@@ -116,10 +116,10 @@ half4 frag (v2f_img i) : SV_Target
     color.rgb += EvaluateOneLight(0, wpos, data.normalWorld, eyeVec, s) * visibility;
 
     // Add illumination from all lights
-    for (int il = 1; il < globalLightCount.x; ++il)
-    {
-        color.rgb += EvaluateOneLight(il, wpos, data.normalWorld, eyeVec, s);
-    }
+    // for (int il = 1; il < globalLightCount.x; ++il)
+    // {
+    //     color.rgb += EvaluateOneLight(il, wpos, data.normalWorld, eyeVec, s);
+    // }
 
     return color;
 }
