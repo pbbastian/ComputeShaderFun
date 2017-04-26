@@ -115,29 +115,6 @@ namespace ShadowRenderPipeline
                 cullingParams.shadowDistance = 100f;
                 CullResults cullResults = CullResults.Cull(ref cullingParams, context);
 
-
-                ////render g-Buffer
-                //var cr2 = cullResults.Filter(gbuffer);
-                //context.DrawRenderers(cr2);
-
-                ////do lighing
-                //DrawQuadsForLights();
-
-
-                ////Find remaining objects
-                //var remaining = cullResults - cr2;
-                //remaining = remaining.filter(hasForwardOpaquePass);
-
-                //var transparencies = cullResults - cr2 - remaining;
-                //transparencies = remaining.filter(hasForwardTransparentPass);
-
-                ////leftovers!
-                //var leftovers = cullResults - cr2 - remaining - transparencies;
-
-                ////render leftovers with error shader
-                //Draw
-
-
                 // Setup global lighting shader variables
                 SetupLightShaderVariables(cullResults.visibleLights, context);
 
