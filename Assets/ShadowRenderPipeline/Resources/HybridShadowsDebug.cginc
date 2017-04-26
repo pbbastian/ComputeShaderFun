@@ -3,6 +3,11 @@
 
 sampler2D _TempShadows;
 
+float4 rgb(float r, float g, float b)
+{
+	 return float4(r/255.0, g/255.0, b/255.0, 1);
+}
+
 fixed4 frag (v2f_img i) : SV_Target
 {
 	float shadowmapVisibility = Visibility(SampleGBuffer3(i.uv));
@@ -16,16 +21,16 @@ fixed4 frag (v2f_img i) : SV_Target
 	
 	if (shadowmapVisibility > epsilon && shadowmapVisibility < one_epsilon)
 	{
-		color.bg = 1;
+		color = rgb(0,200,83);
 	}
 	else
 	{
 		if (shadowmapVisibility > one_epsilon && rayTracedVisiblity > one_epsilon)
-			color.g = 0.5;
+			color.rgb = rgb(238,238,238);
 		else if (shadowmapVisibility < epsilon && rayTracedVisiblity < epsilon)
-			color.b = 0.5;
+			color.rgb = rgb(158,158,158);
 		else
-			color.r = 1;
+			color = rgb(213,0,0);
 	}
 
     return color;

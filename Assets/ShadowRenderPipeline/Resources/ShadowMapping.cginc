@@ -43,6 +43,8 @@ v2f vert (appdata v)
 fixed4 frag (v2f i) : SV_Target
 {
     float depth = SampleLinearDepth(i.uv);
+    if (depth < 1e-3)
+        return 0;
     float3 wsPosition = CalculateWorldPosition(i.uv, depth);
     float3 normal = Normal(SampleGBuffer2(i.uv));
     float3 lightPosition = globalLightPos[0].xyz;

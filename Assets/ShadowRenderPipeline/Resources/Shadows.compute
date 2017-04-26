@@ -90,13 +90,13 @@ TraversalState InitializeState(uint2 id, out float4 debug)
     float3 direction = normalize(wpos - _Light);
     float3 normal = normalize(_NormalTexture[id.xy].rgb * 2 - 1);
 
-    state.ray = MakeRay(wpos + normal * 1e-3, -direction);
+    state.ray = MakeRay(wpos, -direction);
     // state.normal = normal;
     state.nodeIndex = 0;
     state.stackIndex = 0;
     state.t = 100000;
 
-    if (depth < 1e-3)
+    if (depth > 20 - 1e-3)
     	state.t = 0;
     if (dot(normal, direction) > 0)
     	state.t = 0;
@@ -167,7 +167,7 @@ void Traverse(inout TraversalState s, inout int traversalStack[_stackSize], inou
 			float candidate_t = IntersectTriangle(tri, s.ray, candidateCoordinates);
 			stats.TriangleIntersection(1);
 
-			if (candidate_t > 0 && candidate_t < s.t)
+			if (candidate_t > 1e-1 && candidate_t < s.t)
 			{
 				s.t = candidate_t;
 				s.nodeIndex = _entrypointSentinel;

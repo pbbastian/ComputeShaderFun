@@ -108,6 +108,8 @@ namespace ShadowRenderPipeline
 
             foreach (var camera in cameras)
             {
+                var model = new FrameModel(m_Asset, camera);
+
                 // Culling
                 CullingParameters cullingParams;
                 if (!CullResults.GetCullingParameters(camera, out cullingParams))
@@ -118,7 +120,6 @@ namespace ShadowRenderPipeline
                 // Setup global lighting shader variables
                 SetupLightShaderVariables(cullResults.visibleLights, context);
 
-
                 Matrix4x4 lightView;
                 var shadowsRendered = DrawShadows(ref context, ref cullResults, m_Asset.shadowSettings.shadowmapResolution, out lightView);
 
@@ -126,7 +127,7 @@ namespace ShadowRenderPipeline
                 // per-camera built-in shader variables).
                 context.SetupCameraProperties(camera);
 
-                var outputBuffer = m_Asset.debugSettings.effectiveOutputBuffer;
+                var outputBuffer = model.outputBuffer;
 
                 // clear depth buffer
                 using (var cmd = new CommandBuffer { name = "Init G-Buffer" })
@@ -135,7 +136,7 @@ namespace ShadowRenderPipeline
                     cmd.SetGlobalMatrix("_LightView", lightView);
                     cmd.GetTemporaryRT(m_CameraColorID, camera.pixelWidth, camera.pixelHeight, 0, FilterMode.Bilinear, RenderTextureFormat.ARGBHalf, RenderTextureReadWrite.Linear, 1, true);
                     cmd.GetTemporaryRT(m_CameraDepthStencilID, camera.pixelWidth, camera.pixelHeight, 24, FilterMode.Point, RenderTextureFormat.Depth);
-                    if (outputBuffer == OutputBuffer.HybridShadows)
+                    if (model.outputBuffer == OutputBuffer.HybridShadows)
                         cmd.GetTemporaryRT(m_TempShadowsID, camera.pixelWidth, camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear, 1, true);
                     cmd.GetTemporaryRT(m_GBufferID[0], camera.pixelWidth, camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear, 1, true);
                     cmd.GetTemporaryRT(m_GBufferID[1], camera.pixelWidth, camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear, 1, true);
@@ -152,7 +153,7 @@ namespace ShadowRenderPipeline
                 settings.inputFilter.SetQueuesOpaque();
                 context.DrawRenderers(ref settings);
 
-                if (camera.cameraType == CameraType.SceneView || (outputBuffer != OutputBuffer.Color && outputBuffer != OutputBuffer.GBuffer3 && outputBuffer != OutputBuffer.HybridShadows))
+                if (!model.shadowsEnabled)
                 {
                     using (var cmd = new CommandBuffer { name = "Clear shadow buffer" })
                     {
@@ -161,9 +162,9 @@ namespace ShadowRenderPipeline
                         context.ExecuteCommandBuffer(cmd);
                     }
                 }
-                else if (m_Asset.shadowSettings.enabled && shadowsRendered)
+                else
                 {
-                    if (m_Asset.debugSettings.enabled && outputBuffer == OutputBuffer.HybridShadows)
+                    if (model.outputBuffer == OutputBuffer.HybridShadows)
                     {
                         using (var cmd = new CommandBuffer { name = "Shadow mapping" })
                         {
@@ -188,11 +189,6 @@ namespace ShadowRenderPipeline
 
                 using (var cmd = new CommandBuffer { name = "Deferred Lighting" })
                 {
-                    if (!m_Asset.shadowSettings.enabled)
-                    {
-                        cmd.SetRenderTarget(m_GBufferRT[3]);
-                        cmd.ClearRenderTarget(false, true, Color.white);
-                    }
                     cmd.Blit(m_GBufferRT[0], m_CameraColorRT, m_DeferredLightingMat);
                     cmd.SetRenderTarget(m_CameraColorRT, m_CameraDepthStencilRT);
                     context.ExecuteCommandBuffer(cmd);
@@ -225,7 +221,7 @@ namespace ShadowRenderPipeline
                             source = m_ShadowmapRT;
                     }
 
-                    if (m_Asset.antiAliasingSettings.enabled && (camera.cameraType == CameraType.SceneView || !m_Asset.debugSettings.enabled || m_Asset.debugSettings.outputBuffer != OutputBuffer.Color))
+                    if (model.antiAliasingEnabled)
                     {
                         var preset = m_Asset.antiAliasingSettings.preset;
 
@@ -238,7 +234,7 @@ namespace ShadowRenderPipeline
 
                         cmd.Blit(source, BuiltinRenderTextureType.CameraTarget, m_FxaaMaterial, 0);
                     }
-                    else if (m_Asset.debugSettings.enabled && outputBuffer == OutputBuffer.HybridShadows && camera.cameraType != CameraType.SceneView)
+                    else if (model.outputBuffer == OutputBuffer.HybridShadows)
                     {
                         cmd.Blit(source, BuiltinRenderTextureType.CameraTarget, m_HybridShadowsDebugMaterial);
                     }
@@ -246,6 +242,7 @@ namespace ShadowRenderPipeline
                     {
                         cmd.Blit(source, BuiltinRenderTextureType.CameraTarget);
                     }
+
                     context.ExecuteCommandBuffer(cmd);
                 }
 
@@ -294,10 +291,8 @@ namespace ShadowRenderPipeline
 
         void UpdateBvhContext(bool force = false)
         {
-//            Debug.LogFormat("Trying to deserialize BVH... ({2}) {0} < {1}", m_BvhBuildDateTime, m_Asset.bvhBuildDateTime, m_Asset.bvhContext.isValid ? "valid" : "invalid");
             if ((force || m_BvhBuildDateTime < m_Asset.bvhBuildDateTime) && m_Asset.bvhContext.isValid)
             {
-//                Debug.Log("Deserializing BVH...");
                 if (m_BvhContext != null)
                     m_BvhContext.Dispose();
 

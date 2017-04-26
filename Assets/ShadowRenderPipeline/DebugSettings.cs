@@ -24,11 +24,6 @@ namespace ShadowRenderPipeline
             set { m_OutputBuffer = value; }
         }
 
-        public OutputBuffer effectiveOutputBuffer
-        {
-            get { return enabled ? m_OutputBuffer : OutputBuffer.Color; }
-        }
-
         public void Init()
         {
 
