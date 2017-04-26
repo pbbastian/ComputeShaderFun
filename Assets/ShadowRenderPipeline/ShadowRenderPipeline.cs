@@ -31,6 +31,8 @@ namespace ShadowRenderPipeline
         Material m_DeferredLightingMat;
         Material m_FxaaMaterial;
         Material m_ShadowMappingMaterial;
+        Material m_HybridShadowsDebugMaterial;
+
         ComputeShader m_ShadowsCompute;
         StructuredBuffer<int> m_WorkCounterBuffer;
 
@@ -57,6 +59,7 @@ namespace ShadowRenderPipeline
             m_DeferredLightingMat = CheckShaderAndCreateMaterial(Shader.Find("Hidden/DeferredLighting"));
             m_FxaaMaterial = CheckShaderAndCreateMaterial(Shader.Find("Hidden/Fast Approximate Anti-aliasing"));
             m_ShadowMappingMaterial = CheckShaderAndCreateMaterial(Shader.Find("Hidden/ShadowMapping"));
+            m_HybridShadowsDebugMaterial = CheckShaderAndCreateMaterial(Shader.Find("Hidden/HybridShadowsDebug"));
 
             m_ShadowsCompute = Resources.Load<ComputeShader>(ShadowsCompute.Path);
             m_WorkCounterBuffer = new StructuredBuffer<int>(1, ShaderSizes.s_Int);
@@ -146,6 +149,8 @@ namespace ShadowRenderPipeline
                 // per-camera built-in shader variables).
                 context.SetupCameraProperties(camera);
 
+                var outputBuffer = m_Asset.debugSettings.effectiveOutputBuffer;
+
                 // clear depth buffer
                 using (var cmd = new CommandBuffer { name = "Init G-Buffer" })
                 {
@@ -153,6 +158,8 @@ namespace ShadowRenderPipeline
                     cmd.SetGlobalMatrix("_LightView", lightView);
                     cmd.GetTemporaryRT(m_CameraColorID, camera.pixelWidth, camera.pixelHeight, 0, FilterMode.Bilinear, RenderTextureFormat.ARGBHalf, RenderTextureReadWrite.Linear, 1, true);
                     cmd.GetTemporaryRT(m_CameraDepthStencilID, camera.pixelWidth, camera.pixelHeight, 24, FilterMode.Point, RenderTextureFormat.Depth);
+                    if (outputBuffer == OutputBuffer.HybridShadows)
+                        cmd.GetTemporaryRT(m_TempShadowsID, camera.pixelWidth, camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear, 1, true);
                     cmd.GetTemporaryRT(m_GBufferID[0], camera.pixelWidth, camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear, 1, true);
                     cmd.GetTemporaryRT(m_GBufferID[1], camera.pixelWidth, camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear, 1, true);
                     cmd.GetTemporaryRT(m_GBufferID[2], camera.pixelWidth, camera.pixelHeight, 0, FilterMode.Point, RenderTextureFormat.ARGB2101010, RenderTextureReadWrite.Linear, 1, true);
@@ -168,7 +175,7 @@ namespace ShadowRenderPipeline
                 settings.inputFilter.SetQueuesOpaque();
                 context.DrawRenderers(ref settings);
 
-                if (camera.cameraType == CameraType.SceneView || (m_Asset.debugSettings.effectiveOutputBuffer != OutputBuffer.Color && m_Asset.debugSettings.effectiveOutputBuffer != OutputBuffer.GBuffer3))
+                if (camera.cameraType == CameraType.SceneView || (outputBuffer != OutputBuffer.Color && outputBuffer != OutputBuffer.GBuffer3 && outputBuffer != OutputBuffer.HybridShadows))
                 {
                     using (var cmd = new CommandBuffer { name = "Clear shadow buffer" })
                     {
@@ -179,7 +186,16 @@ namespace ShadowRenderPipeline
                 }
                 else if (m_Asset.shadowSettings.enabled && shadowsRendered)
                 {
-                    if (m_Asset.shadowSettings.method == ShadowingMethod.ShadowMapping)
+                    if (m_Asset.debugSettings.enabled && outputBuffer == OutputBuffer.HybridShadows)
+                    {
+                        using (var cmd = new CommandBuffer { name = "Shadow mapping" })
+                        {
+                            cmd.Blit(BuiltinRenderTextureType.CurrentActive, m_GBufferRT[3], m_ShadowMappingMaterial);
+                            context.ExecuteCommandBuffer(cmd);
+                        }
+                        DispatchShadowsKernel(ref context, ref cullResults, camera, m_TempShadowsID);
+                    }
+                    else if (m_Asset.shadowSettings.method == ShadowingMethod.ShadowMapping)
                     {
                         using (var cmd = new CommandBuffer { name = "Shadow mapping" })
                         {
@@ -218,7 +234,6 @@ namespace ShadowRenderPipeline
                     var source = m_CameraColorRT;
                     if (m_Asset.debugSettings.enabled && camera.cameraType == CameraType.Game)
                     {
-                        var outputBuffer = m_Asset.debugSettings.outputBuffer;
                         if (outputBuffer == OutputBuffer.Depth)
                             source = m_CameraDepthStencilRT;
                         if (outputBuffer == OutputBuffer.GBuffer0)
@@ -246,6 +261,10 @@ namespace ShadowRenderPipeline
 
                         cmd.Blit(source, BuiltinRenderTextureType.CameraTarget, m_FxaaMaterial, 0);
                     }
+                    else if (m_Asset.debugSettings.enabled && outputBuffer == OutputBuffer.HybridShadows && camera.cameraType != CameraType.SceneView)
+                    {
+                        cmd.Blit(source, BuiltinRenderTextureType.CameraTarget, m_HybridShadowsDebugMaterial);
+                    }
                     else
                     {
                         cmd.Blit(source, BuiltinRenderTextureType.CameraTarget);
@@ -259,6 +278,8 @@ namespace ShadowRenderPipeline
                     cmd.ReleaseTemporaryRT(m_GBufferID[1]);
                     cmd.ReleaseTemporaryRT(m_GBufferID[2]);
                     cmd.ReleaseTemporaryRT(m_GBufferID[3]);
+                    if (outputBuffer == OutputBuffer.HybridShadows)
+                        cmd.ReleaseTemporaryRT(m_TempShadowsID);
                     cmd.ReleaseTemporaryRT(m_CameraColorID);
                     cmd.ReleaseTemporaryRT(m_CameraDepthStencilID);
                     if (shadowsRendered)
