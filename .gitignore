@@ -31,3 +31,4 @@ sysinfo.txt
 *.unitypackage
 .vs/
 *.sublime-workspace
+.idea/.idea.ComputeShaderFun/.idea/workspace.xml
