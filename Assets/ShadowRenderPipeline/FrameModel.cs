@@ -7,6 +7,7 @@ namespace ShadowRenderPipeline
         OutputBuffer m_OutputBuffer;
         bool m_ShadowsEnabled;
         bool m_AntiAliasingEnabled;
+        string m_ShadowsKernelName;
 
         public FrameModel(ShadowRenderPipelineAsset asset, Camera camera)
         {
@@ -25,6 +26,7 @@ namespace ShadowRenderPipeline
                     !asset.debugSettings.enabled ||
                     camera.cameraType == CameraType.SceneView);
 
+            m_ShadowsKernelName = asset.shadowSettings.pixelCulling ? ShadowsCompute.Kernels.Shadows_PixelCulling : ShadowsCompute.Kernels.Shadows;
         }
 
         public OutputBuffer outputBuffer
@@ -40,6 +42,11 @@ namespace ShadowRenderPipeline
         public bool antiAliasingEnabled
         {
             get { return m_AntiAliasingEnabled; }
+        }
+
+        public string shadowsKernelName
+        {
+            get { return m_ShadowsKernelName; }
         }
     }
 }

@@ -14,19 +14,23 @@ namespace RayTracer.Runtime
     {
         public static BvhContext CreateBvh()
         {
-            var scene = SceneManager.GetActiveScene();
-            var gameObjects = scene.GetComponentsInChildren<RayTracingObject>().Select(x => x.gameObject).Where(x => x.activeInHierarchy).ToList();
+            var gameObjects = Object.FindObjectsOfType<GameObject>();
+
             var sceneBounds = new Aabb
             {
                 min = new Vector3(float.PositiveInfinity, float.PositiveInfinity, float.PositiveInfinity),
                 max = new Vector3(float.NegativeInfinity, float.NegativeInfinity, float.NegativeInfinity)
             };
 
-            int triangleCount = 0, vertexCount = 0, objectCount = gameObjects.Count;
+            int triangleCount = 0, vertexCount = 0, objectCount = 0;
             foreach (var gameObject in gameObjects)
             {
                 // RayTracingObject requires MeshFilter, so we can be sure that it's there.
                 var meshFilter = gameObject.GetComponent<MeshFilter>();
+                if (meshFilter == null)
+                    continue;
+
+                objectCount += 1;
                 triangleCount += meshFilter.sharedMesh.triangles.Length / 3;
                 vertexCount += meshFilter.sharedMesh.vertices.Length;
             }
@@ -39,9 +43,12 @@ namespace RayTracer.Runtime
             var transformData = new Matrix4x4[objectCount];
 
             int vertexIndex = 0, triangleIndex = 0, transformIndex = 0;
-            foreach (var gameObject in gameObjects)
+            foreach (var gameObject in Object.FindObjectsOfType<GameObject>())
             {
                 var meshFilter = gameObject.GetComponent<MeshFilter>();
+                if (meshFilter == null)
+                    continue;
+
                 var mesh = meshFilter.sharedMesh;
                 sceneBounds = sceneBounds.Merge(new Aabb {min = mesh.bounds.min, max = mesh.bounds.max});
 
@@ -117,17 +124,11 @@ namespace RayTracer.Runtime
             };
         }
 
-        public static bool IsValidForBvh(GameObject gameObject)
+        public static List<T> GetComponentsInChildren<T>(this Scene scene)
         {
-            return gameObject.GetComponent<RayTracingObject>() != null
-                   && gameObject.GetComponent<MeshFilter>() != null;
-        }
-
-        public static IEnumerable<T> GetComponentsInChildren<T>(this Scene scene)
-        {
-            var rootComponents = scene.GetRootGameObjects().Select(go => go.GetComponent<T>()).Where(c => c != null);
-            var childComponents = scene.GetRootGameObjects().SelectMany(go => go.GetComponentsInChildren<T>());
-            return rootComponents.Concat(childComponents);
+            var rootComponents = scene.GetRootGameObjects().Select(go => go.GetComponent<T>()).Where(c => c != null).ToList();
+            var childComponents = scene.GetRootGameObjects().SelectMany(go => go.GetComponentsInChildren<T>()).ToList();
+            return rootComponents.Concat(childComponents).ToList();
         }
     }
 }

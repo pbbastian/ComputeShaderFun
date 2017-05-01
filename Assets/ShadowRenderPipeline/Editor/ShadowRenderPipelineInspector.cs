@@ -97,9 +97,9 @@ namespace ShadowRenderPipeline.Editor
                 EditorGUILayout.LabelField(styles.rayTracingLabel);
                 using (new EditorGUI.IndentLevelScope())
                 {
+                    asset.shadowSettings.pixelCulling = EditorGUILayout.Toggle(styles.pixelCullingLabel, asset.shadowSettings.pixelCulling);
                     using (new EditorGUI.DisabledGroupScope(true))
                     {
-                        EditorGUILayout.Toggle(styles.pixelCullingLabel, false);
                         EditorGUILayout.Toggle(styles.raySectionCullingLabel, false);
                     }
                 }

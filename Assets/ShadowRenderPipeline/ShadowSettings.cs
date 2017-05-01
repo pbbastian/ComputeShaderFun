@@ -23,6 +23,9 @@ namespace Assets.ShadowRenderPipeline
         [SerializeField]
         float m_Bias;
 
+        [SerializeField]
+        bool m_PixelCulling;
+
         public bool enabled
         {
             get { return m_Enabled; }
@@ -53,6 +56,12 @@ namespace Assets.ShadowRenderPipeline
             set { m_Bias = value; }
         }
 
+        public bool pixelCulling
+        {
+            get { return m_PixelCulling; }
+            set { m_PixelCulling = value; }
+        }
+
         public void Init()
         {
             m_Enabled = true;
@@ -64,8 +73,7 @@ namespace Assets.ShadowRenderPipeline
     public enum ShadowingMethod
     {
         RayTracing,
-        ShadowMapping,
-        Hybrid
+        ShadowMapping
     }
 
     public enum ShadowmapVariant
