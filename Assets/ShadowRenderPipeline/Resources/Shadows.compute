@@ -21,7 +21,7 @@ float4x4 _InverseView;
 uint _ThreadGroupCount;
 RWStructuredBuffer<uint> _WorkCounter;
 
-static const int _stackSize = 32;
+static const int _stackSize = 16;
 static const int _entrypointSentinel = 2147483647;
 static const int _rayBatchSize = 64;
 
@@ -128,7 +128,7 @@ TraversalState InitializeState(uint2 id, out float4 debug)
     	debug = 0;
     }
 
-    
+
 
     return state;
 }
@@ -189,7 +189,7 @@ void Traverse(inout TraversalState s, inout int traversalStack[_stackSize], inou
 			IndexedTriangle indices = _Triangles[s.nodeIndex];
 			Triangle tri = MakeTriangle(_Vertices[indices.v1].xyz, _Vertices[indices.v2].xyz, _Vertices[indices.v3].xyz);
 
-			// intersect triangle 
+			// intersect triangle
 			float3 candidateCoordinates;
 			float candidate_t = IntersectTriangle(tri, s.ray, candidateCoordinates);
 			stats.TriangleIntersection(1);
@@ -212,7 +212,7 @@ void Traverse(inout TraversalState s, inout int traversalStack[_stackSize], inou
 groupshared uint _localClusterId;
 groupshared uint _localClusterCount;
 
-static const uint2 _clusterSize = {4, 8};
+static const uint2 _clusterSize = {8, 8};
 static const uint _batchSize = 1;
 
 void ShadowsKernel(uint3 did, uint3 tid, uint3 gid)
@@ -229,7 +229,7 @@ void ShadowsKernel(uint3 did, uint3 tid, uint3 gid)
 	{
 		traversalStack[i] = 0;
 	}
-	
+
 	if (tid.x == 0 && tid.y == 0)
 	{
 		_localClusterId = gid.x * _batchSize;
