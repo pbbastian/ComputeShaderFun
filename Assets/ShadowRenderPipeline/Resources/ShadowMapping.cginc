@@ -55,15 +55,8 @@ fixed4 frag (v2f i) : SV_Target
 
     float3 lsPosition = mul(_LightView, float4(wsPosition, 1.0)).xyz;
     lsPosition.z = -lsPosition.z;
-    // lsPosition.y = -lsPosition.y;
     float distanceToLight = length(lsPosition);
     lsPosition = lsPosition / distanceToLight;
-
-    // float2 shadowCoordinates =
-    // {
-    //     (lsPosition.x / (1 - lsPosition.z)) * 0.5 + 0.5,
-    //     1 - (((1 - lsPosition.y) / (1 - lsPosition.z)) * 0.5 + 0.5)
-    // };
 
     lsPosition.z = lsPosition.z + 1;
     lsPosition.x = lsPosition.x / (lsPosition.z);

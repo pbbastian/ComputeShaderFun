@@ -10,12 +10,13 @@ RWTexture2D<float4> _TargetTex;
 StructuredBuffer<Bvh::Node> _Nodes;
 StructuredBuffer<IndexedTriangle> _Triangles;
 StructuredBuffer<float4> _Vertices;
-Texture2D<float4> _CameraGBufferTexture3;
+Texture2D<float4> _ShadowmapTexture;
+SamplerState sampler_ShadowmapTexture;
 float3 _Light;
 float2 _Size;
 float4x4 _Projection;
 float4x4 _InverseView;
-float4x4 _LightView;
+float4x4 _WorldToLight;
 uint _ThreadGroupCount;
 RWStructuredBuffer<uint> _WorkCounter;
 
@@ -116,6 +117,31 @@ groupshared uint _localClusterCount;
 
 static const uint _batchSize = 1;
 
+float3 WorldToLight(float3 wsPosition)
+{
+    float3 lsPosition = mul(_WorldToLight, float4(wsPosition, 1.0)).xyz;
+    lsPosition.z = -lsPosition.z;
+    float distanceToLight = length(lsPosition);
+    lsPosition = lsPosition / distanceToLight;
+
+    lsPosition.z = lsPosition.z + 1;
+    lsPosition.x = lsPosition.x / (lsPosition.z);
+    lsPosition.y = lsPosition.y / (lsPosition.z);
+
+    float near = 0.2;
+    float far = 20;
+
+    lsPosition.z = (distanceToLight - near) / (far - near);
+
+#if defined(UNITY_REVERSED_Z)
+    lsPosition.z = min(1 - lsPosition.z, UNITY_NEAR_CLIP_VALUE);
+#else
+    lsPosition.z = max(lsPosition.z, UNITY_NEAR_CLIP_VALUE);
+#endif
+
+    return lsPosition;
+}
+
 void ShadowsKernel(uint3 did, uint3 tid, uint3 gid)
 {
 	uint2 size = (uint2) _Size;
@@ -148,15 +174,17 @@ void ShadowsKernel(uint3 did, uint3 tid, uint3 gid)
 
         float2 uv = (((float2)id.xy + 0.5) / _Size);
         float depth = LinearEyeDepth(_DepthTexture[id.xy].x);
-        float2 p11_22 = float2(_Projection._11, _Projection._22);
-        float3 vsPosition = float3((uv * 2 - 1) / p11_22, -1) * depth;
+        float3 vsPosition = float3((uv * 2 - 1) / float2(_Projection._11, _Projection._22), -1) * depth;
         float3 wsPosition = mul(_InverseView, float4(vsPosition, 1)).xyz;
+        float3 lsPosition = WorldToLight(wsPosition);
         float3 direction = normalize(wsPosition - _Light);
         float3 normal = normalize(_NormalTexture[id.xy].rgb * 2 - 1);
 
         float shadowmapVisibility;
         #if _PIXEL_CULLING
-        shadowmapVisibility = _CameraGBufferTexture3[id.xy].r;
+        float4 occluderDepths = _ShadowmapTexture.Gather(sampler_ShadowmapTexture, float2(lsPosition.x * 0.5 + 0.5,  lsPosition.y * 0.5 + 0.5));
+        float4 visibilitySamples = saturate(sign(lsPosition.zzzz - occluderDepths + 0.01));
+        shadowmapVisibility = (visibilitySamples.r + visibilitySamples.g + visibilitySamples.b + visibilitySamples.a) * 0.25;
         #else
         shadowmapVisibility = 0.5;
         #endif
@@ -197,49 +225,49 @@ VARIANT(Shadows_PixelCulling_SegmentCulling)
 
 // old junk
 
-interface IStatistics
-{
-    void BoxIntersection(int n);
-    void TriangleIntersection(int n);
-    void Push(int n);
-    void Pop(int n);
-};
+// interface IStatistics
+// {
+//     void BoxIntersection(int n);
+//     void TriangleIntersection(int n);
+//     void Push(int n);
+//     void Pop(int n);
+// };
 
-class Statistics : IStatistics
-{
-    int boxIntersections;
-    int triangleIntersections;
-    int pushes;
-    int pops;
+// class Statistics : IStatistics
+// {
+//     int boxIntersections;
+//     int triangleIntersections;
+//     int pushes;
+//     int pops;
 
-    void BoxIntersection(int n) { boxIntersections += n; }
-    void TriangleIntersection(int n) { triangleIntersections += n; }
-    void Push(int n) { pushes += n; }
-    void Pop(int n) { pops += n; }
-};
+//     void BoxIntersection(int n) { boxIntersections += n; }
+//     void TriangleIntersection(int n) { triangleIntersections += n; }
+//     void Push(int n) { pushes += n; }
+//     void Pop(int n) { pops += n; }
+// };
 
-Statistics MakeStatistics()
-{
-    Statistics stats;
-    stats.boxIntersections = 0;
-    stats.triangleIntersections = 0;
-    stats.pushes = 0;
-    stats.pops = 0;
-    return stats;
-}
+// Statistics MakeStatistics()
+// {
+//     Statistics stats;
+//     stats.boxIntersections = 0;
+//     stats.triangleIntersections = 0;
+//     stats.pushes = 0;
+//     stats.pops = 0;
+//     return stats;
+// }
 
-class FakeStatistics : IStatistics
-{
-    void BoxIntersection(int n) {}
-    void TriangleIntersection(int n) {}
-    void Push(int n) {}
-    void Pop(int n) {}
-};
+// class FakeStatistics : IStatistics
+// {
+//     void BoxIntersection(int n) {}
+//     void TriangleIntersection(int n) {}
+//     void Push(int n) {}
+//     void Pop(int n) {}
+// };
 
-struct TraversalStats
-{
-    int boxIntersections;
-    int triangleIntersections;
-    int pushes;
-    int pops;
-};
+// struct TraversalStats
+// {
+//     int boxIntersections;
+//     int triangleIntersections;
+//     int pushes;
+//     int pops;
+// };

@@ -26,7 +26,7 @@ namespace ShadowRenderPipeline
                     !asset.debugSettings.enabled ||
                     camera.cameraType == CameraType.SceneView);
 
-            m_ShadowsKernelName = asset.shadowSettings.pixelCulling ? ShadowsCompute.Kernels.Shadows_PixelCulling : ShadowsCompute.Kernels.Shadows;
+            m_ShadowsKernelName = asset.shadowSettings.pixelCulling && m_OutputBuffer != OutputBuffer.HybridShadows ? ShadowsCompute.Kernels.Shadows_PixelCulling : ShadowsCompute.Kernels.Shadows;
         }
 
         public OutputBuffer outputBuffer
