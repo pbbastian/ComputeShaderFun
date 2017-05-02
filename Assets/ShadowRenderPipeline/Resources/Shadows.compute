@@ -1,5 +1,7 @@
 #pragma kernel Shadows
 #pragma kernel Shadows_PixelCulling _PIXEL_CULLING
+#pragma kernel Shadows_SegmentCulling _SEGMENT_CULLING
+#pragma kernel Shadows_PixelCulling_SegmentCulling _PIXEL_CULLING _SEGMENT_CULLING
 
 #define STATS
 
@@ -24,195 +26,98 @@ RWStructuredBuffer<uint> _WorkCounter;
 static const int _stackSize = 16;
 static const int _entrypointSentinel = 2147483647;
 static const int _rayBatchSize = 64;
+static const uint2 _clusterSize = {8, 8};
+static const uint _clusterLength = _clusterSize.x * _clusterSize.y;
+groupshared int _traversalStack[_stackSize * _clusterLength];
 
-interface IStatistics
+int InterleavedIndex(int threadId, int index)
 {
-	void BoxIntersection(int n);
-	void TriangleIntersection(int n);
-	void Push(int n);
-	void Pop(int n);
-};
-
-class Statistics : IStatistics
-{
-	int boxIntersections;
-	int triangleIntersections;
-	int pushes;
-	int pops;
-
-	void BoxIntersection(int n) { boxIntersections += n; }
-	void TriangleIntersection(int n) { triangleIntersections += n; }
-	void Push(int n) { pushes += n; }
-	void Pop(int n) { pops += n; }
-};
-
-Statistics MakeStatistics()
-{
-	Statistics stats;
-	stats.boxIntersections = 0;
-	stats.triangleIntersections = 0;
-	stats.pushes = 0;
-	stats.pops = 0;
-	return stats;
+    return index * _clusterLength + threadId;
 }
 
-class FakeStatistics : IStatistics
+float Traverse(int threadId, Ray ray, float tmax)
 {
-	void BoxIntersection(int n) {}
-	void TriangleIntersection(int n) {}
-	void Push(int n) {}
-	void Pop(int n) {}
-};
+    int nodeIndex = 0;
+    int stackIndex = 0;
+    float t = tmax;
 
-struct TraversalStats
-{
-	int boxIntersections;
-	int triangleIntersections;
-	int pushes;
-	int pops;
-};
-
-struct TraversalState
-{
-	Ray ray;
-	int nodeIndex;
-	int stackIndex;
-	float t;
-	float tmax;
-};
-
-TraversalState InitializeState(uint2 id, out float4 debug)
-{
-	TraversalState state;
-
-	float depth = LinearEyeDepth(_DepthTexture[id.xy].x);
-	float2 p11_22 = float2(_Projection._11, _Projection._22);
-	float2 uv = (((float2)id.xy + 0.5) / _Size);
-    float3 vpos = float3((uv * 2 - 1) / p11_22, -1) * depth;
-    float3 wpos = mul(_InverseView, float4(vpos, 1)).xyz;
-    float3 direction = normalize(wpos - _Light);
-    float3 normal = normalize(_NormalTexture[id.xy].rgb * 2 - 1);
-
-    float visibility;
-    #if _PIXEL_CULLING
-    visibility = _CameraGBufferTexture3[id.xy].r;
-    #else
-    visibility = 0.5;
-    #endif
-
-    // state.ray = MakeRay(wpos - 1e-3 * direction, -direction);
-    state.ray = MakeRay(_Light, direction);
-    // state.normal = normal;
-    state.nodeIndex = 0;
-    state.stackIndex = 0;
-    state.t = (wpos - state.ray.origin) / state.ray.direction - 1e-1;
-    // state.tmax = (_Light - wpos) / state.ray.direction - 1e-3;
-    state.tmax = state.t;
-
-    // wpos = _Light + direction * t
-    // t = (wpos - _Light) / direction
-
-    if (visibility == 0 || depth > 20 - 1e-3 || dot(normal, direction) > 0)
-    {
-    	state.t = 0;
-    	state.nodeIndex = _entrypointSentinel;
-    	debug = 1;
-    }
-    else if (visibility == 1)
-    {
-    	state.nodeIndex = _entrypointSentinel;
-    	debug = 0.5;
-    }
-    else
-    {
-    	debug = 0;
-    }
-
-
-
-    return state;
-}
-
-void Traverse(inout TraversalState s, inout int traversalStack[_stackSize], inout Statistics stats)
-{
-	while (s.nodeIndex != _entrypointSentinel)
+	while (nodeIndex != _entrypointSentinel)
 	{
-		while (s.nodeIndex >= 0 && s.nodeIndex != _entrypointSentinel)
+		while (nodeIndex >= 0 && nodeIndex != _entrypointSentinel)
 		{
-			Bvh::Node node = _Nodes[s.nodeIndex];
+			Bvh::Node node = _Nodes[nodeIndex];
 
-			FloatMinMax tLeft  = IntersectAabb(node.leftBounds, s.ray);
-			FloatMinMax tRight = IntersectAabb(node.rightBounds, s.ray);
+			FloatMinMax tLeft  = IntersectAabb(node.leftBounds, ray);
+			FloatMinMax tRight = IntersectAabb(node.rightBounds, ray);
 
-			bool traverseLeft  = tLeft.min  <= tLeft.max  && tLeft.min  < s.t;
-			bool traverseRight = tRight.min <= tRight.max && tRight.min < s.t;
-			stats.BoxIntersection(2);
+			bool traverseLeft  = tLeft.min  <= tLeft.max  && tLeft.min  < t;
+			bool traverseRight = tRight.min <= tRight.max && tRight.min < t;
+			// stats.BoxIntersection(2);
 
-			s.nodeIndex = node.left;
+			nodeIndex = node.left;
 
 			if (traverseLeft != traverseRight)
 			{
 				// If only a single child was intersected we simply go to that one
 				if (traverseRight)
-					s.nodeIndex = node.right;
+					nodeIndex = node.right;
 			}
 			else
 			{
 				if (!traverseLeft)
 				{
 					// If neither child was intersected we pop the stack
-					s.nodeIndex = traversalStack[s.stackIndex];
-					s.stackIndex--;
-					stats.Pop(1);
+					nodeIndex = _traversalStack[InterleavedIndex(threadId, stackIndex)];
+					stackIndex--;
+					// stats.Pop(1);
 				}
 				else
 				{
 					// If both children were intersected we push one onto the stack
-					s.nodeIndex = node.left;
+					nodeIndex = node.left;
 					int postponeIndex = node.right;
 					if (tRight.min < tLeft.min)
 					{
-						s.nodeIndex = node.right;
+						nodeIndex = node.right;
 						postponeIndex = node.left;
 					}
 
-					s.stackIndex++;
-					traversalStack[s.stackIndex] = postponeIndex;
-					stats.Push(1);
+					stackIndex++;
+					_traversalStack[InterleavedIndex(threadId, stackIndex)] = postponeIndex;
+					// stats.Push(1);
 				}
 			}
 		}
 
-		if (s.nodeIndex < 0)
+		if (nodeIndex < 0)
 		{
-			s.nodeIndex = Bvh::DecodeLeaf(s.nodeIndex);
-			IndexedTriangle indices = _Triangles[s.nodeIndex];
+			nodeIndex = Bvh::DecodeLeaf(nodeIndex);
+			IndexedTriangle indices = _Triangles[nodeIndex];
 			Triangle tri = MakeTriangle(_Vertices[indices.v1].xyz, _Vertices[indices.v2].xyz, _Vertices[indices.v3].xyz);
 
 			// intersect triangle
 			float3 candidateCoordinates;
-			float candidate_t = IntersectTriangle(tri, s.ray, candidateCoordinates);
-			stats.TriangleIntersection(1);
+			float candidate_t = IntersectTriangle(tri, ray, candidateCoordinates);
+			// stats.TriangleIntersection(1);
 
-			if (candidate_t > 1e-3 && candidate_t < s.t)
+			if (candidate_t > 1e-3 && candidate_t < t)
 			{
-				s.t = candidate_t;
-				s.nodeIndex = _entrypointSentinel;
+                // return candidate_t;
+                t = candidate_t;
 			}
-			else
-			{
-				s.nodeIndex = traversalStack[s.stackIndex];
-				s.stackIndex--;
-				stats.Pop(1);
-			}
+
+			nodeIndex = _traversalStack[InterleavedIndex(threadId, stackIndex)];
+			stackIndex--;
+			// stats.Pop(1);
 		}
 	}
+
+    return t;
 }
 
 groupshared uint _localClusterId;
 groupshared uint _localClusterCount;
 
-static const uint2 _clusterSize = {8, 8};
 static const uint _batchSize = 1;
 
 void ShadowsKernel(uint3 did, uint3 tid, uint3 gid)
@@ -223,22 +128,18 @@ void ShadowsKernel(uint3 did, uint3 tid, uint3 gid)
 	if (did.x == 0 && did.y == 0)
 		_WorkCounter[0] = _ThreadGroupCount;
 
-	int traversalStack[_stackSize];
-	traversalStack[0] = _entrypointSentinel;
-	for (int i = 1; i < _stackSize; i++)
-	{
-		traversalStack[i] = 0;
-	}
-
 	if (tid.x == 0 && tid.y == 0)
 	{
 		_localClusterId = gid.x * _batchSize;
 		_localClusterCount = _batchSize;
 	}
 
+    int flatThreadId = tid.x + tid.y * _clusterSize.x;
+    _traversalStack[InterleavedIndex(flatThreadId, 0)] = _entrypointSentinel;
+
 	while (true)
 	{
-		Statistics stats = MakeStatistics();
+		// Statistics stats = MakeStatistics();
 		if (_localClusterId >= (clusterCount.x * clusterCount.y))
 			break;
 
@@ -249,17 +150,33 @@ void ShadowsKernel(uint3 did, uint3 tid, uint3 gid)
 		if (id.x >= size.x || id.y >= size.y)
 			continue;
 
-		float visibility = 1.0;
-		float4 debug;
-		TraversalState s = InitializeState(id, debug);
-		Traverse(s, traversalStack, stats);
+        float depth = LinearEyeDepth(_DepthTexture[id.xy].x);
+        float2 p11_22 = float2(_Projection._11, _Projection._22);
+        float2 uv = (((float2)id.xy + 0.5) / _Size);
+        float3 vpos = float3((uv * 2 - 1) / p11_22, -1) * depth;
+        float3 wpos = mul(_InverseView, float4(vpos, 1)).xyz;
+        float3 direction = normalize(wpos - _Light);
+        float3 normal = normalize(_NormalTexture[id.xy].rgb * 2 - 1);
 
-		if (s.t < s.tmax)
-			visibility *= 0.0;
-		else
-		    visibility *= 1.0;
+        float shadowmapVisibility;
+        #if _PIXEL_CULLING
+        shadowmapVisibility = _CameraGBufferTexture3[id.xy].r;
+        #else
+        shadowmapVisibility = 0.5;
+        #endif
 
-		_TargetTex[id.xy] = visibility; float4(HeatMap(float3(600, 600, 600), stats.boxIntersections), 1);
+        Ray ray = MakeRay(_Light, direction);
+        float tmax = (wpos - ray.origin) / ray.direction - 1e-1;
+
+        float visibility;
+        if (shadowmapVisibility == 1)
+            visibility = 1;
+        else if (shadowmapVisibility == 0 || depth > 20 - 1e-3 || dot(normal, direction) > 0)
+            visibility = 0;
+        else
+            visibility = Traverse(flatThreadId, ray, tmax) < tmax ? 0.0 : 1.0;
+
+		_TargetTex[id.xy] = visibility; // float4(HeatMap(float3(600, 600, 600), stats.boxIntersections), 1);
 
 		if (tid.x == 0 && tid.y == 0)
 		{
@@ -269,13 +186,62 @@ void ShadowsKernel(uint3 did, uint3 tid, uint3 gid)
 }
 
 [numthreads(_clusterSize.x, _clusterSize.y, 1)]
-void Shadows(uint3 did : SV_DispatchThreadID, uint3 tid : SV_GroupThreadID, uint3 gid : SV_GroupID)
-{
-	ShadowsKernel(did, tid, gid);
-}
+void Shadows(uint3 did : SV_DispatchThreadID, uint3 tid : SV_GroupThreadID, uint3 gid : SV_GroupID) { ShadowsKernel(did, tid, gid); }
 
 [numthreads(_clusterSize.x, _clusterSize.y, 1)]
-void Shadows_PixelCulling(uint3 did : SV_DispatchThreadID, uint3 tid : SV_GroupThreadID, uint3 gid : SV_GroupID)
+void Shadows_PixelCulling(uint3 did : SV_DispatchThreadID, uint3 tid : SV_GroupThreadID, uint3 gid : SV_GroupID) { ShadowsKernel(did, tid, gid); }
+
+[numthreads(_clusterSize.x, _clusterSize.y, 1)]
+void Shadows_SegmentCulling(uint3 did : SV_DispatchThreadID, uint3 tid : SV_GroupThreadID, uint3 gid : SV_GroupID) { ShadowsKernel(did, tid, gid); }
+
+[numthreads(_clusterSize.x, _clusterSize.y, 1)]
+void Shadows_PixelCulling_SegmentCulling(uint3 did : SV_DispatchThreadID, uint3 tid : SV_GroupThreadID, uint3 gid : SV_GroupID) { ShadowsKernel(did, tid, gid); }
+
+// old junk
+
+interface IStatistics
 {
-	ShadowsKernel(did, tid, gid);
+    void BoxIntersection(int n);
+    void TriangleIntersection(int n);
+    void Push(int n);
+    void Pop(int n);
+};
+
+class Statistics : IStatistics
+{
+    int boxIntersections;
+    int triangleIntersections;
+    int pushes;
+    int pops;
+
+    void BoxIntersection(int n) { boxIntersections += n; }
+    void TriangleIntersection(int n) { triangleIntersections += n; }
+    void Push(int n) { pushes += n; }
+    void Pop(int n) { pops += n; }
+};
+
+Statistics MakeStatistics()
+{
+    Statistics stats;
+    stats.boxIntersections = 0;
+    stats.triangleIntersections = 0;
+    stats.pushes = 0;
+    stats.pops = 0;
+    return stats;
 }
+
+class FakeStatistics : IStatistics
+{
+    void BoxIntersection(int n) {}
+    void TriangleIntersection(int n) {}
+    void Push(int n) {}
+    void Pop(int n) {}
+};
+
+struct TraversalStats
+{
+    int boxIntersections;
+    int triangleIntersections;
+    int pushes;
+    int pops;
+};

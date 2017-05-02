@@ -29080,7 +29080,7 @@ MonoBehaviour:
     - {x: -0.24263549, y: 0.8939825, z: -0.2515527, w: 0}
     - {x: -0.14482117, y: 0.99184203, z: -0.2515527, w: 0}
     - {x: -0.14908752, y: 0.89823794, z: -0.27995604, w: 0}
-  m_SerializedBvhBuildDateTime: 2017-05-02T10:48:21
+  m_SerializedBvhBuildDateTime: 2017-05-02T13:38:47
   m_ShadowSettings: {fileID: 0}
   m_DebugSettings: {fileID: 0}
   m_AntiAliasingSettings: {fileID: 0}
