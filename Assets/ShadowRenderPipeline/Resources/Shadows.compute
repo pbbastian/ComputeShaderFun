@@ -1,8 +1,3 @@
-#pragma kernel Shadows
-#pragma kernel Shadows_PixelCulling _PIXEL_CULLING
-#pragma kernel Shadows_SegmentCulling _SEGMENT_CULLING
-#pragma kernel Shadows_PixelCulling_SegmentCulling _PIXEL_CULLING _SEGMENT_CULLING
-
 #define STATS
 
 #include "UnityCG.cginc"
@@ -20,6 +15,7 @@ float3 _Light;
 float2 _Size;
 float4x4 _Projection;
 float4x4 _InverseView;
+float4x4 _LightView;
 uint _ThreadGroupCount;
 RWStructuredBuffer<uint> _WorkCounter;
 
@@ -150,12 +146,12 @@ void ShadowsKernel(uint3 did, uint3 tid, uint3 gid)
 		if (id.x >= size.x || id.y >= size.y)
 			continue;
 
+        float2 uv = (((float2)id.xy + 0.5) / _Size);
         float depth = LinearEyeDepth(_DepthTexture[id.xy].x);
         float2 p11_22 = float2(_Projection._11, _Projection._22);
-        float2 uv = (((float2)id.xy + 0.5) / _Size);
-        float3 vpos = float3((uv * 2 - 1) / p11_22, -1) * depth;
-        float3 wpos = mul(_InverseView, float4(vpos, 1)).xyz;
-        float3 direction = normalize(wpos - _Light);
+        float3 vsPosition = float3((uv * 2 - 1) / p11_22, -1) * depth;
+        float3 wsPosition = mul(_InverseView, float4(vsPosition, 1)).xyz;
+        float3 direction = normalize(wsPosition - _Light);
         float3 normal = normalize(_NormalTexture[id.xy].rgb * 2 - 1);
 
         float shadowmapVisibility;
@@ -166,7 +162,7 @@ void ShadowsKernel(uint3 did, uint3 tid, uint3 gid)
         #endif
 
         Ray ray = MakeRay(_Light, direction);
-        float tmax = (wpos - ray.origin) / ray.direction - 1e-1;
+        float tmax = (wsPosition - ray.origin) / ray.direction - 1e-1;
 
         float visibility;
         if (shadowmapVisibility == 1)
@@ -185,17 +181,19 @@ void ShadowsKernel(uint3 did, uint3 tid, uint3 gid)
 	}
 }
 
-[numthreads(_clusterSize.x, _clusterSize.y, 1)]
-void Shadows(uint3 did : SV_DispatchThreadID, uint3 tid : SV_GroupThreadID, uint3 gid : SV_GroupID) { ShadowsKernel(did, tid, gid); }
+#define VARIANT(NAME) [numthreads(_clusterSize.x, _clusterSize.y, 1)] void NAME (uint3 did : SV_DispatchThreadID, uint3 tid : SV_GroupThreadID, uint3 gid : SV_GroupID) { ShadowsKernel(did, tid, gid); }
 
-[numthreads(_clusterSize.x, _clusterSize.y, 1)]
-void Shadows_PixelCulling(uint3 did : SV_DispatchThreadID, uint3 tid : SV_GroupThreadID, uint3 gid : SV_GroupID) { ShadowsKernel(did, tid, gid); }
+#pragma kernel Shadows
+VARIANT(Shadows)
 
-[numthreads(_clusterSize.x, _clusterSize.y, 1)]
-void Shadows_SegmentCulling(uint3 did : SV_DispatchThreadID, uint3 tid : SV_GroupThreadID, uint3 gid : SV_GroupID) { ShadowsKernel(did, tid, gid); }
+#pragma kernel Shadows_PixelCulling _PIXEL_CULLING
+VARIANT(Shadows_PixelCulling)
 
-[numthreads(_clusterSize.x, _clusterSize.y, 1)]
-void Shadows_PixelCulling_SegmentCulling(uint3 did : SV_DispatchThreadID, uint3 tid : SV_GroupThreadID, uint3 gid : SV_GroupID) { ShadowsKernel(did, tid, gid); }
+#pragma kernel Shadows_SegmentCulling _SEGMENT_CULLING
+VARIANT(Shadows_SegmentCulling)
+
+#pragma kernel Shadows_PixelCulling_SegmentCulling _PIXEL_CULLING _SEGMENT_CULLING
+VARIANT(Shadows_PixelCulling_SegmentCulling)
 
 // old junk
 
