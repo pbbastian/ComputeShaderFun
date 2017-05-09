@@ -24,10 +24,12 @@ namespace RayTracer.Runtime
 
         public SerializedBvhContext Serialize()
         {
-            var serializedContext = new SerializedBvhContext();
-            serializedContext.nodesBuffer = SerializeBuffer(nodesBuffer);
-            serializedContext.trianglesBuffer = SerializeBuffer(trianglesBuffer);
-            serializedContext.verticesBuffer = SerializeBuffer(verticesBuffer);
+            var serializedContext = new SerializedBvhContext
+            {
+                nodesBuffer = SerializeBuffer(nodesBuffer),
+                trianglesBuffer = SerializeBuffer(trianglesBuffer),
+                verticesBuffer = SerializeBuffer(verticesBuffer)
+            };
             return serializedContext;
         }
 
@@ -38,11 +40,9 @@ namespace RayTracer.Runtime
             return serializedContext;
         }
 
-        T[] SerializeBuffer<T>(StructuredBuffer<T> buffer) where T : struct
+        static T[] SerializeBuffer<T>(StructuredBuffer<T> buffer) where T : struct
         {
-            if (buffer == null)
-                return null;
-            return buffer.data;
+            return buffer?.data;
         }
     }
 }

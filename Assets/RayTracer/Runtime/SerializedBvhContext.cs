@@ -14,10 +14,7 @@ namespace RayTracer.Runtime
 
         public Vector4[] verticesBuffer;
 
-        public bool isValid
-        {
-            get { return IsBufferValid(nodesBuffer) && IsBufferValid(trianglesBuffer) && IsBufferValid(verticesBuffer); }
-        }
+        public bool isValid => IsBufferValid(nodesBuffer) && IsBufferValid(trianglesBuffer) && IsBufferValid(verticesBuffer);
 
         public BvhContext Deserialize()
         {
