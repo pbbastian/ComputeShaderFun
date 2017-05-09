@@ -98,9 +98,9 @@ namespace ShadowRenderPipeline.Editor
                 using (new EditorGUI.IndentLevelScope())
                 {
                     asset.shadowSettings.pixelCulling = EditorGUILayout.Toggle(styles.pixelCullingLabel, asset.shadowSettings.pixelCulling);
-                    using (new EditorGUI.DisabledGroupScope(true))
+                    using (new EditorGUI.DisabledGroupScope(!asset.shadowSettings.pixelCulling))
                     {
-                        EditorGUILayout.Toggle(styles.raySectionCullingLabel, false);
+                        asset.shadowSettings.segmentCulling = EditorGUILayout.Toggle(styles.raySectionCullingLabel, asset.shadowSettings.segmentCulling);
                     }
                 }
             }

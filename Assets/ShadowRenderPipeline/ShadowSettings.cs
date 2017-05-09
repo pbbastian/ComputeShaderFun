@@ -26,6 +26,9 @@ namespace Assets.ShadowRenderPipeline
         [SerializeField]
         bool m_PixelCulling;
 
+        [SerializeField]
+        bool m_SegmentCulling;
+
         public bool enabled
         {
             get { return m_Enabled; }
@@ -60,6 +63,12 @@ namespace Assets.ShadowRenderPipeline
         {
             get { return m_PixelCulling; }
             set { m_PixelCulling = value; }
+        }
+
+        public bool segmentCulling
+        {
+            get { return m_SegmentCulling; }
+            set { m_SegmentCulling = value; }
         }
 
         public void Init()

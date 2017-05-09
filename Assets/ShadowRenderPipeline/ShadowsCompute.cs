@@ -11,6 +11,8 @@ namespace ShadowRenderPipeline
             public static readonly string Shadows = "Shadows";
             // ReSharper disable once InconsistentNaming
             public static readonly string Shadows_PixelCulling = "Shadows_PixelCulling";
+            // ReSharper disable once InconsistentNaming
+            public static readonly string Shadows_PixelCulling_SegmentCulling = "Shadows_PixelCulling_SegmentCulling";
         }
 
         public static readonly string NormalTexture = "_NormalTexture";
