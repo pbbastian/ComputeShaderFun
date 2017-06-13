@@ -1,9 +1,12 @@
 ﻿using System;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
 using Assets.ShadowRenderPipeline;
 using RayTracer.Runtime;
+using RayTracer.Runtime.ShaderPrograms.Types;
+using RayTracer.Runtime.Util;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
@@ -61,20 +64,21 @@ namespace ShadowRenderPipeline
 
         void LoadBvhContext()
         {
+            m_BvhContext = default(SerializedBvhContext);
             var path = Path.Combine(Application.persistentDataPath, $"{m_BvhContextId}.bvh");
             if (!File.Exists(path))
-            {
-                m_BvhContext = default(SerializedBvhContext);
                 return;
-            }
             using (var stream = new FileStream(path, FileMode.Open))
             {
-                var formatter = new BinaryFormatter();
-                var selector = new SurrogateSelector();
-                selector.AddSurrogate(typeof(Vector3), new StreamingContext(StreamingContextStates.All), new Vector3Surrogate());
-                selector.AddSurrogate(typeof(Vector4), new StreamingContext(StreamingContextStates.All), new Vector4Surrogate());
-                formatter.SurrogateSelector = selector;
-                m_BvhContext = (SerializedBvhContext)formatter.Deserialize(stream);
+                var reader = new BinaryReader(stream);
+                m_BvhContext = reader.ReadBvhContext();
+
+//                var formatter = new BinaryFormatter();
+//                var selector = new SurrogateSelector();
+//                selector.AddSurrogate(typeof(Vector3), new StreamingContext(StreamingContextStates.All), new Vector3Surrogate());
+//                selector.AddSurrogate(typeof(Vector4), new StreamingContext(StreamingContextStates.All), new Vector4Surrogate());
+//                formatter.SurrogateSelector = selector;
+//                m_BvhContext = (SerializedBvhContext)formatter.Deserialize(stream);
             }
         }
 
@@ -98,24 +102,31 @@ namespace ShadowRenderPipeline
             set { m_AntiAliasingSettings = value; }
         }
 
+
+
         public void BuildBvh()
         {
+
             DestroyBvh();
             m_BvhContext = BvhUtil.CreateBvh().SerializeAndDispose();
             m_BvhBuildDateTime = DateTime.Now;
             m_BvhContextId = $"{SceneManager.GetActiveScene().name}-{m_BvhBuildDateTime:yyyy-MM-dd_hh-mm-ss-tt}";
             var path = Path.Combine(Application.persistentDataPath, $"{m_BvhContextId}.bvh");
             Debug.Log(path);
+
             // TODO: Replace with BinaryWriter and BinaryReader
             // http://stackoverflow.com/questions/6478579/improve-binary-serialization-performance-for-large-list-of-structs
             using (var stream = new FileStream(path, FileMode.Create))
             {
-                var formatter = new BinaryFormatter();
-                var selector = new SurrogateSelector();
-                selector.AddSurrogate(typeof(Vector3), new StreamingContext(StreamingContextStates.All), new Vector3Surrogate());
-                selector.AddSurrogate(typeof(Vector4), new StreamingContext(StreamingContextStates.All), new Vector4Surrogate());
-                formatter.SurrogateSelector = selector;
-                formatter.Serialize(stream, m_BvhContext);
+                var writer = new BinaryWriter(stream);
+                writer.Write(m_BvhContext);
+
+//                var formatter = new BinaryFormatter();
+//                var selector = new SurrogateSelector();
+//                selector.AddSurrogate(typeof(Vector3), new StreamingContext(StreamingContextStates.All), new Vector3Surrogate());
+//                selector.AddSurrogate(typeof(Vector4), new StreamingContext(StreamingContextStates.All), new Vector4Surrogate());
+//                formatter.SurrogateSelector = selector;
+//                formatter.Serialize(stream, m_BvhContext);
             }
             EditorUtility.SetDirty(this);
             AssetDatabase.SaveAssets();

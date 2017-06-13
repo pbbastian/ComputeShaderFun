@@ -11,8 +11,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b7f1ef8e834c8d84998fe1694dca3ad3, type: 3}
   m_Name: ShadowRenderPipeline
   m_EditorClassIdentifier: 
-  m_BvhContextId: Scene-2017-05-09_06-57-15-PM
-  m_SerializedBvhBuildDateTime: 2017-05-09T18:57:15
+  m_BvhContextId: Scene-2017-05-10_03-05-48-PM
+  m_SerializedBvhBuildDateTime: 2017-05-10T15:05:48
   m_ShadowSettings: {fileID: 0}
   m_DebugSettings: {fileID: 0}
   m_AntiAliasingSettings: {fileID: 0}

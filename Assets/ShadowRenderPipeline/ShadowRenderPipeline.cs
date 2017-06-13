@@ -264,6 +264,8 @@ namespace ShadowRenderPipeline
 
         void DispatchShadowsKernel(string kernelName, ref ScriptableRenderContext context, ref CullResults cullResults, Camera camera, Matrix4x4 worldToLight, RenderTargetIdentifier target)
         {
+            if (m_BvhContext == null)
+                return;
             var shadowsKernel = m_ShadowsCompute.FindKernel(kernelName);
             using (var cmd = new CommandBuffer { name = "Compute BVH shadows" })
             {

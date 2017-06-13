@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Runtime.InteropServices;
 using Assets.RayTracer.Runtime.Util;
 using RayTracer.Runtime.Util;
@@ -71,6 +72,11 @@ namespace RayTracer.Runtime.ShaderPrograms.Types
         public static implicit operator AlignedBvhNode(BvhNode node)
         {
             return new AlignedBvhNode {leftBounds = node.leftBounds, rightBounds = node.rightBounds, m_IsLeftLeaf = node.isLeftLeaf ? -1 : 0, m_IsRightLeaf = node.isRightLeaf ? -1 : 0, left = node.left, right = node.right};
+        }
+
+        public void Write(BinaryWriter writer)
+        {
+
         }
     }
 }
