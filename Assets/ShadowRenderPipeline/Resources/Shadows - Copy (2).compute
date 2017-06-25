@@ -1,0 +1,408 @@
+#define STATS
+
+#include "UnityCG.cginc"
+#include "Math.cginc"
+#include "Bvh.cginc"
+
+Texture2D<float4> _NormalTexture;
+UNITY_DECLARE_TEX2D_FLOAT(_DepthTexture);
+RWTexture2D<float4> _TargetTex;
+StructuredBuffer<Bvh::Node> _Nodes;
+StructuredBuffer<IndexedTriangle> _Triangles;
+StructuredBuffer<float4> _Vertices;
+Texture2D<float4> _ShadowmapTexture;
+SamplerState sampler_ShadowmapTexture;
+float4 _ShadowmapTexture_TexelSize;
+float3 _Light;
+float2 _Size;
+float4x4 _Projection;
+float4x4 _InverseView;
+float4x4 _WorldToLight;
+uint _ThreadGroupCount;
+RWStructuredBuffer<uint> _WorkCounter;
+
+static const int _stackSize = 12;
+static const int _entrypointSentinel = 2147483647;
+static const uint2 _clusterSize = {8, 8};
+static const uint _clusterLength = _clusterSize.x * _clusterSize.y;
+groupshared int _traversalStack[_stackSize * _clusterLength];
+
+int InterleavedIndex(int threadId, int index)
+{
+    return index * _clusterLength + threadId;
+}
+
+bool Traverse(int threadId, Ray ray, float tmax, float tmin)
+{
+    int nodeIndex = 0;
+    int stackIndex = 0;
+    float t = tmax;
+
+    while (nodeIndex != _entrypointSentinel)
+    {
+        while (nodeIndex >= 0 && nodeIndex != _entrypointSentinel)
+        {
+            Bvh::Node node = _Nodes[nodeIndex];
+
+            FloatMinMax tLeft  = IntersectAabb(node.leftBounds, ray);
+            FloatMinMax tRight = IntersectAabb(node.rightBounds, ray);
+
+            bool traverseLeft  = tLeft.min  <= tLeft.max  && tLeft.min  < t && tLeft.max > tmin;
+            bool traverseRight = tRight.min <= tRight.max && tRight.min < t && tRight.max > tmin;
+            // stats.BoxIntersection(2);
+
+            nodeIndex = node.left;
+
+            if (traverseLeft != traverseRight)
+            {
+                // If only a single child was intersected we simply go to that one
+                if (traverseRight)
+                    nodeIndex = node.right;
+            }
+            else
+            {
+                if (!traverseLeft)
+                {
+                    // If neither child was intersected we pop the stack
+                    nodeIndex = _traversalStack[InterleavedIndex(threadId, stackIndex)];
+                    stackIndex--;
+                    // stats.Pop(1);
+                }
+                else
+                {
+                    // If both children were intersected we push one onto the stack
+                    nodeIndex = node.left;
+                    int postponeIndex = node.right;
+                    if (tRight.min < tLeft.min)
+                    {
+                        nodeIndex = node.right;
+                        postponeIndex = node.left;
+                    }
+
+                    stackIndex++;
+                    _traversalStack[InterleavedIndex(threadId, stackIndex)] = postponeIndex;
+                    // stats.Push(1);
+                }
+            }
+        }
+
+        if (nodeIndex < 0)
+        {
+            nodeIndex = Bvh::DecodeLeaf(nodeIndex);
+            IndexedTriangle indices = _Triangles[nodeIndex];
+            Triangle tri = MakeTriangle(_Vertices[indices.v1].xyz, _Vertices[indices.v2].xyz, _Vertices[indices.v3].xyz);
+
+            // intersect triangle
+            float3 candidateCoordinates;
+            float candidate_t = IntersectTriangle(tri, ray, candidateCoordinates);
+            // stats.TriangleIntersection(1);
+
+            if (candidate_t > tmin && candidate_t < t)
+            {
+                return true;
+                // t = candidate_t;
+            }
+
+            nodeIndex = _traversalStack[InterleavedIndex(threadId, stackIndex)];
+            stackIndex--;
+            // stats.Pop(1);
+        }
+    }
+
+    return false;
+}
+
+groupshared uint _localClusterId[2];
+groupshared uint _localWorkCount;
+
+float3 WorldToLight(float3 wsPosition)
+{
+    float3 lsPosition = mul(_WorldToLight, float4(wsPosition, 1.0)).xyz;
+    lsPosition.z = -lsPosition.z;
+    float distanceToLight = length(lsPosition);
+    lsPosition = lsPosition / distanceToLight;
+
+    lsPosition.z = lsPosition.z + 1;
+    lsPosition.x = lsPosition.x / (lsPosition.z);
+    lsPosition.y = lsPosition.y / (lsPosition.z);
+
+    float near = 0.2;
+    float far = 20;
+
+    lsPosition.z = (distanceToLight - near) / (far - near);
+
+    #if defined(UNITY_REVERSED_Z)
+        lsPosition.z = min(1 - lsPosition.z, UNITY_NEAR_CLIP_VALUE);
+    #else
+        lsPosition.z = max(lsPosition.z, UNITY_NEAR_CLIP_VALUE);
+    #endif
+
+    return lsPosition;
+}
+
+// groupshared int temp[_clusterLength];
+
+void ScanWarp(uint index)
+{
+    uint lane = index & (_clusterLength - 1);
+    if (lane >= 1)
+        _traversalStack[index] = _traversalStack[index - 1] + _traversalStack[index];
+    if (lane >= 2)
+        _traversalStack[index] = _traversalStack[index - 2] + _traversalStack[index];
+    if (lane >= 4)
+        _traversalStack[index] = _traversalStack[index - 4] + _traversalStack[index];
+    if (lane >= 8)
+        _traversalStack[index] = _traversalStack[index - 8] + _traversalStack[index];
+    if (_clusterLength >= 32 && lane >= 16)
+        _traversalStack[index] = _traversalStack[index - 16] + _traversalStack[index];
+    if (_clusterLength >= 64 && lane >= 32)
+        _traversalStack[index] = _traversalStack[index - 32] + _traversalStack[index];
+}
+
+void ShadowsKernel(uint3 did, uint3 tid, uint3 gid)
+{
+    uint2 size = (uint2) _Size;
+    uint2 clusterCount = (size) / _clusterSize + 1;
+
+    if (did.x == 0 && did.y == 0)
+        _WorkCounter[0] = _ThreadGroupCount*2;
+
+    if (tid.x == 0 && tid.y == 0)
+    {
+        _localClusterId[0] = gid.x * 2;
+        _localClusterId[1] = gid.x * 2 + 1;
+        _localWorkCount = _clusterLength * 2;
+    }
+
+    int flatThreadId = tid.x + tid.y * _clusterSize.x;
+    _traversalStack[InterleavedIndex(flatThreadId, 0)] = _entrypointSentinel;
+    // Fake inclusive prefix sum calculation (or rather, we know what it would be if all is set to 1)
+    _traversalStack[flatThreadId] = flatThreadId + 1;
+    // GroupMemoryBarrierWithGroupSync();
+
+    while (true)
+    {
+        // No more pixels left, end loop
+        if (_localClusterId[0] >= (clusterCount.x * clusterCount.y))
+            break;
+        uint2 id;
+        float3 direction;
+        float tmin, tmax;
+        bool foundPixel = false;
+
+        // Find a pixel to trace
+        while (_traversalStack[_clusterLength-1] > 0)
+        {
+            // Make sure that there is always work available for all threads (if possible)
+            if (flatThreadId == 0 & _localWorkCount < _traversalStack[_clusterLength-1])
+            {
+                _localClusterId[0] = _localClusterId[1];
+                if (_WorkCounter[0] >= (clusterCount.x * clusterCount.y) - 1)
+                    _localClusterId[1] = (clusterCount.x * clusterCount.y);
+                else
+                    InterlockedAdd(_WorkCounter[0], 1, _localClusterId[1]);
+                _localWorkCount += _clusterLength;
+            }
+
+            // Stop trying to find more pixels if we're out of clusters
+            if (_localClusterId[0] >= (clusterCount.x * clusterCount.y))
+                break;
+
+            // Calculate index within available work
+            uint workIndex = (_clusterLength * 2 - _localWorkCount) + (flatThreadId > 0 ? _traversalStack[flatThreadId-1] : 0);
+
+            // "Consume" work
+            if (flatThreadId == 0)
+                _localWorkCount -= _traversalStack[_clusterLength - 1];
+
+            int clusterIndex;
+            if (workIndex < _clusterLength)
+            {
+                clusterIndex = 0;
+            }
+            else
+            {
+                clusterIndex = 1;
+                workIndex -= _clusterLength;
+            }
+
+            if (!foundPixel)
+            {
+                int clusterId = _localClusterId[clusterIndex];
+                id.x = (clusterId % clusterCount.x) * _clusterSize.x + (workIndex % _clusterSize.x);
+                id.y = (clusterId / clusterCount.x) * _clusterSize.y + (workIndex / _clusterSize.x);
+
+                if (id.x < size.x && id.y < size.y)
+                {
+                    float2 uv = (((float2)id.xy + 0.5) / _Size);
+                    float depth = LinearEyeDepth(_DepthTexture[id.xy].x);
+                    float3 vsPosition = float3((uv * 2 - 1) / float2(_Projection._11, _Projection._22), -1) * depth;
+                    float3 wsPosition = mul(_InverseView, float4(vsPosition, 1)).xyz;
+                    float3 lsPosition = WorldToLight(wsPosition);
+                    direction = normalize(wsPosition - _Light);
+                    float3 normal = normalize(_NormalTexture[id.xy].rgb * 2 - 1);
+
+                    float4 occluderDepths = _ShadowmapTexture.Gather(sampler_ShadowmapTexture, float2(lsPosition.x * 0.5 + 0.5,  lsPosition.y * 0.5 + 0.5));
+                    float4 visibilitySamples = saturate(sign(lsPosition.zzzz - occluderDepths + 1e-2));
+                    float visibility = (visibilitySamples.x + visibilitySamples.y + visibilitySamples.z + visibilitySamples.w) * 0.25;
+
+                    float near = 0.2;
+                    float far = 20;
+                    float4 tsamples = ((1-occluderDepths) * (far - near) + near);
+
+                    if (depth > 20 - 1e-3 || dot(normal, direction) > 0)
+                        visibility = 0;
+
+                    if (visibility < 1e-3 || visibility > (1 - 1e-3))
+                    {
+                        _TargetTex[id.xy] = visibility;
+                    }
+                    else
+                    {
+                        foundPixel = true;
+                        tmax = (wsPosition - _Light) / direction - 1e-1;
+                        tmin = 1e-1;
+                        #if _SEGMENT_CULLING
+                            float4 tmax_candidates = (tsamples + 0.2) * (1 - visibilitySamples);
+                            tmax = min(tmax, max(tmax_candidates.x, max(tmax_candidates.y, max(tmax_candidates.z, tmax_candidates.w))));
+                            float4 tmin_candidates = (tsamples - 0.2) * (1 - visibilitySamples) + 10000 * visibilitySamples;
+                            tmin = min(tmin_candidates.x, min(tmin_candidates.y, min(tmin_candidates.z, tmin_candidates.w)));
+                        #endif
+                    }
+                }
+            }
+
+            _traversalStack[flatThreadId] = foundPixel ? 0 : 1;
+            ScanWarp(flatThreadId);
+        }
+
+        _traversalStack[InterleavedIndex(flatThreadId, 0)] = _entrypointSentinel;
+        if (foundPixel)
+            _TargetTex[id.xy] = Traverse(flatThreadId, MakeRay(_Light, direction), tmax, tmin) ? 0.0 : 1.0;
+        foundPixel = false;
+        _traversalStack[flatThreadId] = flatThreadId + 1;
+
+        // uint2 id;
+        // id.x = (_localClusterId % clusterCount.x) * _clusterSize.x + tid.x;
+        // id.y = (_localClusterId / clusterCount.x) * _clusterSize.y + tid.y;
+
+        // if (id.x >= size.x || id.y >= size.y)
+        //  continue;
+
+  //       float2 uv = (((float2)id.xy + 0.5) / _Size);
+  //       float depth = LinearEyeDepth(_DepthTexture[id.xy].x);
+  //       float3 vsPosition = float3((uv * 2 - 1) / float2(_Projection._11, _Projection._22), -1) * depth;
+  //       float3 wsPosition = mul(_InverseView, float4(vsPosition, 1)).xyz;
+  //       float3 lsPosition = WorldToLight(wsPosition);
+  //       float3 direction = normalize(wsPosition - _Light);
+  //       float3 normal = normalize(_NormalTexture[id.xy].rgb * 2 - 1);
+
+  //       Ray ray = MakeRay(_Light, direction);
+  //       float tmax = (wsPosition - ray.origin) / ray.direction - 1e-1;
+  //       float tmin = 1e-1;
+  //       float t = tmax;
+
+  //       float shadowmapVisibility;
+
+  //       #if _PIXEL_CULLING
+  //           float4 occluderDepths = _ShadowmapTexture.Gather(sampler_ShadowmapTexture, float2(lsPosition.x * 0.5 + 0.5,  lsPosition.y * 0.5 + 0.5));
+  //           float4 visibilitySamples = saturate(sign(lsPosition.zzzz - occluderDepths + 1e-2));
+  //           shadowmapVisibility = (visibilitySamples.x + visibilitySamples.y + visibilitySamples.z + visibilitySamples.w) * 0.25;
+
+  //           float near = 0.2;
+  //           float far = 20;
+  //           float4 tsamples = ((1-occluderDepths) * (far - near) + near);
+  //       #else
+  //           shadowmapVisibility = 0.5;
+  //       #endif
+
+  //       float visibility;
+  //       if (shadowmapVisibility == 0 || depth > 20 - 1e-3 || dot(normal, direction) > 0)
+  //       {
+  //           visibility = 0;
+  //       }
+  //       else if (shadowmapVisibility == 1)
+  //       {
+  //           visibility = 1;
+  //       }
+  //       else
+  //       {
+  //           #if _SEGMENT_CULLING
+  //               float4 tmax_candidates = (tsamples + 0.2) * (1 - visibilitySamples);
+  //               tmax = min(tmax, max(tmax_candidates.x, max(tmax_candidates.y, max(tmax_candidates.z, tmax_candidates.w))));
+  //               float4 tmin_candidates = (tsamples - 0.2) * (1 - visibilitySamples) + 10000 * visibilitySamples;
+  //               tmin = min(tmin_candidates.x, min(tmin_candidates.y, min(tmin_candidates.z, tmin_candidates.w)));
+  //           #endif
+  //           visibility = Traverse(flatThreadId, ray, tmax, tmin) ? 0.0 : 1.0;
+
+  //       }
+
+        // _TargetTex[id.xy] = visibility;
+
+
+        // if (tid.x == 0 && tid.y == 0)
+        // {
+        //  InterlockedAdd(_WorkCounter[0], 1, _localClusterId);
+        // }
+    }
+}
+
+#define VARIANT(NAME) [numthreads(_clusterSize.x, _clusterSize.y, 1)] void NAME (uint3 did : SV_DispatchThreadID, uint3 tid : SV_GroupThreadID, uint3 gid : SV_GroupID) { ShadowsKernel(did, tid, gid); }
+
+#pragma kernel Shadows
+VARIANT(Shadows)
+
+#pragma kernel Shadows_PixelCulling _PIXEL_CULLING
+VARIANT(Shadows_PixelCulling)
+
+#pragma kernel Shadows_PixelCulling_SegmentCulling _PIXEL_CULLING _SEGMENT_CULLING
+VARIANT(Shadows_PixelCulling_SegmentCulling)
+
+// old junk
+
+// interface IStatistics
+// {
+//     void BoxIntersection(int n);
+//     void TriangleIntersection(int n);
+//     void Push(int n);
+//     void Pop(int n);
+// };
+
+// class Statistics : IStatistics
+// {
+//     int boxIntersections;
+//     int triangleIntersections;
+//     int pushes;
+//     int pops;
+
+//     void BoxIntersection(int n) { boxIntersections += n; }
+//     void TriangleIntersection(int n) { triangleIntersections += n; }
+//     void Push(int n) { pushes += n; }
+//     void Pop(int n) { pops += n; }
+// };
+
+// Statistics MakeStatistics()
+// {
+//     Statistics stats;
+//     stats.boxIntersections = 0;
+//     stats.triangleIntersections = 0;
+//     stats.pushes = 0;
+//     stats.pops = 0;
+//     return stats;
+// }
+
+// class FakeStatistics : IStatistics
+// {
+//     void BoxIntersection(int n) {}
+//     void TriangleIntersection(int n) {}
+//     void Push(int n) {}
+//     void Pop(int n) {}
+// };
+
+// struct TraversalStats
+// {
+//     int boxIntersections;
+//     int triangleIntersections;
+//     int pushes;
+//     int pops;
+// };

@@ -1,21 +1,19 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using UnityEngine;
 
 namespace Assets.ShadowRenderPipeline
 {
-    public class ShadowSettings : ScriptableObject, IInitializable
+    [Serializable]
+    public class ShadowSettings
     {
         [SerializeField]
-        bool m_Enabled;
+        bool m_ShadowsEnabled = true;
 
         [SerializeField]
         ShadowmapVariant m_ShadowmapVariant;
 
         [SerializeField]
-        int m_ShadowmapResolution;
+        int m_ShadowmapResolution = 256;
 
         [SerializeField]
         ShadowingMethod m_Method;
@@ -31,8 +29,8 @@ namespace Assets.ShadowRenderPipeline
 
         public bool enabled
         {
-            get { return m_Enabled; }
-            set { m_Enabled = value; }
+            get { return m_ShadowsEnabled; }
+            set { m_ShadowsEnabled = value; }
         }
 
         public ShadowmapVariant shadowmapVariant
@@ -69,13 +67,6 @@ namespace Assets.ShadowRenderPipeline
         {
             get { return m_SegmentCulling; }
             set { m_SegmentCulling = value; }
-        }
-
-        public void Init()
-        {
-            m_Enabled = true;
-            m_ShadowmapResolution = 256;
-            m_Bias = 0f;
         }
     }
 

@@ -1,0 +1,353 @@
+#if WAVE_SIZE == 64
+#define GROUP_SIZE 1024
+#define LOG2_WAVE_SIZE 6
+#elif WAVE_SIZE == 32
+#define GROUP_SIZE 992
+#define LOG2_WAVE_SIZE 5
+#endif
+
+#include "UnityCG.cginc"
+#include "Math.cginc"
+#include "Bvh.cginc"
+
+RWStructuredBuffer<uint> _Buffer;
+RWStructuredBuffer<uint> _GroupResultsBuffer;
+RWStructuredBuffer<uint> _IdBuffer;
+
+StructuredBuffer<Bvh::Node> _Nodes;
+StructuredBuffer<IndexedTriangle> _Triangles;
+StructuredBuffer<float4> _Vertices;
+
+Texture2D<float4> _NormalTexture;
+UNITY_DECLARE_TEX2D_FLOAT(_DepthTexture);
+RWTexture2D<float4> _TargetTex;
+Texture2D<float4> _ShadowmapTexture;
+SamplerState sampler_ShadowmapTexture;
+float4x4 _Projection;
+float4x4 _InverseView;
+float4x4 _WorldToLight;
+float3 _Light;
+uint2 _TargetTex_Size;
+
+groupshared int temp[GROUP_SIZE];
+
+static const int k_GroupCount = (_TargetTex_Size.x * _TargetTex_Size.y + GROUP_SIZE) / (GROUP_SIZE);
+
+float3 WorldToLight(float3 wsPosition)
+{
+    float3 lsPosition = mul(_WorldToLight, float4(wsPosition, 1.0)).xyz;
+    lsPosition.z = -lsPosition.z;
+    float distanceToLight = length(lsPosition);
+    lsPosition = lsPosition / distanceToLight;
+
+    lsPosition.z = lsPosition.z + 1;
+    lsPosition.x = lsPosition.x / (lsPosition.z);
+    lsPosition.y = lsPosition.y / (lsPosition.z);
+
+    float near = 0.2;
+    float far = 20;
+
+    lsPosition.z = (distanceToLight - near) / (far - near);
+
+    #if defined(UNITY_REVERSED_Z)
+        lsPosition.z = min(1 - lsPosition.z, UNITY_NEAR_CLIP_VALUE);
+    #else
+        lsPosition.z = max(lsPosition.z, UNITY_NEAR_CLIP_VALUE);
+    #endif
+
+    return lsPosition;
+}
+
+// Inclusive prefix sum
+void WavePrefixSum(uint index)
+{
+    uint lane = index & (WAVE_SIZE - 1);
+    if (lane >= 1)
+        temp[index] = temp[index - 1] + temp[index];
+    if (lane >= 2)
+        temp[index] = temp[index - 2] + temp[index];
+    if (lane >= 4)
+        temp[index] = temp[index - 4] + temp[index];
+    if (lane >= 8)
+        temp[index] = temp[index - 8] + temp[index];
+    #if WAVE_SIZE >= 32
+        if (lane >= 16)
+            temp[index] = temp[index - 16] + temp[index];
+    #endif
+    #if WAVE_SIZE >= 64
+        if (lane >= 32)
+            temp[index] = temp[index - 32] + temp[index];
+    #endif
+}
+
+uint GetPixelValue(uint index)
+{
+    if (index >= _TargetTex_Size.x * _TargetTex_Size.y)
+        return 0;
+
+    uint2 id = {index % _TargetTex_Size.x, index / _TargetTex_Size.x};
+
+    float near = 0.2;
+    float far = 20;
+
+    float depth = LinearEyeDepth(_DepthTexture[id].x);
+    float visibility = 0;
+    if (depth <= far - 1e-3)
+    {
+        float2 uv = (((float2)id + 0.5) / _TargetTex_Size);
+        float3 vsPosition = float3((uv * 2 - 1) / float2(_Projection._11, _Projection._22), -1) * depth;
+        float3 wsPosition = mul(_InverseView, float4(vsPosition, 1)).xyz;
+        float3 direction = normalize(wsPosition - _Light);
+        float3 normal = normalize(_NormalTexture[id].rgb * 2 - 1);
+
+        if (!(dot(normal, direction) > 0))
+        {
+            float3 lsPosition = WorldToLight(wsPosition);
+            float4 occluderDepths = _ShadowmapTexture.Gather(sampler_ShadowmapTexture, float2(lsPosition.x * 0.5 + 0.5,  lsPosition.y * 0.5 + 0.5));
+            float4 visibilitySamples = saturate(sign(lsPosition.zzzz - occluderDepths + 1e-2));
+            visibility = (visibilitySamples.x + visibilitySamples.y + visibilitySamples.z + visibilitySamples.w) * 0.25;
+        }
+    }
+
+    if (visibility == 0 || visibility == 1)
+    {
+        _TargetTex[id] = visibility;
+        return 0;
+    }
+    else
+    {
+        return 1;
+    }
+}
+
+void Step1(uint groupThreadId, uint dispatchThreadId, uint groupId)
+{
+    uint dataIndex = dispatchThreadId*4;
+    uint data = (GetPixelValue(dataIndex + 0) << 3) | (GetPixelValue(dataIndex + 1) << 2) | (GetPixelValue(dataIndex + 2) << 1) | (GetPixelValue(dataIndex + 3) << 0);
+    uint warpId = groupThreadId >> LOG2_WAVE_SIZE;
+
+    temp[groupThreadId] = countbits(data);
+
+    WavePrefixSum(groupThreadId);
+    uint lane = groupThreadId & (WAVE_SIZE - 1);
+    uint val = lane > 0 ? temp[groupThreadId - 1] : 0;
+    GroupMemoryBarrierWithGroupSync();
+
+    if (lane == (WAVE_SIZE - 1))
+        temp[warpId] = temp[groupThreadId];
+    GroupMemoryBarrierWithGroupSync();
+
+    if (warpId == 0)
+        WavePrefixSum(groupThreadId);
+    GroupMemoryBarrierWithGroupSync();
+
+    if (warpId > 0)
+        val = val + temp[warpId - 1];
+
+    // ((data << 28) & 2147483648);
+    uint length = _TargetTex_Size.x * _TargetTex_Size.y;
+    if (dataIndex + 0 < length)
+        _Buffer[dataIndex + 0] = val | ((data & 8) << 28); // Put pixel value (0 or 1) at MSB by shifting appropriately and masking out rest (2147483648 only has MSB set)
+    if (dataIndex + 1 < length)
+        _Buffer[dataIndex + 1] = (val + countbits(data & 8)) | ((data & 4) << 29);
+    if (dataIndex + 2 < length)
+        _Buffer[dataIndex + 2] = (val + countbits(data & 12)) | ((data & 2) << 30);
+    if (dataIndex + 3 < length)
+        _Buffer[dataIndex + 3] = (val + countbits(data & 14)) | ((data & 1) << 31);
+
+    if (groupThreadId == GROUP_SIZE - 1)
+        _GroupResultsBuffer[groupId] = countbits(data) + val;
+}
+
+uint GetGroupValue(uint index)
+{
+    if (index >= (_TargetTex_Size.x * _TargetTex_Size.y + GROUP_SIZE) / (GROUP_SIZE))
+        return 0;
+    return _GroupResultsBuffer[index];
+}
+
+void Step2(uint groupThreadId, uint dispatchThreadId, uint groupId)
+{
+    uint dataIndex = dispatchThreadId*4;
+    uint3 data = {GetGroupValue(dataIndex + 0), GetGroupValue(dataIndex + 1), GetGroupValue(dataIndex + 2)};
+    uint warpId = groupThreadId >> LOG2_WAVE_SIZE;
+
+    temp[groupThreadId] = data.x + data.y + data.z + GetGroupValue(dataIndex + 3);
+
+    WavePrefixSum(groupThreadId);
+    uint lane = groupThreadId & (WAVE_SIZE - 1);
+    uint val = lane > 0 ? temp[groupThreadId - 1] : 0;
+    GroupMemoryBarrierWithGroupSync();
+
+    if (lane == (WAVE_SIZE - 1))
+        temp[warpId] = temp[groupThreadId];
+    GroupMemoryBarrierWithGroupSync();
+
+    if (warpId == 0)
+        WavePrefixSum(groupThreadId);
+    GroupMemoryBarrierWithGroupSync();
+
+    if (warpId > 0)
+        val = val + temp[warpId - 1];
+
+    uint length = (_TargetTex_Size.x * _TargetTex_Size.y + GROUP_SIZE) / (GROUP_SIZE);
+    if (dataIndex + 0 < length)
+        _GroupResultsBuffer[dataIndex + 0] = val;
+    if (dataIndex + 1 < length)
+        _GroupResultsBuffer[dataIndex + 1] = val + data.x;
+    if (dataIndex + 2 < length)
+        _GroupResultsBuffer[dataIndex + 2] = val + data.x + data.y;
+    if (dataIndex + 3 < length)
+        _GroupResultsBuffer[dataIndex + 3] = val + data.x + data.y + data.z;
+}
+
+void Step3(uint groupThreadId, uint dispatchThreadId, uint groupId)
+{
+    uint dataIndex = dispatchThreadId*4;
+    uint groupPrefix = _GroupResultsBuffer[groupId];
+    [unroll]
+    for (uint index = dataIndex; index < dataIndex+4 && index < _TargetTex_Size.x * _TargetTex_Size.y; index++)
+    {
+        uint data = _Buffer[index];
+        // Check MSB to see whether this index was filtered out
+        if ((data & 2147483648) > 0)
+            // _IdBuffer[groupPrefix + (data & (~2147483648))] = uint2((index % _TargetTex_Size.x), (index / _TargetTex_Size.x));
+            _IdBuffer[groupPrefix + (data & (~2147483648))] = ((index % _TargetTex_Size.x) << 15) | (index / _TargetTex_Size.x);
+    }
+}
+
+static const int _stackSize = 12;
+static const int _entrypointSentinel = 2147483647;
+groupshared int _shared[_stackSize * 64];
+
+int InterleavedIndex(int threadId, int index)
+{
+    return index * 64 + threadId;
+}
+
+bool Traverse(int threadId, Ray ray, float tmax, float tmin)
+{
+    int nodeIndex = 0;
+    int stackIndex = 0;
+    float t = tmax;
+
+    while (nodeIndex != _entrypointSentinel)
+    {
+        while (nodeIndex >= 0 && nodeIndex != _entrypointSentinel)
+        {
+            Bvh::Node node = _Nodes[nodeIndex];
+
+            FloatMinMax tLeft  = IntersectAabb(node.leftBounds, ray);
+            FloatMinMax tRight = IntersectAabb(node.rightBounds, ray);
+
+            bool traverseLeft  = tLeft.min  <= tLeft.max  && tLeft.min  < t && tLeft.max > tmin;
+            bool traverseRight = tRight.min <= tRight.max && tRight.min < t && tRight.max > tmin;
+            // stats.BoxIntersection(2);
+
+            nodeIndex = node.left;
+
+            if (traverseLeft != traverseRight)
+            {
+                // If only a single child was intersected we simply go to that one
+                if (traverseRight)
+                    nodeIndex = node.right;
+            }
+            else
+            {
+                if (!traverseLeft)
+                {
+                    // If neither child was intersected we pop the stack
+                    nodeIndex = _shared[InterleavedIndex(threadId, stackIndex)];
+                    stackIndex--;
+                    // stats.Pop(1);
+                }
+                else
+                {
+                    // If both children were intersected we push one onto the stack
+                    nodeIndex = node.left;
+                    int postponeIndex = node.right;
+                    if (tRight.min < tLeft.min)
+                    {
+                        nodeIndex = node.right;
+                        postponeIndex = node.left;
+                    }
+
+                    stackIndex++;
+                    _shared[InterleavedIndex(threadId, stackIndex)] = postponeIndex;
+                    // stats.Push(1);
+                }
+            }
+        }
+
+        if (nodeIndex < 0)
+        {
+            nodeIndex = Bvh::DecodeLeaf(nodeIndex);
+            IndexedTriangle indices = _Triangles[nodeIndex];
+            Triangle tri = MakeTriangle(_Vertices[indices.v1].xyz, _Vertices[indices.v2].xyz, _Vertices[indices.v3].xyz);
+
+            // intersect triangle
+            float3 candidateCoordinates;
+            float candidate_t = IntersectTriangle(tri, ray, candidateCoordinates);
+            // stats.TriangleIntersection(1);
+
+            if (candidate_t > tmin && candidate_t < t)
+            {
+                return true;
+                // t = candidate_t;
+            }
+
+            nodeIndex = _shared[InterleavedIndex(threadId, stackIndex)];
+            stackIndex--;
+            // stats.Pop(1);
+        }
+    }
+
+    return false;
+}
+
+void Step4(uint dispatchThreadID, uint groupThreadID, uint groupID)
+{
+    if (dispatchThreadID >= _TargetTex_Size.x * _TargetTex_Size.y)
+        return;
+    uint packedId = _IdBuffer[dispatchThreadID];
+    uint2 id = {packedId >> 15, packedId & ((1 << 15) - 1)};
+    // uint2 id = _IdBuffer[dispatchThreadID];
+    float depth = LinearEyeDepth(_DepthTexture[id].x);
+    float2 uv = (((float2)id + 0.5) / _TargetTex_Size);
+    float3 vsPosition = float3((uv * 2 - 1) / float2(_Projection._11, _Projection._22), -1) * depth;
+    float3 wsPosition = mul(_InverseView, float4(vsPosition, 1)).xyz;
+    float3 direction = normalize(wsPosition - _Light);
+    float tmax = (wsPosition - _Light) / direction - 1e-1;
+    float tmin = 1e-1;
+    _shared[InterleavedIndex(groupThreadID, 0)] = _entrypointSentinel;
+    _TargetTex[id] = Traverse(groupThreadID, MakeRay(_Light, direction), tmax, tmin) ? 0.0 : 1.0;
+}
+
+#define VARIANT1(NAME) [numthreads(GROUP_SIZE, 1, 1)] void NAME (uint3 groupThreadId : SV_GroupThreadID, uint3 dispatchThreadId : SV_DispatchThreadID, uint3 groupId : SV_GroupID) { Step1(groupThreadId.x, dispatchThreadId.x, groupId.x); }
+
+#pragma kernel Step1_Wave64 WAVE_SIZE=64
+VARIANT1(Step1_Wave64)
+
+#pragma kernel Step1_Wave32 WAVE_SIZE=32
+VARIANT1(Step1_Wave32)
+
+#define VARIANT2(NAME) [numthreads(GROUP_SIZE, 1, 1)] void NAME (uint3 groupThreadId : SV_GroupThreadID, uint3 dispatchThreadId : SV_DispatchThreadID, uint3 groupId : SV_GroupID) { Step2(groupThreadId.x, dispatchThreadId.x, groupId.x); }
+
+#pragma kernel Step2_Wave64 WAVE_SIZE=64
+VARIANT2(Step2_Wave64)
+
+#pragma kernel Step2_Wave32 WAVE_SIZE=32
+VARIANT2(Step2_Wave32)
+
+#define VARIANT3(NAME) [numthreads(GROUP_SIZE, 1, 1)] void NAME (uint3 groupThreadId : SV_GroupThreadID, uint3 dispatchThreadId : SV_DispatchThreadID, uint3 groupId : SV_GroupID) { Step3(groupThreadId.x, dispatchThreadId.x, groupId.x); }
+
+#pragma kernel Step3_Wave64 WAVE_SIZE=64
+VARIANT3(Step3_Wave64)
+
+#pragma kernel Step3_Wave32 WAVE_SIZE=32
+VARIANT3(Step3_Wave32)
+
+#define VARIANT4(NAME) [numthreads(64, 1, 1)] void NAME (uint3 dispatchThreadID : SV_DispatchThreadID, uint3 groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID) { Step4(dispatchThreadID.x, groupThreadID.x, groupID.x); }
+
+#pragma kernel Step4_Wave64 WAVE_SIZE=64
+VARIANT4(Step4_Wave64)

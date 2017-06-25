@@ -1,4 +1,4 @@
-﻿#pragma kernel CSMain_Warp64 WARP_SIZE=64
+#pragma kernel CSMain_Warp64 WARP_SIZE=64
 #pragma kernel CSMain_Warp32 WARP_SIZE=32
 #pragma kernel CSMain_Warp16
 

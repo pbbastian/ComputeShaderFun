@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7f1ef8e834c8d84998fe1694dca3ad3, type: 3}
+  m_Name: RayTracing_256_PixelCulling_SectionCulling
+  m_EditorClassIdentifier: 
+  m_BvhContextId: Scene-2017-06-19_11-25-31-AM
+  m_SerializedBvhBuildDateTime: 2017-06-19T11:25:31
+  m_ShadowSettings:
+    m_ShadowsEnabled: 1
+    m_ShadowmapVariant: 0
+    m_ShadowmapResolution: 256
+    m_Method: 0
+    m_Bias: 0
+    m_PixelCulling: 1
+    m_SegmentCulling: 1
+  m_DebugSettings:
+    m_DebugEnabled: 0
+    m_OutputBuffer: 0
+  m_AntiAliasingSettings:
+    m_AntiAliasingEnabled: 0
+    m_Preset:
+      qualitySettings:
+        subpixelAliasingRemovalAmount: 0.75
+        edgeDetectionThreshold: 0.166
+        minimumRequiredLuminance: 0.0833
+      consoleSettings:
+        subpixelSpreadAmount: 0.5
+        edgeSharpnessAmount: 8
+        edgeDetectionThreshold: 0.125
+        minimumRequiredLuminance: 0.05

@@ -1,8 +1,5 @@
-﻿using System;
-using System.Runtime.CompilerServices;
-using BenchmarkPipeline.Runtime;
+﻿using BenchmarkPipeline.Runtime;
 using RayTracer.Runtime.ShaderPrograms;
-using UnityEditorInternal;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
@@ -14,10 +11,19 @@ namespace Assets.BenchPipeline.Runtime
     {
         public BenchmarkPipeline(BenchmarkPipelineAsset asset)
         {
+            m_GlobalScanProgram = new GlobalScanProgram(WarpSize.Warp32);
 
+            m_ScanBuffer = new ComputeBuffer(k_Count, sizeof(int));
+            m_GroupResultsBuffer = new ComputeBuffer(m_GlobalScanProgram.GetGroupCount(k_Count), sizeof(int));
+            m_DummyBuffer = new ComputeBuffer(1, 4);
+
+            var random = new Random(k_Seed);
+            m_Input = new int[k_Count];
+            for (var i = 0; i < k_Count; i++)
+                m_Input[i] = random.Next(0, 2 ^ 30);
         }
 
-        const int k_Count = 1024*500;
+        const int k_Count = 1024 * 500;
         const int k_Seed = 7867594;
 
         int[] m_Input;
@@ -27,37 +33,27 @@ namespace Assets.BenchPipeline.Runtime
         ComputeBuffer m_GroupResultsBuffer;
         ComputeBuffer m_DummyBuffer;
 
+        ComputeShader m_ScanShader;
+        ComputeShader m_GroupAddShader;
+
+        bool m_Initialized;
+
         void Initialize()
         {
-            if (!disposed)
+            if (m_Initialized)
                 return;
 
-            Dispose();
-
-            Debug.LogFormat("Count: {0}", k_Count);
-
-            m_GlobalScanProgram = new GlobalScanProgram(WarpSize.Warp64);
-            m_ScanBuffer = new ComputeBuffer(k_Count, sizeof(int));
-            m_GroupResultsBuffer = new ComputeBuffer(m_GlobalScanProgram.GetGroupCount(k_Count), sizeof(int));
-            m_DummyBuffer = new ComputeBuffer(1, 4);
-
-            var random = new Random(k_Seed);
-            m_Input = new int[k_Count];
-            for (var i = 0; i < k_Count; i++)
-                m_Input[i] = random.Next(0, 2 ^ 30);
-
-            m_ScanBuffer.SetData(m_Input);
-
-            disposed = false;
+            m_Initialized = true;
         }
 
         public void Render(ScriptableRenderContext renderContext, Camera[] cameras)
         {
-            Initialize();
+            //Initialize();
             foreach (var camera in cameras)
             {
-                var benchmarkState = camera.gameObject.GetComponent<BenchmarkState>();
-                if (camera.cameraType == CameraType.Game && benchmarkState != null && benchmarkState.benchmarkEnabled)
+                CullResults cullResults;
+                CullResults.Cull(camera, renderContext, out cullResults);
+                if (camera.cameraType == CameraType.Game && Application.isPlaying)
                 {
                     m_ScanBuffer.SetData(m_Input);
                     using (var cmd = new CommandBuffer { name = "Global Scan" })
@@ -66,11 +62,13 @@ namespace Assets.BenchPipeline.Runtime
                         renderContext.ExecuteCommandBuffer(cmd);
                     }
                 }
+                var settings = new DrawRendererSettings(cullResults, camera, new ShaderPassName("Benchmark"));
+                renderContext.DrawRenderers(ref settings);
                 renderContext.Submit();
             }
         }
 
-        public bool disposed { get; private set; } = true;
+        public bool disposed { get; private set; }
 
         public void Dispose()
         {

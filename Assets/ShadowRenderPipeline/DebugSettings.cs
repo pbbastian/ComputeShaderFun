@@ -4,29 +4,24 @@ using UnityEngine;
 namespace ShadowRenderPipeline
 {
     [Serializable]
-    public class DebugSettings : ScriptableObject, IInitializable
+    public class DebugSettings
     {
         [SerializeField]
-        bool m_Enabled;
+        bool m_DebugEnabled;
 
         [SerializeField]
         OutputBuffer m_OutputBuffer;
 
         public bool enabled
         {
-            get { return m_Enabled; }
-            set { m_Enabled = value; }
+            get { return m_DebugEnabled; }
+            set { m_DebugEnabled = value; }
         }
 
         public OutputBuffer outputBuffer
         {
             get { return m_OutputBuffer; }
             set { m_OutputBuffer = value; }
-        }
-
-        public void Init()
-        {
-
         }
     }
 }

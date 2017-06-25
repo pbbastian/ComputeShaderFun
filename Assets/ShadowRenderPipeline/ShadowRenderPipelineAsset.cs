@@ -1,16 +1,14 @@
 ﻿using System;
 using System.IO;
-using System.Runtime.InteropServices;
-using System.Runtime.Serialization;
-using System.Runtime.Serialization.Formatters.Binary;
 using Assets.ShadowRenderPipeline;
 using RayTracer.Runtime;
-using RayTracer.Runtime.ShaderPrograms.Types;
-using RayTracer.Runtime.Util;
-using UnityEditor;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.SceneManagement;
+
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace ShadowRenderPipeline
 {
@@ -73,12 +71,12 @@ namespace ShadowRenderPipeline
                 var reader = new BinaryReader(stream);
                 m_BvhContext = reader.ReadBvhContext();
 
-//                var formatter = new BinaryFormatter();
-//                var selector = new SurrogateSelector();
-//                selector.AddSurrogate(typeof(Vector3), new StreamingContext(StreamingContextStates.All), new Vector3Surrogate());
-//                selector.AddSurrogate(typeof(Vector4), new StreamingContext(StreamingContextStates.All), new Vector4Surrogate());
-//                formatter.SurrogateSelector = selector;
-//                m_BvhContext = (SerializedBvhContext)formatter.Deserialize(stream);
+                //                var formatter = new BinaryFormatter();
+                //                var selector = new SurrogateSelector();
+                //                selector.AddSurrogate(typeof(Vector3), new StreamingContext(StreamingContextStates.All), new Vector3Surrogate());
+                //                selector.AddSurrogate(typeof(Vector4), new StreamingContext(StreamingContextStates.All), new Vector4Surrogate());
+                //                formatter.SurrogateSelector = selector;
+                //                m_BvhContext = (SerializedBvhContext)formatter.Deserialize(stream);
             }
         }
 
@@ -86,23 +84,21 @@ namespace ShadowRenderPipeline
 
         public ShadowSettings shadowSettings
         {
-            get { return Initializable.GetOrCreate(ref m_ShadowSettings); }
+            get { return m_ShadowSettings = m_ShadowSettings ?? new ShadowSettings(); }
             set { m_ShadowSettings = value; }
         }
 
         public DebugSettings debugSettings
         {
-            get { return Initializable.GetOrCreate(ref m_DebugSettings); }
+            get { return m_DebugSettings = m_DebugSettings ?? new DebugSettings(); }
             set { m_DebugSettings = value; }
         }
 
         public AntiAliasingSettings antiAliasingSettings
         {
-            get { return Initializable.GetOrCreate(ref m_AntiAliasingSettings); }
+            get { return m_AntiAliasingSettings = m_AntiAliasingSettings ?? new AntiAliasingSettings(); }
             set { m_AntiAliasingSettings = value; }
         }
-
-
 
         public void BuildBvh()
         {
@@ -114,22 +110,19 @@ namespace ShadowRenderPipeline
             var path = Path.Combine(Application.persistentDataPath, $"{m_BvhContextId}.bvh");
             Debug.Log(path);
 
-            // TODO: Replace with BinaryWriter and BinaryReader
             // http://stackoverflow.com/questions/6478579/improve-binary-serialization-performance-for-large-list-of-structs
             using (var stream = new FileStream(path, FileMode.Create))
             {
                 var writer = new BinaryWriter(stream);
                 writer.Write(m_BvhContext);
 
-//                var formatter = new BinaryFormatter();
-//                var selector = new SurrogateSelector();
-//                selector.AddSurrogate(typeof(Vector3), new StreamingContext(StreamingContextStates.All), new Vector3Surrogate());
-//                selector.AddSurrogate(typeof(Vector4), new StreamingContext(StreamingContextStates.All), new Vector4Surrogate());
-//                formatter.SurrogateSelector = selector;
-//                formatter.Serialize(stream, m_BvhContext);
+                //                var formatter = new BinaryFormatter();
+                //                var selector = new SurrogateSelector();
+                //                selector.AddSurrogate(typeof(Vector3), new StreamingContext(StreamingContextStates.All), new Vector3Surrogate());
+                //                selector.AddSurrogate(typeof(Vector4), new StreamingContext(StreamingContextStates.All), new Vector4Surrogate());
+                //                formatter.SurrogateSelector = selector;
+                //                formatter.Serialize(stream, m_BvhContext);
             }
-            EditorUtility.SetDirty(this);
-            AssetDatabase.SaveAssets();
         }
 
         public void DestroyBvh()

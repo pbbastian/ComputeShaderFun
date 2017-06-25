@@ -39,13 +39,14 @@ namespace BenchmarkPipeline.Editor
         bool m_StatisticsCalculated;
 
         string m_SerializedTimings;
-        string m_SerializedFilteredTimings;
 
         string m_ExportDirectory;
         string m_ExportFileName;
 
         void OnEnable()
         {
+            if (SceneManager.sceneCount > 0)
+                Initialize(SceneManager.GetActiveScene(), LoadSceneMode.Single);
             SceneManager.sceneLoaded += Initialize;
         }
 
@@ -54,24 +55,23 @@ namespace BenchmarkPipeline.Editor
             m_BenchmarkState = m_CameraObject != null ? m_CameraObject.GetComponent<BenchmarkState>() : null;
             m_FrameIndex = ProfilerDriver.lastFrameIndex;
             m_TimingIndex = 0;
-            m_Timings = new float[10000];
+            m_Timings = new float[1000];
             m_Mean = default(float);
             m_StandardDeviation = default(float);
             m_FilteredMean = default(float);
             m_FilteredCount = default(float);
             m_StatisticsCalculated = false;
             m_SerializedTimings = null;
-            m_SerializedFilteredTimings = null;
         }
 
         void Update()
         {
-            if (m_BenchmarkState == null)
-                return;
+            //if (m_BenchmarkState == null)
+            //    return;
 
             if (m_Enabled && Application.isPlaying && ProfilerDriver.profileGPU && m_TimingIndex < m_Timings.Length)
             {
-                m_BenchmarkState.benchmarkEnabled = true;
+                //m_BenchmarkState.benchmarkEnabled = true;
                 var lastFrameIndex = ProfilerDriver.lastFrameIndex;
                 while (m_FrameIndex < lastFrameIndex)
                 {
@@ -93,7 +93,7 @@ namespace BenchmarkPipeline.Editor
             }
             else
             {
-                m_BenchmarkState.benchmarkEnabled = false;
+                //m_BenchmarkState.benchmarkEnabled = false;
             }
 
             // Check whether we're done
@@ -120,7 +120,6 @@ namespace BenchmarkPipeline.Editor
                     var sb = new StringBuilder();
                     foreach (var timing in filteredTimings)
                         sb.AppendLine(timing.ToString(new CultureInfo("en-US")));
-                    m_SerializedFilteredTimings = sb.ToString();
                 }
 
                 // Repaint the window
@@ -151,22 +150,6 @@ namespace BenchmarkPipeline.Editor
             EditorGUILayout.LabelField("Filtered Samples", m_StatisticsCalculated ? $"{m_FilteredCount} samples remaining" : "N/A");
 
             EditorGUILayout.Space();
-
-            GUILayout.Label("Export timings");
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                EditorGUILayout.SelectableLabel(m_SerializedTimings, EditorStyles.textField);
-                if (GUILayout.Button("Copy", GUILayout.ExpandWidth(false)))
-                    EditorGUIUtility.systemCopyBuffer = m_SerializedTimings;
-            }
-
-            GUILayout.Label("Export filtered timings");
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                EditorGUILayout.SelectableLabel(m_SerializedFilteredTimings, EditorStyles.textField);
-                if (GUILayout.Button("Copy", GUILayout.ExpandWidth(false)))
-                    EditorGUIUtility.systemCopyBuffer = m_SerializedFilteredTimings;
-            }
 
             EditorGUILayout.Space();
 

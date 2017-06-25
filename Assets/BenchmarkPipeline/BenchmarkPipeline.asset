@@ -11,3 +11,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dc03582cf31943888e4b1381d85ac196, type: 3}
   m_Name: BenchmarkPipeline
   m_EditorClassIdentifier: 
+  scanShader: {fileID: 7200000, guid: 92896fb80b95fa54fb9402b5382dd161, type: 3}
+  groupAddShader: {fileID: 7200000, guid: b5beb5c053dbb064cb71dd4e8677fd91, type: 3}

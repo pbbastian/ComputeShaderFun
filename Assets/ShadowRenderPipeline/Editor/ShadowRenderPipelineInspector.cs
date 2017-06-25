@@ -14,7 +14,7 @@ namespace ShadowRenderPipeline.Editor
     {
         class Styles
         {
-            public readonly string notActiveLabel = "Shadow Render Pipeline is not active.";
+            public readonly string notActiveLabel = "Pipeline is not active.";
             public readonly GUIContent makeActiveLabel = new GUIContent("Make active");
             public readonly GUIContent bvhLabel = new GUIContent("Bounding Volume Hierarchy");
             public readonly GUIContent destroyBvhLabel = new GUIContent("Destroy BVH");
@@ -62,6 +62,9 @@ namespace ShadowRenderPipeline.Editor
                 GraphicsSettings.renderPipelineAsset = asset;
         }
 
+        DateTime m_LastChange = DateTime.Now;
+        DateTime m_LastSave = DateTime.Now;
+
         static void ActiveGUI(ShadowRenderPipelineAsset asset)
         {
             GUILayout.Label(styles.bvhLabel, styles.groupHeaderStyle);
@@ -76,7 +79,11 @@ namespace ShadowRenderPipeline.Editor
                     if (GUILayout.Button(styles.destroyBvhLabel, styles.buttonWidth))
                         asset.DestroyBvh();
                     if (GUILayout.Button(styles.buildBvhLabel, styles.buttonWidth))
+                    {
                         asset.BuildBvh();
+                        EditorUtility.SetDirty(asset);
+                        AssetDatabase.SaveAssets();
+                    }
                 }
             }
             EditorGUILayout.Space();
@@ -121,23 +128,45 @@ namespace ShadowRenderPipeline.Editor
                 asset.debugSettings.enabled = toggle.enabled;
                 asset.debugSettings.outputBuffer = (OutputBuffer)EditorGUILayout.EnumPopup(styles.outputBufferLabel, asset.debugSettings.outputBuffer);
             }
-            EditorGUILayout.Space();
 
+            EditorGUILayout.Space();
         }
 
         public override void OnInspectorGUI()
         {
             var asset = target as ShadowRenderPipelineAsset;
-            if (asset != GraphicsSettings.renderPipelineAsset)
-            {
-                InactiveGUI(asset);
-                return;
-            }
             using (var check = new EditorGUI.ChangeCheckScope())
             {
                 ActiveGUI(asset);
+                if (asset != GraphicsSettings.renderPipelineAsset)
+                {
+                    InactiveGUI(asset);
+                }
                 if (check.changed)
+                {
+                    m_LastChange = DateTime.Now;
                     UnityEditorInternal.InternalEditorUtility.RepaintAllViews();
+                }
+            }
+        }
+
+        void OnEnable()
+        {
+            EditorApplication.update += Update;
+        }
+
+        void OnDisable()
+        {
+            EditorApplication.update -= Update;
+        }
+
+        void Update()
+        {
+            if (m_LastChange - m_LastSave > TimeSpan.FromSeconds(0.2))
+            {
+                m_LastSave = m_LastChange;
+                var asset = target as ShadowRenderPipelineAsset;
+                EditorUtility.SetDirty(asset);
             }
         }
     }

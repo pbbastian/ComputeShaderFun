@@ -1,4 +1,4 @@
-﻿// Upgrade NOTE: replaced 'mul(UNITY_MATRIX_MVP,*)' with 'UnityObjectToClipPos(*)'
+// Upgrade NOTE: replaced 'mul(UNITY_MATRIX_MVP,*)' with 'UnityObjectToClipPos(*)'
 
 Shader "Hidden/BvhShadows"
 {
@@ -14,6 +14,7 @@ Shader "Hidden/BvhShadows"
 		Pass
 		{
 			CGPROGRAM
+#pragma target 4.0
 #pragma vertex vert
 #pragma fragment frag
 
@@ -151,7 +152,7 @@ fixed4 frag (v2f i) : SV_Target
 				// if (_anyHit)
 				// 	break;
 			}
-			
+
 			nodeIndex = traversalStack[stackIndex];
 			stackIndex--;
 		}

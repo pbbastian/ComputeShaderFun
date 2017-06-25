@@ -36,6 +36,12 @@ namespace ShadowRenderPipeline
         ComputeShader m_ShadowsCompute;
         StructuredBuffer<int> m_WorkCounterBuffer;
 
+        ZeroProgram m_ZeroProgram;
+        ComputeShader m_ShadowsCompacted;
+        StructuredBuffer<uint> m_ShadowsBuffer;
+        StructuredBuffer<uint> m_ShadowsGroupResultsBuffer;
+        ComputeBuffer m_ShadowsIdBuffer;
+
         public ShadowRenderPipeline(ShadowRenderPipelineAsset asset)
         {
             m_Asset = asset;
@@ -64,9 +70,15 @@ namespace ShadowRenderPipeline
             m_ShadowsCompute = Resources.Load<ComputeShader>(ShadowsCompute.Path);
             m_WorkCounterBuffer = new StructuredBuffer<int>(1, ShaderSizes.s_Int);
 
+            m_ZeroProgram = new ZeroProgram();
+            m_ShadowsCompacted = Resources.Load<ComputeShader>(ShadowsCompacted.Path);
+            m_ShadowsBuffer = new StructuredBuffer<uint>(1920 * 1080, ShaderSizes.s_UInt);
+            m_ShadowsGroupResultsBuffer = new StructuredBuffer<uint>((1920 * 1080).CeilDiv(4096), ShaderSizes.s_UInt);
+            m_ShadowsIdBuffer = new ComputeBuffer(1920 * 1080, ShaderSizes.s_UInt);
+
             m_BvhBuildDateTime = DateTime.MinValue;
 
-//            UpdateBvhContext(true);
+            //            UpdateBvhContext(true);
         }
 
         public static Material CheckShaderAndCreateMaterial(Shader s)
@@ -77,25 +89,6 @@ namespace ShadowRenderPipeline
             var material = new Material(s);
             material.hideFlags = HideFlags.DontSave;
             return material;
-        }
-
-        struct Filters
-        {
-            public int renderQueueMin;
-            /// <summary>
-            ///   <para>Render objects that have material render queue smaller or equal to this.</para>
-            /// </summary>
-            public int renderQueueMax;
-            /// <summary>
-            ///   <para>Only render objects in the given layer mask.</para>
-            /// </summary>
-            public int layerMask;
-
-            public string passName;
-
-            public float minDistance;
-
-            public float maxDistance;
         }
 
         public void Render(ScriptableRenderContext context, Camera[] cameras)
@@ -169,7 +162,7 @@ namespace ShadowRenderPipeline
                             cmd.Blit(BuiltinRenderTextureType.CurrentActive, m_GBufferRT[3], m_ShadowMappingMaterial);
                             context.ExecuteCommandBuffer(cmd);
                         }
-                        DispatchShadowsKernel(model.shadowsKernelName, ref context, ref cullResults, camera, worldToLight, m_TempShadowsID);
+                        DispatchShadowsKernel(model.shadowsKernelName, ref context, ref cullResults, camera, worldToLight, m_TempShadowsID, m_Asset.shadowSettings.shadowmapResolution);
                     }
                     else if (m_Asset.shadowSettings.method == ShadowingMethod.ShadowMapping)
                     {
@@ -181,7 +174,7 @@ namespace ShadowRenderPipeline
                     }
                     else if (m_Asset.shadowSettings.method == ShadowingMethod.RayTracing)
                     {
-                        DispatchShadowsKernel(model.shadowsKernelName, ref context, ref cullResults, camera, worldToLight, m_GBufferRT[3]);
+                        DispatchShadowsKernel(model.shadowsKernelName, ref context, ref cullResults, camera, worldToLight, m_GBufferRT[3], m_Asset.shadowSettings.shadowmapResolution);
                     }
                 }
 
@@ -262,8 +255,10 @@ namespace ShadowRenderPipeline
             }
         }
 
-        void DispatchShadowsKernel(string kernelName, ref ScriptableRenderContext context, ref CullResults cullResults, Camera camera, Matrix4x4 worldToLight, RenderTargetIdentifier target)
+        void DispatchShadowsKernel(string kernelName, ref ScriptableRenderContext context, ref CullResults cullResults, Camera camera, Matrix4x4 worldToLight, RenderTargetIdentifier target, int shadowmapResolution)
         {
+            DispatchShadowsKernelCompacted(kernelName, ref context, ref cullResults, camera, worldToLight, target, shadowmapResolution);
+            return;
             if (m_BvhContext == null)
                 return;
             var shadowsKernel = m_ShadowsCompute.FindKernel(kernelName);
@@ -271,7 +266,7 @@ namespace ShadowRenderPipeline
             {
                 cmd.SetRenderTarget(m_CameraColorRT, m_CameraDepthStencilRT);
                 cmd.SetComputeBufferParam(m_ShadowsCompute, shadowsKernel, ShadowsCompute.WorkCounter, m_WorkCounterBuffer);
-                cmd.SetComputeIntParam(m_ShadowsCompute, ShadowsCompute.ThreadGroupCount, 512);
+                cmd.SetComputeIntParam(m_ShadowsCompute, ShadowsCompute.ThreadGroupCount, 200);
                 cmd.SetComputeVectorParam(m_ShadowsCompute, ShadowsCompute.ZBufferParams, camera.GetZBufferParams(true));
                 cmd.SetComputeVectorParam(m_ShadowsCompute, ShadowsCompute.Light, cullResults.visibleLights[0].localToWorld.GetColumn(3));
                 cmd.SetComputeMatrix4x4Param(m_ShadowsCompute, ShadowsCompute.InverseView, camera.cameraToWorldMatrix);
@@ -285,7 +280,94 @@ namespace ShadowRenderPipeline
                 cmd.SetComputeTextureParam(m_ShadowsCompute, shadowsKernel, ShadowsCompute.NormalTexture, m_GBufferRT[2]);
                 cmd.SetComputeTextureParam(m_ShadowsCompute, shadowsKernel, ShadowsCompute.TargetTexture, target);
                 cmd.SetComputeTextureParam(m_ShadowsCompute, shadowsKernel, "_ShadowmapTexture", m_ShadowmapRT);
-                cmd.DispatchCompute(m_ShadowsCompute, shadowsKernel, 512, 1, 1);
+                cmd.SetComputeVectorParam(m_ShadowsCompute, "_ShadowmapTexture_TexelSize", new Vector4(1f / shadowmapResolution, 1f / shadowmapResolution, shadowmapResolution, shadowmapResolution));
+                cmd.DispatchCompute(m_ShadowsCompute, shadowsKernel, 200, 1, 1);
+                context.ExecuteCommandBuffer(cmd);
+            }
+        }
+
+        void DispatchShadowsKernelCompacted(string kernelName, ref ScriptableRenderContext context, ref CullResults cullResults, Camera camera, Matrix4x4 worldToLight, RenderTargetIdentifier target, int shadowmapResolution)
+        {
+            if (m_BvhContext == null)
+                return;
+
+            var kernel1 = m_ShadowsCompacted.FindKernel(ShadowsCompacted.Kernels.Step1);
+            var kernel2 = m_ShadowsCompacted.FindKernel(ShadowsCompacted.Kernels.Step2);
+            var kernel3 = m_ShadowsCompacted.FindKernel(ShadowsCompacted.Kernels.Step3);
+            var kernel4 = m_ShadowsCompacted.FindKernel(ShadowsCompacted.Kernels.Step4);
+
+            using (var cmd = new CommandBuffer { name = "BVH" })
+            {
+                cmd.BeginSample("Common");
+                cmd.SetRenderTarget(m_CameraColorRT, m_CameraDepthStencilRT);
+                cmd.SetComputeVectorParam(m_ShadowsCompacted, ShadowsCompacted.ZBufferParams, camera.GetZBufferParams(true));
+                cmd.SetComputeVectorParam(m_ShadowsCompacted, ShadowsCompacted.Light, cullResults.visibleLights[0].localToWorld.GetColumn(3));
+                cmd.SetComputeMatrix4x4Param(m_ShadowsCompacted, ShadowsCompacted.InverseView, camera.cameraToWorldMatrix);
+                cmd.SetComputeMatrix4x4Param(m_ShadowsCompacted, ShadowsCompacted.Projection, camera.projectionMatrix);
+                cmd.SetComputeMatrix4x4Param(m_ShadowsCompacted, ShadowsCompacted.WorldToLight, worldToLight);
+                cmd.SetComputeVectorParam(m_ShadowsCompacted, ShadowsCompacted.TargetTexSize, new Vector2(camera.pixelWidth, camera.pixelHeight));
+                cmd.SetComputeIntParams(m_ShadowsCompacted, ShadowsCompacted.TargetTexSize, camera.pixelWidth, camera.pixelHeight);
+                cmd.EndSample("Common");
+
+                cmd.BeginSample("Step 1");
+                cmd.SetComputeBufferParam(m_ShadowsCompacted, kernel1, ShadowsCompacted.Buffer, m_ShadowsBuffer);
+                cmd.SetComputeBufferParam(m_ShadowsCompacted, kernel1, ShadowsCompacted.GroupResultsBuffer, m_ShadowsGroupResultsBuffer);
+                cmd.SetComputeTextureParam(m_ShadowsCompacted, kernel1, ShadowsCompacted.DepthTexture, m_CameraDepthStencilRT);
+                cmd.SetComputeTextureParam(m_ShadowsCompacted, kernel1, ShadowsCompacted.NormalTexture, m_GBufferRT[2]);
+                cmd.SetComputeTextureParam(m_ShadowsCompacted, kernel1, ShadowsCompacted.TargetTexture, target);
+                cmd.SetComputeTextureParam(m_ShadowsCompacted, kernel1, ShadowsCompacted.ShadowmapTexture, m_ShadowmapRT);
+                cmd.DispatchCompute(m_ShadowsCompacted, kernel1, (camera.pixelWidth * camera.pixelHeight).CeilDiv(4096), 1, 1);
+                cmd.EndSample("Step 1");
+
+                cmd.BeginSample("Step 2");
+                cmd.SetComputeBufferParam(m_ShadowsCompacted, kernel2, ShadowsCompacted.GroupResultsBuffer, m_ShadowsGroupResultsBuffer);
+                cmd.DispatchCompute(m_ShadowsCompacted, kernel2, 1, 1, 1);
+                cmd.EndSample("Step 2");
+
+                cmd.BeginSample("Step 3");
+                cmd.SetComputeBufferParam(m_ShadowsCompacted, kernel3, ShadowsCompacted.Buffer, m_ShadowsBuffer);
+                cmd.SetComputeBufferParam(m_ShadowsCompacted, kernel3, ShadowsCompacted.GroupResultsBuffer, m_ShadowsGroupResultsBuffer);
+                cmd.SetComputeBufferParam(m_ShadowsCompacted, kernel3, ShadowsCompacted.IdBuffer, m_ShadowsIdBuffer);
+                cmd.DispatchCompute(m_ShadowsCompacted, kernel3, (camera.pixelWidth * camera.pixelHeight).CeilDiv(4096), 1, 1);
+                cmd.EndSample("Step 3");
+
+                cmd.BeginSample("Step 4");
+                cmd.SetComputeBufferParam(m_ShadowsCompacted, kernel4, ShadowsCompacted.NodeBuffer, m_BvhContext.nodesBuffer);
+                cmd.SetComputeBufferParam(m_ShadowsCompacted, kernel4, ShadowsCompacted.TriangleBuffer, m_BvhContext.trianglesBuffer);
+                cmd.SetComputeBufferParam(m_ShadowsCompacted, kernel4, ShadowsCompacted.VertexBuffer, m_BvhContext.verticesBuffer);
+                cmd.SetComputeTextureParam(m_ShadowsCompacted, kernel4, ShadowsCompacted.DepthTexture, m_CameraDepthStencilRT);
+                cmd.SetComputeTextureParam(m_ShadowsCompacted, kernel4, ShadowsCompacted.NormalTexture, m_GBufferRT[2]);
+                cmd.SetComputeTextureParam(m_ShadowsCompacted, kernel4, ShadowsCompacted.TargetTexture, target);
+                cmd.SetComputeBufferParam(m_ShadowsCompacted, kernel4, ShadowsCompacted.IdBuffer, m_ShadowsIdBuffer);
+                cmd.DispatchCompute(m_ShadowsCompacted, kernel4, (camera.pixelWidth * camera.pixelHeight).CeilDiv(64), 1, 1);
+                cmd.EndSample("Step 4");
+                //m_ZeroProgram.Dispatch(cmd, m_ShadowsGroupResultsBuffer, (camera.pixelWidth * camera.pixelHeight).CeilDiv(4096));
+
+                context.ExecuteCommandBuffer(cmd);
+            }
+
+            using (var cmd = new CommandBuffer { name = "BVH Step 1" })
+            {
+
+                context.ExecuteCommandBuffer(cmd);
+            }
+
+            using (var cmd = new CommandBuffer { name = "BVH Step 2" })
+            {
+
+                context.ExecuteCommandBuffer(cmd);
+            }
+
+            using (var cmd = new CommandBuffer { name = "BVH Step 3" })
+            {
+
+                context.ExecuteCommandBuffer(cmd);
+            }
+
+            using (var cmd = new CommandBuffer { name = "BVH Step 4" })
+            {
+
+                //cmd.SetComputeTextureParam(m_ShadowsCompute, shadowsKernel, "_ShadowmapTexture", m_ShadowmapRT);
                 context.ExecuteCommandBuffer(cmd);
             }
         }
@@ -453,11 +535,12 @@ namespace ShadowRenderPipeline
 
         public void Dispose()
         {
-            if (m_BvhContext != null)
-                m_BvhContext.Dispose();
+            m_BvhContext?.Dispose();
             m_BvhBuildDateTime = DateTime.MinValue;
-            if (m_WorkCounterBuffer != null)
-                m_WorkCounterBuffer.Dispose();
+            m_WorkCounterBuffer?.Dispose();
+            m_ShadowsBuffer?.Dispose();
+            m_ShadowsGroupResultsBuffer?.Dispose();
+            m_ShadowsIdBuffer?.Dispose();
             disposed = true;
         }
     }

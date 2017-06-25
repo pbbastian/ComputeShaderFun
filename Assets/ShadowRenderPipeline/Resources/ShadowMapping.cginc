@@ -78,6 +78,7 @@ fixed4 frag (v2f i) : SV_Target
     float4 occlusions = saturate(sign(lsPosition.zzzz - occluderDepths + 0.01));
     float occlusion = occlusions.r + occlusions.g + occlusions.b + occlusions.a;
     occlusion *= 0.25;
+    // occlusion = step(0.5, occlusion);
 
     // float3 normal = Normal(SampleGBuffer2(i.uv));
     // float3 lightPosition = globalLightPos[0].xyz;

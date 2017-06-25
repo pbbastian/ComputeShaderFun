@@ -1,0 +1,32 @@
+#if WARP_SIZE == 64
+#define GROUP_SIZE 1024
+#elif WARP_SIZE == 32
+#define GROUP_SIZE 992
+#else
+#define GROUP_SIZE 240
+#endif
+
+RWStructuredBuffer<int> g_PerThreadBuffer;
+StructuredBuffer<int> g_PerGroupBuffer;
+
+int g_Offset;
+int g_Limit;
+
+void GroupAdd(uint3 id, uint3 groupId)
+{
+    int dispatchId = (int) id.x;
+    uint dataIndex = g_Offset + dispatchId;
+    if (dispatchId < g_Limit)
+        g_PerThreadBuffer[dataIndex] += g_PerGroupBuffer[groupId.x];
+}
+
+#define VARIANT(NAME) [numthreads(GROUP_SIZE, 1, 1)] void NAME (uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID) { GroupAdd(id, groupId); }
+
+#pragma kernel Kernel_Warp64 WARP_SIZE=64
+VARIANT(Kernel_Warp64)
+
+#pragma kernel Kernel_Warp32 WARP_SIZE=32
+VARIANT(Kernel_Warp32)
+
+#pragma kernel Kernel_Warp16
+VARIANT(Kernel_Warp16)

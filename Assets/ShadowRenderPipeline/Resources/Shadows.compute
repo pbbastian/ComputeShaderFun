@@ -12,6 +12,7 @@ StructuredBuffer<IndexedTriangle> _Triangles;
 StructuredBuffer<float4> _Vertices;
 Texture2D<float4> _ShadowmapTexture;
 SamplerState sampler_ShadowmapTexture;
+float4 _ShadowmapTexture_TexelSize;
 float3 _Light;
 float2 _Size;
 float4x4 _Projection;
@@ -20,13 +21,12 @@ float4x4 _WorldToLight;
 uint _ThreadGroupCount;
 RWStructuredBuffer<uint> _WorkCounter;
 
-static const int _stackSize = 64;
+static const int _stackSize = 12;
 static const int _entrypointSentinel = 2147483647;
-static const int _rayBatchSize = 64;
-static const uint2 _clusterSize = {8, 4};
+static const uint2 _clusterSize = {8, 8};
+static const uint _batchSize = 1;
 static const uint _clusterLength = _clusterSize.x * _clusterSize.y;
-groupshared int _traversalStack[_stackSize * _clusterLength];
-groupshared int _offset[_clusterLength];
+groupshared int _shared[_stackSize * _clusterLength];
 
 int InterleavedIndex(int threadId, int index)
 {
@@ -65,7 +65,7 @@ bool Traverse(int threadId, Ray ray, float tmax, float tmin)
 				if (!traverseLeft)
 				{
 					// If neither child was intersected we pop the stack
-					nodeIndex = _traversalStack[InterleavedIndex(threadId, stackIndex)];
+					nodeIndex = _shared[InterleavedIndex(threadId, stackIndex)];
 					stackIndex--;
 					// stats.Pop(1);
 				}
@@ -81,7 +81,7 @@ bool Traverse(int threadId, Ray ray, float tmax, float tmin)
 					}
 
 					stackIndex++;
-					_traversalStack[InterleavedIndex(threadId, stackIndex)] = postponeIndex;
+					_shared[InterleavedIndex(threadId, stackIndex)] = postponeIndex;
 					// stats.Push(1);
 				}
 			}
@@ -104,7 +104,7 @@ bool Traverse(int threadId, Ray ray, float tmax, float tmin)
                 // t = candidate_t;
 			}
 
-			nodeIndex = _traversalStack[InterleavedIndex(threadId, stackIndex)];
+			nodeIndex = _shared[InterleavedIndex(threadId, stackIndex)];
 			stackIndex--;
 			// stats.Pop(1);
 		}
@@ -113,10 +113,9 @@ bool Traverse(int threadId, Ray ray, float tmax, float tmin)
     return false;
 }
 
-groupshared uint _localClusterId;
-groupshared uint _localClusterCount;
-
-static const uint _batchSize = 1;
+groupshared uint _batchId[2];
+groupshared uint _pixelOffset;
+groupshared uint _rayCount;
 
 float3 WorldToLight(float3 wsPosition)
 {
@@ -134,108 +133,210 @@ float3 WorldToLight(float3 wsPosition)
 
     lsPosition.z = (distanceToLight - near) / (far - near);
 
-#if defined(UNITY_REVERSED_Z)
-    lsPosition.z = min(1 - lsPosition.z, UNITY_NEAR_CLIP_VALUE);
-#else
-    lsPosition.z = max(lsPosition.z, UNITY_NEAR_CLIP_VALUE);
-#endif
+    #if defined(UNITY_REVERSED_Z)
+        lsPosition.z = min(1 - lsPosition.z, UNITY_NEAR_CLIP_VALUE);
+    #else
+        lsPosition.z = max(lsPosition.z, UNITY_NEAR_CLIP_VALUE);
+    #endif
 
     return lsPosition;
 }
 
+// groupshared int temp[_clusterLength];
+
+void WavePrefixSum(uint index)
+{
+    uint lane = index & (_clusterLength - 1);
+    if (lane >= 1)
+        _shared[index] = _shared[index - 1] + _shared[index];
+    if (lane >= 2)
+        _shared[index] = _shared[index - 2] + _shared[index];
+    if (lane >= 4)
+        _shared[index] = _shared[index - 4] + _shared[index];
+    if (lane >= 8)
+        _shared[index] = _shared[index - 8] + _shared[index];
+    if (_clusterLength >= 32 && lane >= 16)
+        _shared[index] = _shared[index - 16] + _shared[index];
+    if (_clusterLength >= 64 && lane >= 32)
+        _shared[index] = _shared[index - 32] + _shared[index];
+}
+
 void ShadowsKernel(uint3 did, uint3 tid, uint3 gid)
 {
+    // return;
 	uint2 size = (uint2) _Size;
-	uint2 clusterCount = (size+1) / _clusterSize;
+	uint2 clusterCount = (size) / _clusterSize + 1;
+    int flatThreadId = tid.x + tid.y * _clusterSize.x;
 
 	if (did.x == 0 && did.y == 0)
-		_WorkCounter[0] = _ThreadGroupCount;
+		_WorkCounter[0] = _ThreadGroupCount*2;
 
-	if (tid.x == 0 && tid.y == 0)
+	if (flatThreadId == 0)
 	{
-		_localClusterId = gid.x * _batchSize;
-		_localClusterCount = _batchSize;
+		_batchId[0] = gid.x * 2 * _batchSize;
+        _batchId[1] = gid.x * 2 * _batchSize + _batchSize;
+		_pixelOffset = 0;
+        _rayCount = 0;
 	}
 
-    int flatThreadId = tid.x + tid.y * _clusterSize.x;
-    _traversalStack[InterleavedIndex(flatThreadId, 0)] = _entrypointSentinel;
+    // Fake inclusive prefix sum calculation (or rather, we know what it would be if all is set to 1)
+    _shared[InterleavedIndex(flatThreadId, 0)] = flatThreadId + 1;
+    // GroupMemoryBarrierWithGroupSync();
 
-	while (true)
+	while (_batchId[0] < (clusterCount.x * clusterCount.y))
 	{
-		// Statistics stats = MakeStatistics();
-		if (_localClusterId >= (clusterCount.x * clusterCount.y))
-			break;
 
-		uint2 id;
-		id.x = (_localClusterId % clusterCount.x) * _clusterSize.x + tid.x;
-		id.y = (_localClusterId / clusterCount.x) * _clusterSize.y + tid.y;
 
-		if (id.x >= size.x || id.y >= size.y)
-			continue;
-
-        float2 uv = (((float2)id.xy + 0.5) / _Size);
-        float depth = LinearEyeDepth(_DepthTexture[id.xy].x);
-        float3 vsPosition = float3((uv * 2 - 1) / float2(_Projection._11, _Projection._22), -1) * depth;
-        float3 wsPosition = mul(_InverseView, float4(vsPosition, 1)).xyz;
-        float3 lsPosition = WorldToLight(wsPosition);
-        float3 direction = normalize(wsPosition - _Light);
-        float3 normal = normalize(_NormalTexture[id.xy].rgb * 2 - 1);
-
-        Ray ray = MakeRay(_Light, direction);
-        float tmax = (wsPosition - ray.origin) / ray.direction - 1e-1;
-        float tmin = 1e-3;
-        float t = tmax;
-
-        float shadowmapVisibility;
-
-        #if _PIXEL_CULLING
-
-        float4 occluderDepths = _ShadowmapTexture.Gather(sampler_ShadowmapTexture, float2(lsPosition.x * 0.5 + 0.5,  lsPosition.y * 0.5 + 0.5));
-        float4 visibilitySamples = saturate(sign(lsPosition.zzzz - occluderDepths + 1e-2));
-        shadowmapVisibility = (visibilitySamples.x + visibilitySamples.y + visibilitySamples.z + visibilitySamples.w) * 0.25;
-
-        float near = 0.2;
-        float far = 20;
-        float4 tsamples = ((1-occluderDepths) * (far - near) + near);
-        float depthbias = 5;
-
-        #else
-
-        shadowmapVisibility = 0.5;
-
-        #endif
-
-        float visibility;
-        if (shadowmapVisibility == 0 || depth > 20 - 1e-3 || dot(normal, direction) > 0)
+        // Find a pixel to trace
+        while (_rayCount < _clusterLength && _batchId[0] < (clusterCount.x * clusterCount.y))
         {
-            visibility = 0;
+            // Invariants at this point:
+            // _pixelOffset is within first cluster
+
+            // Stop trying to find more pixels if we're out of clusters
+            if (_batchId[0] >= (clusterCount.x * clusterCount.y))
+                break;
+
+            // Calculate index within available work
+            // uint pixelIndex = _pixelOffset + (flatThreadId > 0 ? _shared[flatThreadId-1] : 0);
+            uint pixelIndex = _pixelOffset + flatThreadId;
+
+            int batchIndex;
+            if (pixelIndex < _clusterLength * _batchSize)
+            {
+                batchIndex = 0;
+            }
+            else
+            {
+                batchIndex = 1;
+                pixelIndex -= _clusterLength * _batchSize;
+            }
+
+            int clusterId = _batchId[batchIndex] + pixelIndex / _clusterLength;
+            pixelIndex = pixelIndex % _clusterLength;
+            uint2 id;
+            id.x = (clusterId % clusterCount.x) * _clusterSize.x + (pixelIndex % _clusterSize.x);
+            id.y = (clusterId / clusterCount.x) * _clusterSize.y + (pixelIndex / _clusterSize.x);
+
+            _shared[InterleavedIndex(flatThreadId, 0)] = 0;
+
+            float3 direction = 0;
+            float tmin = 0, tmax = 0;
+            bool foundRay = false;
+            if (id.x < size.x && id.y < size.y)
+            {
+                float2 uv = (((float2)id.xy + 0.5) / _Size);
+                float depth = LinearEyeDepth(_DepthTexture[id.xy].x);
+                float3 vsPosition = float3((uv * 2 - 1) / float2(_Projection._11, _Projection._22), -1) * depth;
+                float3 wsPosition = mul(_InverseView, float4(vsPosition, 1)).xyz;
+                float3 lsPosition = WorldToLight(wsPosition);
+                direction = normalize(wsPosition - _Light);
+                float3 normal = normalize(_NormalTexture[id.xy].rgb * 2 - 1);
+
+                float4 occluderDepths = _ShadowmapTexture.Gather(sampler_ShadowmapTexture, float2(lsPosition.x * 0.5 + 0.5,  lsPosition.y * 0.5 + 0.5));
+                float4 visibilitySamples = saturate(sign(lsPosition.zzzz - occluderDepths + 1e-2));
+                float visibility = (visibilitySamples.x + visibilitySamples.y + visibilitySamples.z + visibilitySamples.w) * 0.25;
+
+                float near = 0.2;
+                float far = 20;
+                float4 tsamples = ((1-occluderDepths) * (far - near) + near);
+
+                if (depth > 20 - 1e-3 || dot(normal, direction) > 0)
+                    visibility = 0;
+
+                if (!(visibility < 1e-3 || visibility > (1 - 1e-3)))
+                {
+                    foundRay = true;
+                    _shared[InterleavedIndex(flatThreadId, 0)] = 1;
+                    tmax = (wsPosition - _Light) / direction - 1e-1;
+                    tmin = 1e-1;
+                    #if _SEGMENT_CULLING
+                        float4 tmax_candidates = (tsamples + 0.2) * (1 - visibilitySamples);
+                        tmax = min(tmax, max(tmax_candidates.x, max(tmax_candidates.y, max(tmax_candidates.z, tmax_candidates.w))));
+                        float4 tmin_candidates = (tsamples - 0.2) * (1 - visibilitySamples) + 10000 * visibilitySamples;
+                        tmin = min(tmin_candidates.x, min(tmin_candidates.y, min(tmin_candidates.z, tmin_candidates.w)));
+                    #endif
+                }
+                else
+                {
+                    tmax = visibility;
+                }
+            }
+
+            WavePrefixSum(flatThreadId);
+
+            if (flatThreadId == 0)
+                // This will be overwritten if any rays spill over, but otherwise we know that all pixels were consumed
+                // Due to the invariant of _pixelOffset being within the first cluster, this will always put it into the second cluster
+                _pixelOffset += _clusterLength;
+
+
+            // Exclusive prefix sum for current thread, i.e. how many rays were found before this one
+            uint rayIndex = flatThreadId == 0 ? 0 : _shared[flatThreadId-1];
+            if (foundRay)
+            {
+                // Is the wave needed for this round of traversal?
+                if ((_rayCount + rayIndex) < _clusterLength)
+                {
+                    int storageId = _rayCount + rayIndex;
+                    // int offset = _clusterLength + (_rayCount + rayIndex) * 6;
+                    _shared[InterleavedIndex(storageId, 1)] = id.x | (id.y << 16);
+                    // _shared[InterleavedIndex(storageId, 1)] = id.y;
+                    _shared[InterleavedIndex(storageId, 2)] = asuint(direction.x);
+                    _shared[InterleavedIndex(storageId, 3)] = asuint(direction.y);
+                    _shared[InterleavedIndex(storageId, 4)] = asuint(direction.z);
+                    _shared[InterleavedIndex(storageId, 5)] = asuint(tmax);
+                    _shared[InterleavedIndex(storageId, 6)] = asuint(tmin);
+                }
+                else if ((_rayCount + rayIndex) == _clusterLength)
+                {
+                    // As we cannot save rays for later, we'll have to sample shadow map etc. again in next ray finding iteration for all spilled rays.
+                    // Therefor we need to be in the thread of the first spilled ray to know from which pixel index we should start from next time.
+                    _pixelOffset = pixelIndex + _clusterLength * _batchSize * batchIndex;
+                }
+            }
+
+            if (!foundRay && (pixelIndex + _clusterLength * _batchSize * batchIndex) < _pixelOffset)
+                _TargetTex[id.xy] = tmax;
+                // _TargetTex[id.xy] = 0;
+
+            if (flatThreadId == 0)
+            {
+                if (_pixelOffset >= _clusterLength * _batchSize)
+                {
+                    // Fetch a new cluster if offset is in second cluster
+                    _batchId[0] = _batchId[1];
+                    if (_batchId[1] < (clusterCount.x * clusterCount.y))
+                    {
+                        _batchId[0] = _batchId[1];
+                        InterlockedAdd(_WorkCounter[0], _batchSize, _batchId[1]);
+                        _pixelOffset -= _clusterLength * _batchSize;
+                    }
+                }
+                _rayCount = min(_clusterLength, _rayCount + _shared[_clusterLength - 1]);
+            }
         }
-        else if (shadowmapVisibility == 1)
+
+        if (flatThreadId < _rayCount)
         {
-            visibility = 1;
-        }
-        else
-        {
-            #if _SEGMENT_CULLING
+            // int offset = _clusterLength + flatThreadId * 6;
+            uint packedId = _shared[InterleavedIndex(flatThreadId, 1)];
+            uint2 id = {packedId & ((1 << 16) - 1), (packedId >> 16) & ((1 << 16) - 1)};
+            float3 direction = {asfloat(_shared[InterleavedIndex(flatThreadId, 2)]), asfloat(_shared[InterleavedIndex(flatThreadId, 3)]), asfloat(_shared[InterleavedIndex(flatThreadId, 4)])};
+            // direction.z = sqrt(1 - dot(direction.xy, direction.xy));
+            float tmax = asfloat(_shared[InterleavedIndex(flatThreadId, 5)]);
+            float tmin = asfloat(_shared[InterleavedIndex(flatThreadId, 6)]);
 
-            float4 tmax_candidates = (tsamples + 0.19) * (1 - visibilitySamples);
-            tmax = max(tmax_candidates.x, max(tmax_candidates.y, max(tmax_candidates.z, tmax_candidates.w)));
-            float4 tmin_candidates = (tsamples - 0.19) * (1 - visibilitySamples) + 10000 * visibilitySamples;
-            tmin = min(tmin_candidates.x, min(tmin_candidates.y, min(tmin_candidates.z, tmin_candidates.w)));
-
-            #endif
-
-            visibility = Traverse(flatThreadId, ray, tmax, tmin) ? 0.0 : 1.0;
-
+            _shared[InterleavedIndex(flatThreadId, 0)] = _entrypointSentinel;
+            float ratio = (float)_rayCount/(float)_clusterLength;
+            // _TargetTex[id.xy] = float4(0, ratio, 0, 1);
+            _TargetTex[id.xy] = Traverse(flatThreadId, MakeRay(_Light, direction), tmax, tmin) ? 0.0 : 1.0;
         }
 
-		_TargetTex[id.xy] = visibility;
+        if (flatThreadId == 0)
+            _rayCount = 0;
 
-
-		if (tid.x == 0 && tid.y == 0)
-		{
-			InterlockedAdd(_WorkCounter[0], 1, _localClusterId);
-		}
+        _shared[InterleavedIndex(flatThreadId, 0)] = flatThreadId + 1;
 	}
 }
 
@@ -249,52 +350,3 @@ VARIANT(Shadows_PixelCulling)
 
 #pragma kernel Shadows_PixelCulling_SegmentCulling _PIXEL_CULLING _SEGMENT_CULLING
 VARIANT(Shadows_PixelCulling_SegmentCulling)
-
-// old junk
-
-// interface IStatistics
-// {
-//     void BoxIntersection(int n);
-//     void TriangleIntersection(int n);
-//     void Push(int n);
-//     void Pop(int n);
-// };
-
-// class Statistics : IStatistics
-// {
-//     int boxIntersections;
-//     int triangleIntersections;
-//     int pushes;
-//     int pops;
-
-//     void BoxIntersection(int n) { boxIntersections += n; }
-//     void TriangleIntersection(int n) { triangleIntersections += n; }
-//     void Push(int n) { pushes += n; }
-//     void Pop(int n) { pops += n; }
-// };
-
-// Statistics MakeStatistics()
-// {
-//     Statistics stats;
-//     stats.boxIntersections = 0;
-//     stats.triangleIntersections = 0;
-//     stats.pushes = 0;
-//     stats.pops = 0;
-//     return stats;
-// }
-
-// class FakeStatistics : IStatistics
-// {
-//     void BoxIntersection(int n) {}
-//     void TriangleIntersection(int n) {}
-//     void Push(int n) {}
-//     void Pop(int n) {}
-// };
-
-// struct TraversalStats
-// {
-//     int boxIntersections;
-//     int triangleIntersections;
-//     int pushes;
-//     int pops;
-// };
