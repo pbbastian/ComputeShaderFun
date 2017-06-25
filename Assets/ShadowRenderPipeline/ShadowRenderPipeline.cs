@@ -74,7 +74,7 @@ namespace ShadowRenderPipeline
             m_ShadowsCompacted = Resources.Load<ComputeShader>(ShadowsCompacted.Path);
             m_ShadowsBuffer = new StructuredBuffer<uint>(1920 * 1080, ShaderSizes.s_UInt);
             m_ShadowsGroupResultsBuffer = new StructuredBuffer<uint>((1920 * 1080).CeilDiv(4096), ShaderSizes.s_UInt);
-            m_ShadowsIdBuffer = new ComputeBuffer(1920 * 1080, ShaderSizes.s_UInt);
+            m_ShadowsIdBuffer = new ComputeBuffer(1920 * 1080, ShaderSizes.s_UInt*2);
 
             m_BvhBuildDateTime = DateTime.MinValue;
 
@@ -339,6 +339,7 @@ namespace ShadowRenderPipeline
                 cmd.SetComputeTextureParam(m_ShadowsCompacted, kernel4, ShadowsCompacted.NormalTexture, m_GBufferRT[2]);
                 cmd.SetComputeTextureParam(m_ShadowsCompacted, kernel4, ShadowsCompacted.TargetTexture, target);
                 cmd.SetComputeBufferParam(m_ShadowsCompacted, kernel4, ShadowsCompacted.IdBuffer, m_ShadowsIdBuffer);
+                //cmd.DispatchCompute(m_ShadowsCompacted, kernel4, m_ShadowsGroupResultsBuffer, (uint)(camera.pixelWidth * camera.pixelHeight)/1024); // (camera.pixelWidth * camera.pixelHeight).CeilDiv(64), 1, 1);
                 cmd.DispatchCompute(m_ShadowsCompacted, kernel4, (camera.pixelWidth * camera.pixelHeight).CeilDiv(64), 1, 1);
                 cmd.EndSample("Step 4");
                 //m_ZeroProgram.Dispatch(cmd, m_ShadowsGroupResultsBuffer, (camera.pixelWidth * camera.pixelHeight).CeilDiv(4096));

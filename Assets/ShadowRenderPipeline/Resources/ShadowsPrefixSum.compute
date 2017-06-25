@@ -12,7 +12,7 @@
 
 RWStructuredBuffer<uint> _Buffer;
 RWStructuredBuffer<uint> _GroupResultsBuffer;
-RWStructuredBuffer<uint> _IdBuffer;
+RWStructuredBuffer<uint2> _IdBuffer;
 
 StructuredBuffer<Bvh::Node> _Nodes;
 StructuredBuffer<IndexedTriangle> _Triangles;
@@ -169,10 +169,10 @@ uint GetGroupValue(uint index)
 void Step2(uint groupThreadId, uint dispatchThreadId, uint groupId)
 {
     uint dataIndex = dispatchThreadId*4;
-    uint3 data = {GetGroupValue(dataIndex + 0), GetGroupValue(dataIndex + 1), GetGroupValue(dataIndex + 2)};
+    uint4 data = {GetGroupValue(dataIndex + 0), GetGroupValue(dataIndex + 1), GetGroupValue(dataIndex + 2), GetGroupValue(dataIndex + 3)};
     uint warpId = groupThreadId >> LOG2_WAVE_SIZE;
 
-    temp[groupThreadId] = data.x + data.y + data.z + GetGroupValue(dataIndex + 3);
+    temp[groupThreadId] = data.x + data.y + data.z + data.w;
 
     WavePrefixSum(groupThreadId);
     uint lane = groupThreadId & (WAVE_SIZE - 1);
@@ -192,27 +192,28 @@ void Step2(uint groupThreadId, uint dispatchThreadId, uint groupId)
 
     uint length = (_TargetTex_Size.x * _TargetTex_Size.y + GROUP_SIZE) / (GROUP_SIZE);
     if (dataIndex + 0 < length)
-        _GroupResultsBuffer[dataIndex + 0] = val;
+        _GroupResultsBuffer[dataIndex + 0] = val + data.x;
     if (dataIndex + 1 < length)
-        _GroupResultsBuffer[dataIndex + 1] = val + data.x;
+        _GroupResultsBuffer[dataIndex + 1] = val + data.x + data.y;
     if (dataIndex + 2 < length)
-        _GroupResultsBuffer[dataIndex + 2] = val + data.x + data.y;
+        _GroupResultsBuffer[dataIndex + 2] = val + data.x + data.y + data.z;
     if (dataIndex + 3 < length)
-        _GroupResultsBuffer[dataIndex + 3] = val + data.x + data.y + data.z;
+        _GroupResultsBuffer[dataIndex + 3] = val + data.x + data.y + data.z + data.w;
 }
 
 void Step3(uint groupThreadId, uint dispatchThreadId, uint groupId)
 {
     uint dataIndex = dispatchThreadId*4;
-    uint groupPrefix = _GroupResultsBuffer[groupId];
+    uint groupPrefix = groupId == 0 ? 0 : _GroupResultsBuffer[groupId - 1];
     [unroll]
     for (uint index = dataIndex; index < dataIndex+4 && index < _TargetTex_Size.x * _TargetTex_Size.y; index++)
     {
         uint data = _Buffer[index];
         // Check MSB to see whether this index was filtered out
         if ((data & 2147483648) > 0)
-            // _IdBuffer[groupPrefix + (data & (~2147483648))] = uint2((index % _TargetTex_Size.x), (index / _TargetTex_Size.x));
-            _IdBuffer[groupPrefix + (data & (~2147483648))] = ((index % _TargetTex_Size.x) << 15) | (index / _TargetTex_Size.x);
+            _IdBuffer[groupPrefix + (data & (~2147483648))] = uint2((index % _TargetTex_Size.x), (index / _TargetTex_Size.x));
+            // _IdBuffer[groupPrefix + (data & (~2147483648))] = ((index % _TargetTex_Size.x) << 15) | (index / _TargetTex_Size.x);
+            // _IdBuffer[groupPrefix + (data & (~2147483648))] = ((index % _TargetTex_Size.x) << 15) | (index / _TargetTex_Size.x);
     }
 }
 
@@ -307,11 +308,9 @@ bool Traverse(int threadId, Ray ray, float tmax, float tmin)
 
 void Step4(uint dispatchThreadID, uint groupThreadID, uint groupID)
 {
-    if (dispatchThreadID >= _TargetTex_Size.x * _TargetTex_Size.y)
-        return;
-    uint packedId = _IdBuffer[dispatchThreadID];
-    uint2 id = {packedId >> 15, packedId & ((1 << 15) - 1)};
-    // uint2 id = _IdBuffer[dispatchThreadID];
+    uint2 id = _IdBuffer[dispatchThreadID];
+    // uint packedId = _IdBuffer[dispatchThreadID];
+    // uint2 id = {packedId >> 15, packedId & ((1 << 15) - 1)};
     float depth = LinearEyeDepth(_DepthTexture[id].x);
     float2 uv = (((float2)id + 0.5) / _TargetTex_Size);
     float3 vsPosition = float3((uv * 2 - 1) / float2(_Projection._11, _Projection._22), -1) * depth;
