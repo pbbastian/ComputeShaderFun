@@ -22,8 +22,8 @@ MonoBehaviour:
     m_PixelCulling: 1
     m_SegmentCulling: 1
   m_DebugSettings:
-    m_DebugEnabled: 0
-    m_OutputBuffer: 0
+    m_DebugEnabled: 1
+    m_OutputBuffer: 7
   m_AntiAliasingSettings:
     m_AntiAliasingEnabled: 0
     m_Preset:

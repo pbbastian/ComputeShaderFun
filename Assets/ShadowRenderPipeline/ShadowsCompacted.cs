@@ -34,6 +34,7 @@ namespace Assets.ShadowRenderPipeline
         public static readonly string Buffer = "_Buffer";
         public static readonly string GroupResultsBuffer = "_GroupResultsBuffer";
         public static readonly string IdBuffer = "_IdBuffer";
+        public static readonly string IndirectBuffer = "_IndirectBuffer";
         public static readonly string ShadowmapTexture = "_ShadowmapTexture";
     }
 }

@@ -5,6 +5,8 @@ namespace ShadowRenderPipeline
     public static class ShadowsCompute
     {
         public static readonly string Path = "Shadows";
+        public static readonly string PathWD1 = "Shadows_WD1";
+        public static readonly string PathWD2 = "Shadows_WD2";
 
         public static class Kernels
         {

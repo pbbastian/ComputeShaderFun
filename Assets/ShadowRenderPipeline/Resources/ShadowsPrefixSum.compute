@@ -13,6 +13,7 @@
 RWStructuredBuffer<uint> _Buffer;
 RWStructuredBuffer<uint> _GroupResultsBuffer;
 RWStructuredBuffer<uint2> _IdBuffer;
+RWStructuredBuffer<uint> _IndirectBuffer;
 
 StructuredBuffer<Bvh::Node> _Nodes;
 StructuredBuffer<IndexedTriangle> _Triangles;
@@ -29,7 +30,7 @@ float4x4 _WorldToLight;
 float3 _Light;
 uint2 _TargetTex_Size;
 
-groupshared int temp[GROUP_SIZE];
+groupshared uint temp[GROUP_SIZE];
 
 static const int k_GroupCount = (_TargetTex_Size.x * _TargetTex_Size.y + GROUP_SIZE) / (GROUP_SIZE);
 
@@ -79,6 +80,8 @@ void WavePrefixSum(uint index)
             temp[index] = temp[index - 32] + temp[index];
     #endif
 }
+
+static const uint2 k_ClusterSize = {8, 8};
 
 uint GetPixelValue(uint index)
 {
@@ -161,7 +164,7 @@ void Step1(uint groupThreadId, uint dispatchThreadId, uint groupId)
 
 uint GetGroupValue(uint index)
 {
-    if (index >= (_TargetTex_Size.x * _TargetTex_Size.y + GROUP_SIZE) / (GROUP_SIZE))
+    if (index >= (_TargetTex_Size.x * _TargetTex_Size.y + GROUP_SIZE*4) / (GROUP_SIZE*4))
         return 0;
     return _GroupResultsBuffer[index];
 }
@@ -190,7 +193,7 @@ void Step2(uint groupThreadId, uint dispatchThreadId, uint groupId)
     if (warpId > 0)
         val = val + temp[warpId - 1];
 
-    uint length = (_TargetTex_Size.x * _TargetTex_Size.y + GROUP_SIZE) / (GROUP_SIZE);
+    uint length = (_TargetTex_Size.x * _TargetTex_Size.y + GROUP_SIZE*4) / (GROUP_SIZE*4);
     if (dataIndex + 0 < length)
         _GroupResultsBuffer[dataIndex + 0] = val + data.x;
     if (dataIndex + 1 < length)
@@ -199,6 +202,14 @@ void Step2(uint groupThreadId, uint dispatchThreadId, uint groupId)
         _GroupResultsBuffer[dataIndex + 2] = val + data.x + data.y + data.z;
     if (dataIndex + 3 < length)
         _GroupResultsBuffer[dataIndex + 3] = val + data.x + data.y + data.z + data.w;
+
+    if (dispatchThreadId == ((_TargetTex_Size.x * _TargetTex_Size.y)/(1024*4*4) - 1))
+    {
+        _IndirectBuffer[0] = ((val + data.x + data.y + data.z + data.w) + 64) / 64;
+        _IndirectBuffer[1] = 1;
+        _IndirectBuffer[2] = 1;
+        // _IndirectBuffer[3] = (val + data.x + data.y + data.z + data.w);
+    }
 }
 
 void Step3(uint groupThreadId, uint dispatchThreadId, uint groupId)
@@ -212,7 +223,6 @@ void Step3(uint groupThreadId, uint dispatchThreadId, uint groupId)
         // Check MSB to see whether this index was filtered out
         if ((data & 2147483648) > 0)
             _IdBuffer[groupPrefix + (data & (~2147483648))] = uint2((index % _TargetTex_Size.x), (index / _TargetTex_Size.x));
-            // _IdBuffer[groupPrefix + (data & (~2147483648))] = ((index % _TargetTex_Size.x) << 15) | (index / _TargetTex_Size.x);
             // _IdBuffer[groupPrefix + (data & (~2147483648))] = ((index % _TargetTex_Size.x) << 15) | (index / _TargetTex_Size.x);
     }
 }
@@ -273,6 +283,9 @@ bool Traverse(int threadId, Ray ray, float tmax, float tmin)
                         postponeIndex = node.left;
                     }
 
+                    if (stackIndex == _stackSize - 1)
+                        return false;
+
                     stackIndex++;
                     _shared[InterleavedIndex(threadId, stackIndex)] = postponeIndex;
                     // stats.Push(1);
@@ -308,6 +321,10 @@ bool Traverse(int threadId, Ray ray, float tmax, float tmin)
 
 void Step4(uint dispatchThreadID, uint groupThreadID, uint groupID)
 {
+    uint limit = _GroupResultsBuffer[((_TargetTex_Size.x * _TargetTex_Size.y)/(1024*4)) - 1];
+    // _Buffer[dispatchThreadID] = limit;
+    // if (dispatchThreadID >= limit)
+    //     return;
     uint2 id = _IdBuffer[dispatchThreadID];
     // uint packedId = _IdBuffer[dispatchThreadID];
     // uint2 id = {packedId >> 15, packedId & ((1 << 15) - 1)};
@@ -319,6 +336,7 @@ void Step4(uint dispatchThreadID, uint groupThreadID, uint groupID)
     float tmax = (wsPosition - _Light) / direction - 1e-1;
     float tmin = 1e-1;
     _shared[InterleavedIndex(groupThreadID, 0)] = _entrypointSentinel;
+    // if (dispatchThreadID < limit)
     _TargetTex[id] = Traverse(groupThreadID, MakeRay(_Light, direction), tmax, tmin) ? 0.0 : 1.0;
 }
 
